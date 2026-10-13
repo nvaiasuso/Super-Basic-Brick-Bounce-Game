@@ -15,6 +15,33 @@
         <button type="button" id="menu-controls">Controls</button>
         <button type="button" id="menu-admin">Admin Tools</button>
       </div>
+      <section class="lobby-panel" aria-label="Online lobby">
+        <h2>Play Together</h2>
+        <div id="lobby-setup" class="lobby-fields">
+          <label>Player name
+            <input id="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="Player">
+          </label>
+          <button type="button" id="lobby-create">Make a Lobby</button>
+          <label>Lobby code
+            <input id="lobby-code-input" type="text" maxlength="6" autocomplete="off" placeholder="ABC123">
+          </label>
+          <button type="button" id="lobby-join">Join Lobby</button>
+        </div>
+        <p id="lobby-status" role="status" aria-live="polite">Create a lobby or enter a friend's code.</p>
+        <section id="lobby-room" class="lobby-room" aria-label="Lobby room" hidden>
+          <div class="lobby-room-heading">
+            <span>ROOM CODE</span>
+            <output id="lobby-code-output"></output>
+            <button type="button" id="lobby-copy" aria-label="Copy lobby code">Copy</button>
+          </div>
+          <ul id="lobby-player-list" aria-label="Players in lobby"></ul>
+          <div class="lobby-room-actions">
+            <button type="button" id="lobby-ready" aria-pressed="false" hidden>Ready</button>
+            <button type="button" id="lobby-start" disabled hidden>Start Game</button>
+            <button type="button" id="lobby-leave">Leave Lobby</button>
+          </div>
+        </section>
+      </section>
     </section>
     <canvas id="game" width="600" height="450" aria-label="Block Breaker game" hidden></canvas>
     <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Break every outlined brick, avoid the striped killbricks and red laser warnings, and clear all 8 levels. Dodge the nextbots' warning beams; in a battle, rotate the shield with left/right to keep the ball inside the moving ring. Catch falling power-ups with the paddle. Toggle Nextbot AI in Admin Tools for automatic dodging and shield tracking. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
@@ -64,5 +91,8 @@
   <script src="next%20bots/nextbots.js"></script>
   <script src="bricks.js"></script>
   <script src="collisions.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="multiplayer.js"></script>
 </body>
 </html>

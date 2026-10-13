@@ -72,6 +72,101 @@ p {
   gap: 8px;
 }
 
+.lobby-panel {
+  max-width: 480px;
+  margin: 20px auto 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.lobby-panel h2 {
+  margin: 0 0 12px;
+  color: var(--theme-accent, #fff);
+  font-size: 16px;
+}
+
+.lobby-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  text-align: left;
+}
+
+.lobby-fields label {
+  display: grid;
+  gap: 4px;
+}
+
+.lobby-fields input {
+  min-width: 0;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font: inherit;
+  text-transform: none;
+}
+
+.lobby-fields input:focus-visible {
+  outline: 2px solid var(--theme-accent, #fff);
+  outline-offset: 2px;
+}
+
+#lobby-status {
+  min-height: 1.5em;
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+.lobby-room {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  text-align: left;
+}
+
+.lobby-room[hidden] {
+  display: none;
+}
+
+.lobby-room-heading,
+.lobby-room-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lobby-room-heading output {
+  color: var(--theme-accent, #fff);
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.lobby-room ul {
+  display: grid;
+  gap: 5px;
+  min-height: 28px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lobby-room li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .key-bindings {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -153,4 +248,14 @@ button:focus-visible {
 
 .admin-actions button {
   margin: 0;
+}
+
+@media (max-width: 480px) {
+  .lobby-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lobby-fields button {
+    width: 100%;
+  }
 }

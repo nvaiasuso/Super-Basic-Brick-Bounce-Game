@@ -146,6 +146,10 @@ let gameOver = false;
 let gameWon = false;
 let invincible = false;
 let gameStarted = false;
+let multiplayerActive = false;
+let multiplayerHost = false;
+let multiplayerPlayerId = null;
+let multiplayerPlayers = [];
 
 
 // ------------------------------------------------------------
@@ -263,6 +267,82 @@ function beginGame() {
   gameInfo.hidden = false;
   lastTime = performance.now();
 }
+
+function setMultiplayerSession(active, isHost = false, playerId = null) {
+  multiplayerActive = active;
+  multiplayerHost = isHost;
+  multiplayerPlayerId = playerId;
+  multiplayerPlayers = [];
+}
+
+function setMultiplayerPlayers(players) {
+  multiplayerPlayers = Array.isArray(players) ? players : [];
+}
+
+function beginLobbyGame(isHost, playerId) {
+  beginGame();
+  setMultiplayerSession(true, isHost, playerId);
+}
+
+function endLobbyGame() {
+  setMultiplayerSession(false);
+  showMainMenu();
+}
+
+function getLobbyGameSnapshot() {
+  return {
+    level: level,
+    lives: lives,
+    gameOver: gameOver,
+    gameWon: gameWon,
+    mola: mola,
+    brickHitStreak: brickHitStreak,
+    ball: Object.assign({}, ball),
+    extraBalls: extraBalls.map(function (activeBall) { return Object.assign({}, activeBall); }),
+    bricks: bricks.map(function (brick) { return Object.assign({}, brick); }),
+    aiPaddles: aiPaddles.map(function (bot) {
+      return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color };
+    }),
+    powerUps: powerUps.map(function (powerUp) { return Object.assign({}, powerUp); }),
+    lasers: lasers.map(function (laser) { return Object.assign({}, laser); }),
+    widePaddleTimer: widePaddleTimer,
+    slowBallTimer: slowBallTimer,
+    powerUpNotice: powerUpNotice ? Object.assign({}, powerUpNotice) : null,
+    nextBotState: getNextBotMultiplayerState()
+  };
+}
+
+function arrayFromLobbySnapshot(value) {
+  if (Array.isArray(value)) return value;
+  return value && typeof value === "object" ? Object.values(value) : [];
+}
+
+function applyLobbyGameSnapshot(state) {
+  if (!state || multiplayerHost) return;
+  level = state.level || 0;
+  lives = state.lives || 0;
+  gameOver = Boolean(state.gameOver);
+  gameWon = Boolean(state.gameWon);
+  mola = state.mola || 0;
+  brickHitStreak = state.brickHitStreak || 0;
+  if (state.ball) Object.assign(ball, state.ball);
+  extraBalls = arrayFromLobbySnapshot(state.extraBalls).map(function (activeBall) { return Object.assign({}, activeBall); });
+  bricks = arrayFromLobbySnapshot(state.bricks).map(function (brick) { return Object.assign({}, brick); });
+  aiPaddles = arrayFromLobbySnapshot(state.aiPaddles).map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
+  powerUps = arrayFromLobbySnapshot(state.powerUps).map(function (powerUp) { return Object.assign({}, powerUp); });
+  lasers = arrayFromLobbySnapshot(state.lasers).map(function (laser) { return Object.assign({}, laser); });
+  widePaddleTimer = state.widePaddleTimer || 0;
+  slowBallTimer = state.slowBallTimer || 0;
+  powerUpNotice = state.powerUpNotice ? Object.assign({}, state.powerUpNotice) : null;
+  setNextBotMultiplayerState(state.nextBotState);
+}
+
+window.beginLobbyGame = beginLobbyGame;
+window.endLobbyGame = endLobbyGame;
+window.setMultiplayerSession = setMultiplayerSession;
+window.setMultiplayerPlayers = setMultiplayerPlayers;
+window.getLobbyGameSnapshot = getLobbyGameSnapshot;
+window.applyLobbyGameSnapshot = applyLobbyGameSnapshot;
 
 function toggleAdminMenu() {
   if (!adminMenu) return;
@@ -458,9 +538,22 @@ document.addEventListener("keyup", function (event) {
 // what they touched.
 // ------------------------------------------------------------
 function update() {
-  if (!gameStarted || gameOver || gameWon || paused) {
+  if (!gameStarted || paused) {
     return;
   }
+
+  if (multiplayerActive && !multiplayerHost) {
+    if (!gameOver && !gameWon) {
+      paddle.previousX = paddle.x;
+      paddle.previousY = paddle.y;
+      paddle.previousAngle = paddle.angle;
+      movePaddle();
+    }
+    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x);
+    return;
+  }
+
+  if (gameOver || gameWon) return;
 
   if (isNextBotBattleActive()) {
     updateNextBotBattle();
@@ -471,6 +564,7 @@ function update() {
   paddle.previousY = paddle.y;
   paddle.previousAngle = paddle.angle;
   movePaddle();
+  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x);
   if (isNextBotAIEnabled()) updateNextBotAI();
   updateNextBots();
   updateTemporaryPowerUps();
@@ -488,6 +582,7 @@ function update() {
     if (bounceOffAiPaddles(activeBall)) {
       // AI paddles bounce the ball too
     }
+    if (multiplayerActive) bounceOffMultiplayerPaddles(activeBall);
     if (bounceOffBricks(activeBall)) {
       return;
     }
@@ -757,6 +852,24 @@ function bounceOffAiPaddles(activeBall) {
   return false;
 }
 
+function bounceOffMultiplayerPaddles(activeBall) {
+  for (const player of multiplayerPlayers) {
+    if (player.id === multiplayerPlayerId) continue;
+    const remotePaddle = {
+      x: player.x,
+      y: paddle.y,
+      width: paddle.width,
+      height: paddle.height,
+      angle: 0,
+      previousX: player.x,
+      previousY: paddle.y,
+      previousAngle: 0
+    };
+    if (bounceOffPaddle(activeBall, remotePaddle)) return true;
+  }
+  return false;
+}
+
 // ------------------------------------------------------------
 // DRAW: paints everything on the canvas. Black background,
 // white shapes.
@@ -810,6 +923,17 @@ function draw() {
   ctx.fillStyle = paddle.color || skin.paddle;
   ctx.fillRect(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height);
   ctx.restore();
+  if (multiplayerActive) {
+    for (const player of multiplayerPlayers) {
+      if (player.id === multiplayerPlayerId) continue;
+      ctx.fillStyle = player.color || skin.accent;
+      ctx.fillRect(player.x, paddle.y, paddle.width, paddle.height);
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.font = "10px Courier New";
+      ctx.fillText(player.name || "PLAYER", player.x + paddle.width / 2, paddle.y - 6);
+    }
+  }
   for (const bot of aiPaddles) {
     ctx.fillStyle = bot.color || skin.accent;
     ctx.fillRect(bot.x, bot.y, bot.width, bot.height);

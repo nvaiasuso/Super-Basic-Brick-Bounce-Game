@@ -87,6 +87,45 @@ function selectNextBots() {
   nextBotBanner = null;
 }
 
+function getNextBotMultiplayerState() {
+  let battle = null;
+  if (nextBotBattle) {
+    battle = {
+      botName: nextBotBattle.bot.name,
+      time: nextBotBattle.time,
+      centerX: nextBotBattle.centerX,
+      centerY: nextBotBattle.centerY,
+      centerVX: nextBotBattle.centerVX,
+      centerVY: nextBotBattle.centerVY,
+      radius: nextBotBattle.radius,
+      shieldAngle: nextBotBattle.shieldAngle,
+      ballX: nextBotBattle.ballX,
+      ballY: nextBotBattle.ballY,
+      ballVX: nextBotBattle.ballVX,
+      ballVY: nextBotBattle.ballVY
+    };
+  }
+  return {
+    bots: nextBots.map(function (bot) { return Object.assign({}, bot); }),
+    battle: battle,
+    banner: nextBotBanner ? Object.assign({}, nextBotBanner) : null,
+    cooldown: nextBotCooldown,
+    ai: nextBotAI
+  };
+}
+
+function setNextBotMultiplayerState(state) {
+  if (!state) return;
+  const bots = Array.isArray(state.bots) ? state.bots : Object.values(state.bots || {});
+  nextBots = bots.map(function (bot) { return Object.assign({}, bot); });
+  nextBotBattle = state.battle ? Object.assign({}, state.battle, {
+    bot: nextBots.find(function (bot) { return bot.name === state.battle.botName; }) || { name: state.battle.botName, accent: "#fff" }
+  }) : null;
+  nextBotBanner = state.banner ? Object.assign({}, state.banner) : null;
+  nextBotCooldown = state.cooldown || 0;
+  if (nextBotAI !== Boolean(state.ai)) setNextBotAI(Boolean(state.ai));
+}
+
 function setNextBotsForLevel(currentLevel) {
   const targetCount = currentLevel < 2 ? 0 : Math.min(MAX_ACTIVE_NEXTBOTS, Math.floor((currentLevel + 1) / 2));
   while (nextBots.length < targetCount) spawnNextBot();
