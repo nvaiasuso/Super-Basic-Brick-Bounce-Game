@@ -8,12 +8,57 @@
 </head>
 <body>
   <main>
-    <canvas id="game" width="600" height="450" aria-label="Block Breaker game"></canvas>
-    <p>Move the paddle with the left and right arrow keys, or A and D.</p>
+    <section id="main-menu" class="controls main-menu" aria-label="Main menu">
+      <h1>BLOCK BREAKER</h1>
+      <div class="main-menu-actions">
+        <button type="button" id="start-game">Start Game</button>
+        <button type="button" id="menu-controls">Controls</button>
+        <button type="button" id="menu-admin">Admin Tools</button>
+      </div>
+    </section>
+    <canvas id="game" width="600" height="450" aria-label="Block Breaker game" hidden></canvas>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Break every outlined brick, avoid the striped killbricks, and clear all 8 levels. Dodge the nextbots' warning beams; in a battle, rotate the shield with left/right to keep the ball inside the moving ring. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <section id="control-menu" class="controls" aria-label="Game controls" hidden>
+      <h2 id="control-title">Paused — Controls</h2>
+      <div class="key-bindings">
+        <label>Move left <button type="button" data-control="left">←</button></label>
+        <label>Move right <button type="button" data-control="right">→</button></label>
+        <label>Tilt left <button type="button" data-control="tiltLeft">↓</button></label>
+        <label>Tilt right <button type="button" data-control="tiltRight">↑</button></label>
+      </div>
+      <label class="skin-picker">
+        Skin
+        <select id="skin-select">
+          <option value="0">Classic</option>
+          <option value="1">Neon Pink</option>
+          <option value="2">Laser Blue</option>
+          <option value="3">Sunset Gold</option>
+        </select>
+      </label>
+      <button type="button" id="autoplay" aria-pressed="false">Auto-play: Off</button>
+      <button type="button" id="resume">Resume</button>
+      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
+    </section>
+    <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
+      <h2>Admin Tools</h2>
+      <div class="admin-actions">
+        <button type="button" data-admin="ball">Add ball</button>
+        <button type="button" data-admin="break">Break block</button>
+        <button type="button" data-admin="ai">Spawn AI paddle</button>
+        <button type="button" data-admin="kill-ai">Kill AI paddle</button>
+        <button type="button" data-admin="test">Test mode</button>
+        <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
+        <button type="button" data-admin="life">Add life</button>
+        <button type="button" data-admin="level">Next level</button>
+        <button type="button" data-admin="restart">Reset game</button>
+        <button type="button" data-admin="menu">Main menu</button>
+      </div>
+    </section>
   </main>
 
   <!-- The order matters: game.js goes first because the other files use its settings. -->
   <script src="game.js"></script>
+  <script src="next%20bots/nextbots.js"></script>
   <script src="bricks.js"></script>
   <script src="collisions.js"></script>
 </body>

@@ -9,7 +9,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--theme-bg, #000);
   color: #fff;
   font-family: "Courier New", monospace;
 }
@@ -33,4 +33,99 @@ p {
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.controls {
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+.controls h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.main-menu {
+  padding: 18px 0;
+}
+
+.main-menu h1 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.main-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.key-bindings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.key-bindings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+button {
+  min-width: 44px;
+  padding: 6px 10px;
+  border: 1px solid #fff;
+  background: #000;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+#autoplay {
+  margin-bottom: 8px;
+}
+
+.controls small {
+  display: block;
+  line-height: 1.5;
+}
+
+.skin-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.skin-picker select {
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.admin-actions button {
+  margin: 0;
 }
