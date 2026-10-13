@@ -128,11 +128,66 @@ function bounceOffPaddle(activeBall, targetPaddle = paddle) {
   return true;
 }
 
+function breakBrickAt(index, activeBall, triggerNeighbors = true) {
+  const brick = bricks[index];
+  if (!brick || brick.isKill || brick.hidden) return;
+  triggerBrickBreak(brick);
+  if (brick.type !== "boss") dropPowerUp(brick);
+  brickHitStreak++;
+  const scoreMultiplier = activeBall.perfect ? 2 : 1;
+  activeBall.perfect = false;
+  mola += 10 * brickHitStreak * scoreMultiplier;
+  recordHighScore();
+  playBrickSound();
+  if (brickHitStreak > 1) {
+    comboNotice = { text: "x" + brickHitStreak + " COMBO", timer: 36 };
+  }
+  if (brickHitStreak >= MULTIBALL_HIT_STREAK) {
+    brickHitStreak = 0;
+    spawnExtraBall(activeBall);
+  }
+
+  if (brick.type === "boss") {
+    brick.hp--;
+    if (brick.hp > 0 && brick.hp % 3 === 0) dropBossKillbrick(brick);
+    if (brick.hp > 0) return;
+    dropPowerUp(brick);
+  }
+
+  if (brick.type === "regenerating") {
+    brick.hidden = true;
+    brick.respawnAt = simulationFrame + 480;
+    brick.hp = brick.maxHp || 1;
+    brick.damaged = false;
+  } else {
+    bricks.splice(index, 1);
+  }
+
+  if (triggerNeighbors && brick.type === "explosive") {
+    const centerX = brick.x + brick.width / 2;
+    const centerY = brick.y + brick.height / 2;
+    const neighbors = [];
+    for (let neighborIndex = 0; neighborIndex < bricks.length; neighborIndex++) {
+      const neighbor = bricks[neighborIndex];
+      if (neighbor.isKill || neighbor.hidden) continue;
+      const dx = Math.abs(neighbor.x + neighbor.width / 2 - centerX);
+      const dy = Math.abs(neighbor.y + neighbor.height / 2 - centerY);
+      if (dx <= brick.width + 8 && dy <= brick.height + 8 && (dx > 0 || dy > 0)) {
+        neighbors.push(neighbor);
+      }
+    }
+    for (const neighbor of neighbors) {
+      const neighborIndex = bricks.indexOf(neighbor);
+      if (neighborIndex >= 0) breakBrickAt(neighborIndex, activeBall, false);
+    }
+  }
+}
+
 function bounceOffBricks(activeBall) {
   for (let i = 0; i < bricks.length; i++) {
     const brick = bricks[i];
 
-    if (!boxesTouch(activeBall, brick)) {
+    if (brick.hidden || !boxesTouch(activeBall, brick)) {
       continue;
     }
 
@@ -166,14 +221,12 @@ function bounceOffBricks(activeBall) {
       }
     }
 
-    bricks.splice(i, 1);
-    dropPowerUp(brick);
-    mola += 1;
-    brickHitStreak++;
-    if (brickHitStreak >= MULTIBALL_HIT_STREAK) {
-      brickHitStreak = 0;
-      spawnExtraBall(activeBall);
+    if (brick.type === "armored" && brick.hp > 1) {
+      brick.hp--;
+      brick.damaged = true;
+      break;
     }
+    breakBrickAt(i, activeBall);
     break;
   }
 }
@@ -207,6 +260,7 @@ function projectToPaddle(source, sourceBricks) {
     let hit = false;
     for (let i = 0; i < projectedBricks.length; i++) {
       const brick = projectedBricks[i];
+      if (brick.hidden) continue;
       if (!boxesTouch(projectedBall, brick)) continue;
       if (brick.isKill) {
         return {
@@ -286,6 +340,7 @@ function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
 
     for (let i = 0; i < remaining.length; i++) {
       const brick = remaining[i];
+      if (brick.hidden) continue;
       if (!boxesTouch(shotBall, brick)) continue;
       if (brick.isKill) return broken * 10 - 100;
 
