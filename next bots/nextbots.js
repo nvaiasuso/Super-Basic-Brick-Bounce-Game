@@ -7,47 +7,134 @@ const NEXTBOT_ROSTER = [
   { name: "VAPOR", color: "#2dd4bf", accent: "#f472b6", speed: 1.25 },
   { name: "PRISM", color: "#fb7185", accent: "#93c5fd", speed: 1.40 },
   { name: "CHROMA", color: "#4ade80", accent: "#fef08a", speed: 1.50 },
-  { name: "NEBULA", color: "#818cf8", accent: "#f472b6", speed: 1.30 }
+  { name: "NEBULA", color: "#818cf8", accent: "#f472b6", speed: 1.30 },
+  { name: "SPECTRUM", color: "#ec4899", accent: "#3b82f6", speed: 1.30 },
+  { name: "GLITCH", color: "#10b981", accent: "#f43f5e", speed: 1.65 },
+  { name: "COSMOS", color: "#6366f1", accent: "#ec4899", speed: 1.15 },
+  { name: "OASIS", color: "#14b8a6", accent: "#f59e0b", speed: 1.25 },
+  { name: "MAGMA", color: "#dc2626", accent: "#facc15", speed: 1.50 },
+  { name: "QUARTZ", color: "#f472b6", accent: "#c084fc", speed: 1.10 },
+  { name: "HYDRA", color: "#06b6d4", accent: "#10b981", speed: 1.40 },
+  { name: "ZENITH", color: "#3b82f6", accent: "#a7f3d0", speed: 1.20 },
+  { name: "VORTEX", color: "#8b5cf6", accent: "#f472b6", speed: 1.55 },
+  { name: "BLAZE", color: "#f97316", accent: "#ef4444", speed: 1.45 },
+  { name: "MIRAGE", color: "#0d9488", accent: "#fef08a", speed: 1.35 },
+  { name: "NOVA", color: "#ec4899", accent: "#facc15", speed: 1.70 },
+  { name: "NEON", color: "#22c55e", accent: "#06b6d4", speed: 1.60 },
+  { name: "SHADOW", color: "#64748b", accent: "#94a3b8", speed: 1.05 },
+  { name: "SIREN", color: "#df1c5a", accent: "#ffbeb3", speed: 1.38 },
+  { name: "TITAN", color: "#4f46e5", accent: "#f472b6", speed: 1.22 },
+  { name: "FROST", color: "#38bdf8", accent: "#e2e8f0", speed: 1.12 },
+  { name: "TROPIC", color: "#059669", accent: "#fbbf24", speed: 1.28 },
+  { name: "STRATA", color: "#78350f", accent: "#fcd34d", speed: 1.00 },
+  { name: "VELVET", color: "#be185d", accent: "#6366f1", speed: 0.34 }
+
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
+const MAX_ACTIVE_NEXTBOTS = 4;
 const BATTLE_DURATION = 720;
+const BATTLE_START_RADIUS = 148;
+const BATTLE_END_RADIUS = 112;
 
 let nextBots = [];
 let nextBotBattle = null;
 let nextBotCooldown = 0;
 let nextBotBanner = null;
+let nextBotAI = false;
+
+function makeNextBot(definition, index) {
+  return Object.assign({}, definition, {
+    x: index % 2 === 0 ? 80 : WIDTH - 80,
+    y: 115 + Math.random() * 95,
+    targetX: 70 + Math.random() * (WIDTH - 140),
+    targetY: 100 + Math.random() * 170,
+    mode: "walk",
+    thinkTimer: 110 + Math.random() * 150,
+    phaseTimer: 0,
+    angle: 0,
+    dashVX: 0,
+    dashVY: 0
+  });
+}
+
+function spawnNextBot() {
+  if (nextBots.length >= MAX_ACTIVE_NEXTBOTS) return null;
+  const available = NEXTBOT_ROSTER.filter(function (definition) {
+    return !nextBots.some(function (bot) { return bot.name === definition.name; });
+  });
+  const roster = available.length > 0 ? available : NEXTBOT_ROSTER;
+  const definition = roster[Math.floor(Math.random() * roster.length)];
+  const bot = makeNextBot(definition, nextBots.length);
+  nextBots.push(bot);
+  return bot;
+}
+
+function removeNextBot() {
+  const removed = nextBots.pop();
+  if (removed && nextBotBattle && nextBotBattle.bot === removed) {
+    nextBotBattle = null;
+  }
+  return removed;
+}
 
 function selectNextBots() {
-  const shuffled = NEXTBOT_ROSTER.slice();
-  for (let index = shuffled.length - 1; index > 0; index--) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-  }
-
-  nextBots = shuffled.slice(0, 2).map(function (definition, index) {
-    return Object.assign({}, definition, {
-      x: index === 0 ? 80 : WIDTH - 80,
-      y: 115 + Math.random() * 95,
-      targetX: 70 + Math.random() * (WIDTH - 140),
-      targetY: 100 + Math.random() * 170,
-      mode: "walk",
-      thinkTimer: 110 + Math.random() * 150,
-      phaseTimer: 0,
-      angle: 0,
-      dashVX: 0,
-      dashVY: 0
-    });
-  });
+  nextBots = [];
   nextBotBattle = null;
   nextBotCooldown = 0;
   nextBotBanner = null;
 }
 
+function setNextBotsForLevel(currentLevel) {
+  const targetCount = currentLevel < 2 ? 0 : Math.min(MAX_ACTIVE_NEXTBOTS, Math.floor((currentLevel + 1) / 2));
+  while (nextBots.length < targetCount) spawnNextBot();
+  while (nextBots.length > targetCount) removeNextBot();
+}
+
 function isNextBotBattleActive() {
   return nextBotBattle !== null;
+}
+
+function isNextBotAttackActive() {
+  return nextBots.some(function (bot) {
+    return bot.mode === "telegraph" || bot.mode === "dash";
+  });
+}
+
+function isNextBotAIEnabled() {
+  return nextBotAI;
+}
+
+function setNextBotAI(enabled) {
+  nextBotAI = enabled;
+  const button = document.getElementById("nextbot-ai-toggle");
+  if (button) {
+    button.setAttribute("aria-pressed", String(nextBotAI));
+    button.textContent = "Nextbot AI: " + (nextBotAI ? "On" : "Off");
+  }
+}
+
+function updateNextBotAI() {
+  for (const bot of nextBots) {
+    if (bot.mode !== "telegraph" && bot.mode !== "dash") continue;
+
+    const directionX = bot.mode === "dash" ? bot.dashVX / NEXTBOT_DASH_SPEED : Math.cos(bot.angle);
+    const directionY = bot.mode === "dash" ? bot.dashVY / NEXTBOT_DASH_SPEED : Math.sin(bot.angle);
+    if (Math.abs(directionY) < 1e-6) continue;
+
+    const targetY = paddle.y + paddle.height / 2;
+    const distance = (targetY - bot.y) / directionY;
+    if (distance < 0) continue;
+    const impactX = bot.x + directionX * distance;
+    if (impactX < paddle.x - 30 || impactX > paddle.x + paddle.width + 30) continue;
+
+    const safeX = impactX < WIDTH / 2 ? WIDTH - paddle.width : 0;
+    const movement = Math.max(-12, Math.min(12, safeX - paddle.x));
+    paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x + movement));
+    return;
+  }
 }
 
 function updateNextBots() {
@@ -138,7 +225,7 @@ function beginNextBotBattle(bot) {
   const centerX = WIDTH / 2;
   const centerY = HEIGHT / 2;
   const shieldAngle = -Math.PI / 2;
-  const radius = 116;
+  const radius = BATTLE_START_RADIUS;
   const ballAngle = shieldAngle;
   nextBotBattle = {
     bot: bot,
@@ -159,10 +246,14 @@ function beginNextBotBattle(bot) {
 function updateNextBotBattle() {
   const battle = nextBotBattle;
   battle.time++;
-  battle.radius = 116 - Math.min(1, battle.time / BATTLE_DURATION) * 34;
+  battle.radius = BATTLE_START_RADIUS - Math.min(1, battle.time / BATTLE_DURATION) * (BATTLE_START_RADIUS - BATTLE_END_RADIUS);
 
-  if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
-  if (keys[CONTROL_KEYS.right]) battle.shieldAngle += 0.14;
+  if (nextBotAI) {
+    steerBattleShieldAI(battle);
+  } else {
+    if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
+    if (keys[CONTROL_KEYS.right]) battle.shieldAngle += 0.14;
+  }
 
   battle.centerX += battle.centerVX;
   battle.centerY += battle.centerVY;
@@ -208,6 +299,31 @@ function updateNextBotBattle() {
   if (battle.time >= BATTLE_DURATION) finishNextBotBattle(true);
 }
 
+function steerBattleShieldAI(battle) {
+  const relativeX = battle.ballX - battle.centerX;
+  const relativeY = battle.ballY - battle.centerY;
+  const relativeVX = battle.ballVX - battle.centerVX;
+  const relativeVY = battle.ballVY - battle.centerVY;
+  const velocitySquared = relativeVX * relativeVX + relativeVY * relativeVY;
+  if (velocitySquared < 1e-8) return;
+
+  const radius = battle.radius - 7;
+  const b = 2 * (relativeX * relativeVX + relativeY * relativeVY);
+  const c = relativeX * relativeX + relativeY * relativeY - radius * radius;
+  const discriminant = b * b - 4 * velocitySquared * c;
+  if (discriminant < 0) return;
+
+  const impactTime = (-b + Math.sqrt(discriminant)) / (2 * velocitySquared);
+  const impactX = relativeX + relativeVX * impactTime;
+  const impactY = relativeY + relativeVY * impactTime;
+  const impactAngle = Math.atan2(impactY, impactX);
+  const angleDifference = Math.atan2(
+    Math.sin(impactAngle - battle.shieldAngle),
+    Math.cos(impactAngle - battle.shieldAngle)
+  );
+  battle.shieldAngle += Math.max(-0.2, Math.min(0.2, angleDifference));
+}
+
 function finishNextBotBattle(won) {
   const defeatedBot = nextBotBattle.bot;
   nextBotBattle = null;
@@ -223,7 +339,7 @@ function finishNextBotBattle(won) {
 
   if (won) {
     mola++;
-    spawnExtraBall(ball);
+    spawnBattleRewardBall();
   } else {
     loseLife();
   }
@@ -287,7 +403,7 @@ function drawNextBotBattle() {
   ctx.fillText("" + battle.bot.name + " // CONTAINMENT", WIDTH / 2, 29);
   ctx.fillStyle = "white";
   ctx.font = "13px Courier New";
-  ctx.fillText("ROTATE SHIELD  |  " + ((BATTLE_DURATION - battle.time) / 60).toFixed(1) + "s", WIDTH / 2, 49);
+  ctx.fillText((nextBotAI ? "AI SHIELD" : "LEFT / RIGHT: SHIELD") + "  |  " + ((BATTLE_DURATION - battle.time) / 60).toFixed(1) + "s", WIDTH / 2, 49);
 
   ctx.beginPath();
   ctx.arc(battle.centerX, battle.centerY, battle.radius, 0, Math.PI * 2);

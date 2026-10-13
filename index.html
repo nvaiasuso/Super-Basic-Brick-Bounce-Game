@@ -17,7 +17,7 @@
       </div>
     </section>
     <canvas id="game" width="600" height="450" aria-label="Block Breaker game" hidden></canvas>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Break every outlined brick, avoid the striped killbricks, and clear all 8 levels. Dodge the nextbots' warning beams; in a battle, rotate the shield with left/right to keep the ball inside the moving ring. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Break every outlined brick, avoid the striped killbricks and red laser warnings, and clear all 8 levels. Dodge the nextbots' warning beams; in a battle, rotate the shield with left/right to keep the ball inside the moving ring. Catch falling power-ups with the paddle. Toggle Nextbot AI in Admin Tools for automatic dodging and shield tracking. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="control-menu" class="controls" aria-label="Game controls" hidden>
       <h2 id="control-title">Paused — Controls</h2>
       <div class="key-bindings">
@@ -48,6 +48,9 @@
         <button type="button" data-admin="kill-ai">Kill AI paddle</button>
         <button type="button" data-admin="test">Test mode</button>
         <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
+        <button type="button" id="nextbot-ai-toggle" data-admin="nextbot-ai" aria-pressed="false">Nextbot AI: Off</button>
+        <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
+        <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
         <button type="button" data-admin="life">Add life</button>
         <button type="button" data-admin="level">Next level</button>
         <button type="button" data-admin="restart">Reset game</button>

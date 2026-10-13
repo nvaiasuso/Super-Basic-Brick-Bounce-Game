@@ -10,6 +10,10 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--theme-bg, #000);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
   color: #fff;
   font-family: "Courier New", monospace;
 }
@@ -25,8 +29,9 @@ canvas {
   display: block;
   width: 100%;
   height: auto;
-  border: 2px solid #fff;
+  border: 2px solid var(--theme-accent, #fff);
   background: #000;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
 p {
@@ -51,11 +56,13 @@ p {
 
 .main-menu {
   padding: 18px 0;
+  border-bottom: 1px solid var(--theme-accent, #fff);
 }
 
 .main-menu h1 {
   margin: 0 0 16px;
   font-size: 24px;
+  color: var(--theme-accent, #fff);
 }
 
 .main-menu-actions {
@@ -87,11 +94,29 @@ button {
   color: #fff;
   font: inherit;
   cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+button:hover {
+  border-color: var(--theme-accent, #fff);
+  background: var(--theme-accent, #fff);
+  color: #000;
+}
+
+button[aria-pressed="true"] {
+  border-color: var(--theme-accent, #fff);
+  color: var(--theme-accent, #fff);
 }
 
 button:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
 }
 
 #autoplay {

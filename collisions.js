@@ -167,6 +167,7 @@ function bounceOffBricks(activeBall) {
     }
 
     bricks.splice(i, 1);
+    dropPowerUp(brick);
     mola += 1;
     brickHitStreak++;
     if (brickHitStreak >= MULTIBALL_HIT_STREAK) {

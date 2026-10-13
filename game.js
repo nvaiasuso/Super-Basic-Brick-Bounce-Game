@@ -20,6 +20,9 @@ const HEIGHT = canvas.height; // 450
 // A positive vy means the ball is moving DOWN the screen.
 // ------------------------------------------------------------
 const BALL_SPEED = 4;
+const EXTRA_BALL_COLOR = "#55ff78";
+const BASE_PADDLE_WIDTH = 90;
+const POWERUP_DROP_CHANCE = 0.22;
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
@@ -48,6 +51,11 @@ let extraBalls = [];
 let brickHitStreak = 0;
 let mola = 0;
 let aiPaddles = [];
+let powerUps = [];
+let widePaddleTimer = 0;
+let slowBallTimer = 0;
+let powerUpNotice = null;
+let lasers = [];
 
 const ball = {
   x: 0,
@@ -71,6 +79,7 @@ function applySkin(nextSkinIndex = currentSkin) {
   paddle.accent = skin.accent;
   if (typeof document !== "undefined") {
     document.documentElement.style.setProperty("--theme-bg", skin.background);
+    document.documentElement.style.setProperty("--theme-accent", skin.accent);
     const skinSelect = document.getElementById("skin-select");
     if (skinSelect) {
       skinSelect.value = String(currentSkin);
@@ -90,7 +99,7 @@ function resetBall() {
 
 function spawnExtraBall(sourceBall) {
   const angle = (extraBalls.length % 2 === 0 ? 1 : -1) * Math.PI / 6;
-  const speed = Math.hypot(sourceBall.vx, sourceBall.vy);
+  const speed = Math.hypot(sourceBall.vx, sourceBall.vy) || BALL_SPEED;
   const extraBall = {
     x: sourceBall.x,
     y: sourceBall.y,
@@ -98,6 +107,7 @@ function spawnExtraBall(sourceBall) {
     previousY: sourceBall.y,
     width: sourceBall.width,
     height: sourceBall.height,
+    color: EXTRA_BALL_COLOR,
     vx: sourceBall.vx * Math.cos(angle) - sourceBall.vy * Math.sin(angle),
     vy: sourceBall.vx * Math.sin(angle) + sourceBall.vy * Math.cos(angle)
   };
@@ -105,6 +115,29 @@ function spawnExtraBall(sourceBall) {
   extraBall.vx *= speed / extraSpeed;
   extraBall.vy *= speed / extraSpeed;
   extraBalls.push(extraBall);
+}
+
+function spawnBattleRewardBall() {
+  const speed = Math.max(BALL_SPEED, Math.hypot(ball.vx, ball.vy));
+  let x = WIDTH / 2 - ball.width / 2;
+  let y = HEIGHT * 0.56;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    x = 18 + Math.random() * (WIDTH - ball.width - 36);
+    y = HEIGHT * 0.48 + Math.random() * (HEIGHT * 0.24);
+    if (Math.hypot(x - ball.x, y - ball.y) >= 80) break;
+  }
+  const angle = Math.random() * Math.PI * 2;
+  extraBalls.push({
+    x: x,
+    y: y,
+    previousX: x,
+    previousY: y,
+    width: ball.width,
+    height: ball.height,
+    color: EXTRA_BALL_COLOR,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed
+  });
 }
 
 let level = 0;
@@ -292,6 +325,7 @@ function breakNearestBrick() {
   bricks = bricks.filter(function (brick) {
     return brick !== target;
   });
+  dropPowerUp(target);
   mola += 1;
   brickHitStreak = 0;
 }
@@ -330,6 +364,12 @@ for (const adminButton of document.querySelectorAll("[data-admin]")) {
     } else if (action === "invincibility") {
       invincible = !invincible;
       refreshInvincibilityButton();
+    } else if (action === "nextbot-ai") {
+      setNextBotAI(!isNextBotAIEnabled());
+    } else if (action === "spawn-nextbot") {
+      spawnNextBot();
+    } else if (action === "remove-nextbot") {
+      removeNextBot();
     } else if (action === "life") {
       lives++;
       if (gameOver) {
@@ -431,7 +471,11 @@ function update() {
   paddle.previousY = paddle.y;
   paddle.previousAngle = paddle.angle;
   movePaddle();
+  if (isNextBotAIEnabled()) updateNextBotAI();
   updateNextBots();
+  updateTemporaryPowerUps();
+  updatePowerUps();
+  if (updateLasers()) return;
 
   updateAiPaddles();
 
@@ -503,8 +547,169 @@ function movePaddle() {
 function moveBall(activeBall) {
   activeBall.previousX = activeBall.x;
   activeBall.previousY = activeBall.y;
-  activeBall.x += activeBall.vx;
-  activeBall.y += activeBall.vy;
+  const attackScale = isNextBotAttackActive() ? 0.68 : 1;
+  const powerUpScale = slowBallTimer > 0 ? 0.72 : 1;
+  activeBall.x += activeBall.vx * attackScale * powerUpScale;
+  activeBall.y += activeBall.vy * attackScale * powerUpScale;
+}
+
+function dropPowerUp(brick) {
+  if (Math.random() > POWERUP_DROP_CHANCE) return;
+  const kinds = [
+    { type: "wide", label: "W", color: "#4fe6ff" },
+    { type: "slow", label: "S", color: "#ffd166" },
+    { type: "multi", label: "+", color: EXTRA_BALL_COLOR },
+    { type: "life", label: "1UP", color: "#ff6b6b" }
+  ];
+  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  powerUps.push({
+    x: brick.x + brick.width / 2 - 11,
+    y: brick.y + brick.height / 2 - 11,
+    width: 22,
+    height: 22,
+    speed: 2.4,
+    type: kind.type,
+    label: kind.label,
+    color: kind.color
+  });
+}
+
+function applyPowerUp(powerUp) {
+  if (powerUp.type === "wide") {
+    const center = paddle.x + paddle.width / 2;
+    paddle.width = Math.min(145, BASE_PADDLE_WIDTH + 45);
+    paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, center - paddle.width / 2));
+    widePaddleTimer = 600;
+    powerUpNotice = { text: "WIDE PADDLE", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "slow") {
+    slowBallTimer = 480;
+    powerUpNotice = { text: "SLOW BALL", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "multi") {
+    if (extraBalls.length < 5) spawnExtraBall(ball);
+    powerUpNotice = { text: "MULTIBALL", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "life") {
+    lives = Math.min(STARTING_LIVES + 3, lives + 1);
+    powerUpNotice = { text: "+1 LIFE", timer: 100, color: powerUp.color };
+  }
+}
+
+function updatePowerUps() {
+  for (let index = powerUps.length - 1; index >= 0; index--) {
+    const powerUp = powerUps[index];
+    powerUp.y += powerUp.speed;
+    const caught = powerUp.x < paddle.x + paddle.width &&
+      powerUp.x + powerUp.width > paddle.x &&
+      powerUp.y < paddle.y + paddle.height &&
+      powerUp.y + powerUp.height > paddle.y;
+    if (caught) {
+      applyPowerUp(powerUp);
+      powerUps.splice(index, 1);
+    } else if (powerUp.y > HEIGHT) {
+      powerUps.splice(index, 1);
+    }
+  }
+}
+
+function updateTemporaryPowerUps() {
+  if (widePaddleTimer > 0 && --widePaddleTimer === 0) {
+    const center = paddle.x + paddle.width / 2;
+    paddle.width = BASE_PADDLE_WIDTH;
+    paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, center - paddle.width / 2));
+  }
+  if (slowBallTimer > 0) slowBallTimer--;
+  if (powerUpNotice && --powerUpNotice.timer <= 0) powerUpNotice = null;
+}
+
+function createLevelLasers(currentLevel) {
+  if (currentLevel < 3) return [];
+  const count = Math.min(3, Math.floor((currentLevel - 1) / 2));
+  return Array.from({ length: count }, function (_, index) {
+    return {
+      x: 60 + Math.random() * (WIDTH - 120),
+      mode: "idle",
+      timer: 110 + index * 100 + Math.random() * 90,
+      hitRegistered: false
+    };
+  });
+}
+
+function updateLasers() {
+  for (const laser of lasers) {
+    if (laser.mode === "idle") {
+      if (--laser.timer <= 0) {
+        laser.mode = "warning";
+        laser.timer = 54;
+        laser.hitRegistered = false;
+      }
+    } else if (laser.mode === "warning") {
+      if (--laser.timer <= 0) {
+        laser.mode = "firing";
+        laser.timer = 18;
+      }
+    } else if (--laser.timer <= 0) {
+      laser.mode = "idle";
+      laser.timer = 130 + Math.random() * 120;
+    }
+
+    if (laser.mode === "firing" && !laser.hitRegistered) {
+      laser.hitRegistered = true;
+      if (!invincible && laser.x >= paddle.x && laser.x <= paddle.x + paddle.width) {
+        loseLife();
+        return true;
+      }
+      const beamWidth = 7;
+      const hitMainBall = ball.x < laser.x + beamWidth && ball.x + ball.width > laser.x - beamWidth;
+      if (!invincible && hitMainBall) {
+        loseLife();
+        return true;
+      }
+      extraBalls = extraBalls.filter(function (activeBall) {
+        return activeBall.x >= laser.x + beamWidth || activeBall.x + activeBall.width <= laser.x - beamWidth;
+      });
+    }
+  }
+  return false;
+}
+
+function drawPowerUps() {
+  for (const powerUp of powerUps) {
+    ctx.save();
+    ctx.translate(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = powerUp.color;
+    ctx.shadowColor = powerUp.color;
+    ctx.shadowBlur = 10;
+    ctx.fillRect(-powerUp.width / 2, -powerUp.height / 2, powerUp.width, powerUp.height);
+    ctx.restore();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#000";
+    ctx.textAlign = "center";
+    ctx.font = "bold 9px Courier New";
+    ctx.fillText(powerUp.label, powerUp.x + powerUp.width / 2, powerUp.y + 14);
+  }
+}
+
+function drawLasers() {
+  for (const laser of lasers) {
+    if (laser.mode === "idle") continue;
+    ctx.save();
+    ctx.strokeStyle = laser.mode === "warning" ? "#ff3030" : "#ff4d2e";
+    ctx.shadowColor = "#ff2020";
+    ctx.shadowBlur = laser.mode === "warning" ? 9 : 22;
+    ctx.globalAlpha = laser.mode === "warning" ? 0.55 + Math.sin(Date.now() / 60) * 0.35 : 1;
+    ctx.lineWidth = laser.mode === "warning" ? 3 : 13;
+    ctx.beginPath();
+    ctx.moveTo(laser.x, 0);
+    ctx.lineTo(laser.x, HEIGHT);
+    ctx.stroke();
+    if (laser.mode === "firing") {
+      ctx.strokeStyle = "#fff2df";
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
 function updateAiPaddles() {
@@ -557,10 +762,25 @@ function bounceOffAiPaddles(activeBall) {
 // white shapes.
 // ------------------------------------------------------------
 function draw() {
-  ctx.fillStyle = "black";
+  const skin = getCurrentSkin();
+  ctx.fillStyle = skin.background;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const skin = getCurrentSkin();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+  ctx.lineWidth = 1;
+  for (let x = 24; x < WIDTH; x += 48) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, HEIGHT);
+    ctx.stroke();
+  }
+  for (let y = 24; y < HEIGHT; y += 48) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(WIDTH, y);
+    ctx.stroke();
+  }
+
   ctx.fillStyle = "white";
   ctx.font = "16px Courier New";
   ctx.textAlign = "left";
@@ -573,6 +793,11 @@ function draw() {
   ctx.fillText("MOLA " + mola, 16, 64);
   ctx.textAlign = "right";
   ctx.fillText("BALLS " + (extraBalls.length + 1), WIDTH - 16, 46);
+  if (slowBallTimer > 0 || isNextBotAttackActive()) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText(isNextBotAttackActive() ? "NEXTBOT SLOW-MO" : "SLOW BALL", WIDTH / 2, 24);
+  }
   if (invincible) {
     ctx.fillStyle = "#ffd166";
     ctx.fillText("INVINCIBLE", WIDTH - 16, 64);
@@ -590,12 +815,25 @@ function draw() {
     ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
   }
   for (const activeBall of [ball].concat(extraBalls)) {
-    ctx.fillStyle = activeBall.color || skin.ball;
+    const ballColor = activeBall === ball ? (activeBall.color || skin.ball) : EXTRA_BALL_COLOR;
+    ctx.fillStyle = ballColor;
+    ctx.shadowColor = ballColor;
+    ctx.shadowBlur = activeBall === ball ? 7 : 13;
     ctx.fillRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
   }
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
 
   drawBricks();  // bricks.js
+  drawPowerUps();
+  drawLasers();
   drawNextBots();
+  if (powerUpNotice) {
+    ctx.fillStyle = powerUpNotice.color;
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px Courier New";
+    ctx.fillText(powerUpNotice.text, WIDTH / 2, 90);
+  }
 
   if (gameOver || gameWon) {
     ctx.fillStyle = "black";
@@ -642,6 +880,9 @@ function advanceLevel() {
   }
   level++;
   bricks = makeBricks(level);
+  setNextBotsForLevel(level);
+  lasers = createLevelLasers(level);
+  powerUps = [];
   resetBall();
 }
 
@@ -657,8 +898,15 @@ function restartGame() {
   autoPlanCooldown = 0;
   brickHitStreak = 0;
   extraBalls = [];
+  powerUps = [];
+  widePaddleTimer = 0;
+  slowBallTimer = 0;
+  powerUpNotice = null;
+  paddle.width = BASE_PADDLE_WIDTH;
   selectNextBots();
   bricks = makeBricks(level);
+  setNextBotsForLevel(level);
+  lasers = createLevelLasers(level);
   resetBall();
 }
 
