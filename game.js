@@ -408,11 +408,16 @@ function setMultiplayerSession(active, isHost = false, playerId = null) {
   multiplayerHost = isHost;
   multiplayerPlayerId = playerId;
   multiplayerPlayers = [];
+  if (!active) {
+    paddle.y = HEIGHT - 30;
+    paddle.width = BASE_PADDLE_WIDTH;
+    paddle.angle = 0;
+  }
 }
 
 function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
-  if (!multiplayerActive) return;
+  if (!multiplayerActive || multiplayerHost) return;
   const localPlayer = multiplayerPlayers.find(function (player) { return player.id === multiplayerPlayerId; });
   if (!localPlayer) return;
   if (Number.isFinite(localPlayer.x)) paddle.x = localPlayer.x;
@@ -981,7 +986,6 @@ function updatePowerUps() {
     const powerUp = powerUps[index];
     powerUp.y += powerUp.speed;
     let catcherId = multiplayerActive ? multiplayerPlayerId : null;
-    let catchingPaddle = paddle;
     let caught = powerUp.x < paddle.x + paddle.width &&
       powerUp.x + powerUp.width > paddle.x &&
       powerUp.y < paddle.y + paddle.height &&
@@ -996,7 +1000,6 @@ function updatePowerUps() {
             powerUp.y + powerUp.height > playerY) {
           caught = true;
           catcherId = player.id;
-          catchingPaddle = player;
           break;
         }
       }
@@ -1018,7 +1021,7 @@ function updateTemporaryPowerUps() {
   }
   if (multiplayerActive && multiplayerHost) {
     for (const player of multiplayerPlayers) {
-      if (player.id === multiplayerPlayerId || player.ai || player.widePaddleTimer <= 0) continue;
+      if (player.id === multiplayerPlayerId || player.ai || (player.widePaddleTimer || 0) <= 0) continue;
       player.widePaddleTimer--;
       if (player.widePaddleTimer === 0) {
         const center = player.x + player.width / 2;
@@ -1197,17 +1200,17 @@ function bounceOffMultiplayerPaddles(activeBall) {
     if (player.id === multiplayerPlayerId || player.ai) continue;
     const remotePaddle = {
       x: player.x,
-      y: paddle.y,
-      width: paddle.width,
+      y: Number.isFinite(player.y) ? player.y : paddle.y - 30,
+      width: Number.isFinite(player.width) ? player.width : BASE_PADDLE_WIDTH,
       height: paddle.height,
-      angle: 0,
-      previousX: player.x,
-      previousY: paddle.y,
-      previousAngle: 0
+      angle: Number.isFinite(player.angle) ? player.angle : 0,
+      previousX: Number.isFinite(player.previousX) ? player.previousX : player.x,
+      previousY: Number.isFinite(player.previousY) ? player.previousY : (Number.isFinite(player.y) ? player.y : paddle.y - 30),
+      previousAngle: Number.isFinite(player.previousAngle) ? player.previousAngle : (Number.isFinite(player.angle) ? player.angle : 0)
     };
-    if (bounceOffPaddle(activeBall, remotePaddle)) return true;
+    if (bounceOffPaddle(activeBall, remotePaddle)) return player.id;
   }
-  return false;
+  return null;
 }
 
 // ------------------------------------------------------------
@@ -1282,12 +1285,18 @@ function draw() {
   if (multiplayerActive) {
     for (const player of multiplayerPlayers) {
       if (player.id === multiplayerPlayerId || player.ai) continue;
+      const playerY = Number.isFinite(player.y) ? player.y : paddle.y - 30;
+      const playerWidth = Number.isFinite(player.width) ? player.width : BASE_PADDLE_WIDTH;
+      ctx.save();
+      ctx.translate(player.x + playerWidth / 2, playerY + paddle.height / 2);
+      ctx.rotate((player.angle || 0) * Math.PI / 180);
       ctx.fillStyle = player.color || skin.accent;
-      ctx.fillRect(player.x, paddle.y, paddle.width, paddle.height);
+      ctx.fillRect(-playerWidth / 2, -paddle.height / 2, playerWidth, paddle.height);
+      ctx.restore();
       ctx.fillStyle = "white";
       ctx.textAlign = "center";
       ctx.font = "10px Courier New";
-      ctx.fillText(player.name || "PLAYER", player.x + paddle.width / 2, paddle.y - 6);
+      ctx.fillText(player.name || "PLAYER", player.x + playerWidth / 2, playerY - 6);
     }
   }
   for (const bot of aiPaddles) {

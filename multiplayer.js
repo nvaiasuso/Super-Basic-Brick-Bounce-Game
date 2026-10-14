@@ -286,4 +286,4 @@ window.setInterval(function () {
   } catch (error) {
     setLobbyStatus("Game sync paused after a network error. Leave and rejoin the lobby to continue.");
   }
-}, 100);
+}, 33);

@@ -133,6 +133,7 @@ function createLobby(socket, message) {
   player.x = 255;
   player.previousX = player.x;
   player.y = 420;
+  player.previousY = player.y;
   player.width = 90;
   player.angle = 0;
   player.previousAngle = 0;
@@ -160,6 +161,7 @@ function joinLobby(socket, message) {
   player.x = 255;
   player.previousX = player.x;
   player.y = 390;
+  player.previousY = player.y;
   player.width = 90;
   player.angle = 0;
   player.previousAngle = 0;
@@ -234,6 +236,7 @@ function handleMessage(socket, message) {
       ? Math.max(-35, Math.min(35, message.angle))
       : player.angle;
     player.previousX = player.x;
+    player.previousY = player.y;
     player.previousAngle = player.angle;
     player.width = width;
     player.angle = angle;
@@ -246,6 +249,7 @@ function handleMessage(socket, message) {
           x: player.x,
           previousX: player.previousX,
           y: player.y,
+          previousY: player.previousY,
           width: player.width,
           angle: player.angle,
           previousAngle: player.previousAngle
