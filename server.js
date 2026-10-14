@@ -178,6 +178,11 @@ function handleMessage(socket, message) {
   const player = clients.get(socket);
   if (!player) return;
 
+  if (message.type === "ping" && Number.isFinite(message.t)) {
+    send(socket, { type: "pong", t: message.t });
+    return;
+  }
+
   if (message.type === "create") return createLobby(socket, message);
   if (message.type === "join") return joinLobby(socket, message);
   if (message.type === "leave") return removePlayer(socket, true);

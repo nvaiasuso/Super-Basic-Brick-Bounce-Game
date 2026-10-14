@@ -284,6 +284,12 @@ let multiplayerActive = false;
 let multiplayerHost = false;
 let multiplayerPlayerId = null;
 let multiplayerPlayers = [];
+const LOBBY_INTERPOLATION_DELAY_MS = 100;
+const LOBBY_SNAPSHOT_BUFFER_SIZE = 5;
+let lobbySnapshotBuffer = [];
+let lobbySnapshotSequence = 0;
+let lobbyInterpolationSnaps = 0;
+let lastInterpolationSnapPair = null;
 
 
 // ------------------------------------------------------------
@@ -411,6 +417,10 @@ function setMultiplayerSession(active, isHost = false, playerId = null) {
   multiplayerHost = isHost;
   multiplayerPlayerId = playerId;
   multiplayerPlayers = [];
+  lobbySnapshotBuffer = [];
+  lobbySnapshotSequence = 0;
+  lobbyInterpolationSnaps = 0;
+  lastInterpolationSnapPair = null;
   if (!active) {
     paddle.y = HEIGHT - 30;
     paddle.width = BASE_PADDLE_WIDTH;
@@ -467,6 +477,7 @@ function endLobbyGame() {
 
 function getLobbyGameSnapshot() {
   return {
+    t: performance.now(),
     level: level,
     lives: lives,
     gameOver: gameOver,
@@ -505,27 +516,141 @@ function arrayFromLobbySnapshot(value) {
   return value && typeof value === "object" ? Object.values(value) : [];
 }
 
+function cloneLobbyList(value) {
+  return arrayFromLobbySnapshot(value).map(function (item) { return Object.assign({}, item); });
+}
+
+function interpolateLobbyList(olderList, newerList, latestList, fields, amount) {
+  const older = arrayFromLobbySnapshot(olderList);
+  const newer = arrayFromLobbySnapshot(newerList);
+  const latest = cloneLobbyList(latestList);
+  if (older.length !== newer.length || newer.length !== latest.length) return cloneLobbyList(newerList);
+
+  return latest.map(function (item, index) {
+    const before = older[index];
+    const after = newer[index];
+    for (const field of fields) {
+      if (Number.isFinite(before[field]) && Number.isFinite(after[field])) {
+        item[field] = before[field] + (after[field] - before[field]) * amount;
+      }
+    }
+    return item;
+  });
+}
+
+function interpolateLobbyBricks(olderList, newerList, latestList, amount) {
+  const older = arrayFromLobbySnapshot(olderList);
+  const newer = arrayFromLobbySnapshot(newerList);
+  const latest = cloneLobbyList(latestList);
+  if (older.length !== newer.length || newer.length !== latest.length) return cloneLobbyList(newerList);
+
+  return latest.map(function (brick, index) {
+    const before = older[index];
+    const after = newer[index];
+    if (before.type !== "moving" || after.type !== "moving" || brick.type !== "moving") return brick;
+    brick.x = before.x + (after.x - before.x) * amount;
+    brick.y = before.y + (after.y - before.y) * amount;
+    return brick;
+  });
+}
+
+function interpolateLobbyNextBotState(olderState, newerState, latestState, amount) {
+  if (!latestState) return null;
+  const result = Object.assign({}, latestState);
+  result.bots = interpolateLobbyList(
+    olderState && olderState.bots,
+    newerState && newerState.bots,
+    latestState.bots,
+    ["x", "y"],
+    amount
+  );
+  if (olderState && newerState && olderState.battle && newerState.battle && latestState.battle) {
+    result.battle = Object.assign({}, latestState.battle);
+    for (const field of ["centerX", "centerY", "ballX", "ballY"]) {
+      if (Number.isFinite(olderState.battle[field]) && Number.isFinite(newerState.battle[field])) {
+        result.battle[field] = olderState.battle[field] + (newerState.battle[field] - olderState.battle[field]) * amount;
+      }
+    }
+  }
+  return result;
+}
+
+function applyInterpolatedLobbySnapshot(now = performance.now()) {
+  if (multiplayerHost || lobbySnapshotBuffer.length === 0) return;
+  const newest = lobbySnapshotBuffer[lobbySnapshotBuffer.length - 1];
+  const renderTime = now - LOBBY_INTERPOLATION_DELAY_MS;
+  let older = lobbySnapshotBuffer[0];
+  let newer = older;
+
+  if (lobbySnapshotBuffer.length > 1) {
+    if (renderTime >= lobbySnapshotBuffer[lobbySnapshotBuffer.length - 1].receivedAt) {
+      older = lobbySnapshotBuffer[lobbySnapshotBuffer.length - 1];
+      newer = older;
+    } else {
+      for (let index = 0; index < lobbySnapshotBuffer.length - 1; index++) {
+        const first = lobbySnapshotBuffer[index];
+        const second = lobbySnapshotBuffer[index + 1];
+        if (renderTime >= first.receivedAt && renderTime <= second.receivedAt) {
+          older = first;
+          newer = second;
+          break;
+        }
+      }
+    }
+  }
+
+  const span = newer.receivedAt - older.receivedAt;
+  const amount = span > 0 ? Math.max(0, Math.min(1, (renderTime - older.receivedAt) / span)) : 1;
+  const oldState = older.state;
+  const newState = newer.state;
+  const latestState = newest.state;
+  const pairKey = older.sequence + ":" + newer.sequence;
+  const ballDistance = oldState.ball && newState.ball
+    ? Math.hypot(newState.ball.x - oldState.ball.x, newState.ball.y - oldState.ball.y)
+    : 0;
+  const snapBall = ballDistance > 80;
+
+  if (snapBall && pairKey !== lastInterpolationSnapPair) {
+    lobbyInterpolationSnaps++;
+    lastInterpolationSnapPair = pairKey;
+  }
+
+  level = latestState.level || 0;
+  lives = latestState.lives || 0;
+  gameOver = Boolean(latestState.gameOver);
+  gameWon = Boolean(latestState.gameWon);
+  mola = latestState.mola || 0;
+  brickHitStreak = latestState.brickHitStreak || 0;
+  if (latestState.ball) {
+    Object.assign(ball, latestState.ball);
+    if (snapBall) {
+      ball.x = newState.ball.x;
+      ball.y = newState.ball.y;
+    } else if (oldState.ball && newState.ball) {
+      ball.x = oldState.ball.x + (newState.ball.x - oldState.ball.x) * amount;
+      ball.y = oldState.ball.y + (newState.ball.y - oldState.ball.y) * amount;
+    }
+  }
+
+  if (latestState.players) setMultiplayerPlayers(arrayFromLobbySnapshot(latestState.players));
+  extraBalls = interpolateLobbyList(oldState.extraBalls, newState.extraBalls, latestState.extraBalls, ["x", "y"], amount);
+  bricks = interpolateLobbyBricks(oldState.bricks, newState.bricks, latestState.bricks, amount);
+  aiPaddles = interpolateLobbyList(oldState.aiPaddles, newState.aiPaddles, latestState.aiPaddles, ["x", "y"], amount)
+    .map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
+  powerUps = interpolateLobbyList(oldState.powerUps, newState.powerUps, latestState.powerUps, ["x", "y"], amount);
+  lasers = interpolateLobbyList(oldState.lasers, newState.lasers, latestState.lasers, ["x", "y"], amount);
+  widePaddleTimer = latestState.widePaddleTimer || 0;
+  slowBallTimer = latestState.slowBallTimer || 0;
+  magnetTimer = latestState.magnetTimer || 0;
+  magnetPlayerId = latestState.magnetPlayerId || null;
+  powerUpNotice = latestState.powerUpNotice ? Object.assign({}, latestState.powerUpNotice) : null;
+  setNextBotMultiplayerState(interpolateLobbyNextBotState(oldState.nextBotState, newState.nextBotState, latestState.nextBotState, amount));
+}
+
 function applyLobbyGameSnapshot(state) {
   if (!state || multiplayerHost) return;
-  level = state.level || 0;
-  lives = state.lives || 0;
-  gameOver = Boolean(state.gameOver);
-  gameWon = Boolean(state.gameWon);
-  mola = state.mola || 0;
-  brickHitStreak = state.brickHitStreak || 0;
-  if (state.ball) Object.assign(ball, state.ball);
-  if (state.players) setMultiplayerPlayers(arrayFromLobbySnapshot(state.players));
-  extraBalls = arrayFromLobbySnapshot(state.extraBalls).map(function (activeBall) { return Object.assign({}, activeBall); });
-  bricks = arrayFromLobbySnapshot(state.bricks).map(function (brick) { return Object.assign({}, brick); });
-  aiPaddles = arrayFromLobbySnapshot(state.aiPaddles).map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
-  powerUps = arrayFromLobbySnapshot(state.powerUps).map(function (powerUp) { return Object.assign({}, powerUp); });
-  lasers = arrayFromLobbySnapshot(state.lasers).map(function (laser) { return Object.assign({}, laser); });
-  widePaddleTimer = state.widePaddleTimer || 0;
-  slowBallTimer = state.slowBallTimer || 0;
-  magnetTimer = state.magnetTimer || 0;
-  magnetPlayerId = state.magnetPlayerId || null;
-  powerUpNotice = state.powerUpNotice ? Object.assign({}, state.powerUpNotice) : null;
-  setNextBotMultiplayerState(state.nextBotState);
+  lobbySnapshotBuffer.push({ state: state, receivedAt: performance.now(), sequence: lobbySnapshotSequence++ });
+  if (lobbySnapshotBuffer.length > LOBBY_SNAPSHOT_BUFFER_SIZE) lobbySnapshotBuffer.shift();
 }
 
 window.beginLobbyGame = beginLobbyGame;
@@ -535,6 +660,25 @@ window.setMultiplayerSession = setMultiplayerSession;
 window.setMultiplayerPlayers = setMultiplayerPlayers;
 window.getLobbyGameSnapshot = getLobbyGameSnapshot;
 window.applyLobbyGameSnapshot = applyLobbyGameSnapshot;
+window.getLobbyInterpolationDebugState = function () {
+  return {
+    bufferSize: lobbySnapshotBuffer.length,
+    delayMs: LOBBY_INTERPOLATION_DELAY_MS,
+    snaps: lobbyInterpolationSnaps
+  };
+};
+window.getGameDebugState = function () {
+  return {
+    ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy },
+    gameOver: gameOver,
+    gameWon: gameWon,
+    paused: paused,
+    hitStopFrames: hitStopFrames,
+    level: level,
+    lives: lives,
+    bricks: bricks.length
+  };
+};
 window.launchLobbyBall = function (playerId) {
   if (multiplayerActive && multiplayerHost && ball.stuck && ball.stuckPlayerId === playerId) {
     launchStuckBall(getPaddleForPlayer(playerId));
@@ -748,23 +892,12 @@ function update() {
   }
 
   if (multiplayerActive && !multiplayerHost) {
+    applyInterpolatedLobbySnapshot();
     if (!gameOver && !gameWon) {
       paddle.previousX = paddle.x;
       paddle.previousY = paddle.y;
       paddle.previousAngle = paddle.angle;
       movePaddle();
-      for (const activeBall of [ball].concat(extraBalls)) {
-        if (activeBall.stuck) {
-          const stuckPaddle = getPaddleForPlayer(activeBall.stuckPlayerId);
-          activeBall.x = stuckPaddle.x + stuckPaddle.width / 2 - activeBall.width / 2;
-          activeBall.y = stuckPaddle.y - activeBall.height - 1;
-        } else {
-          activeBall.previousX = activeBall.x;
-          activeBall.previousY = activeBall.y;
-          activeBall.x += activeBall.vx;
-          activeBall.y += activeBall.vy;
-        }
-      }
     }
     if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width);
     return;
