@@ -214,7 +214,10 @@ function updateHitEffects() {
 
 function spawnExtraBall(sourceBall) {
   const angle = (extraBalls.length % 2 === 0 ? 1 : -1) * Math.PI / 6;
-  const speed = Math.hypot(sourceBall.vx, sourceBall.vy) || BALL_SPEED;
+  const sourceSpeed = Math.hypot(sourceBall.vx, sourceBall.vy);
+  const speed = sourceSpeed || BALL_SPEED;
+  const sourceVx = sourceSpeed ? sourceBall.vx : BALL_SPEED;
+  const sourceVy = sourceSpeed ? sourceBall.vy : BALL_SPEED;
   const extraBall = {
     x: sourceBall.x,
     y: sourceBall.y,
@@ -223,8 +226,8 @@ function spawnExtraBall(sourceBall) {
     width: sourceBall.width,
     height: sourceBall.height,
     color: EXTRA_BALL_COLOR,
-    vx: sourceBall.vx * Math.cos(angle) - sourceBall.vy * Math.sin(angle),
-    vy: sourceBall.vx * Math.sin(angle) + sourceBall.vy * Math.cos(angle)
+    vx: sourceVx * Math.cos(angle) - sourceVy * Math.sin(angle),
+    vy: sourceVx * Math.sin(angle) + sourceVy * Math.cos(angle)
   };
   const extraSpeed = Math.hypot(extraBall.vx, extraBall.vy);
   extraBall.vx *= speed / extraSpeed;
@@ -420,10 +423,8 @@ function setMultiplayerPlayers(players) {
   if (!multiplayerActive || multiplayerHost) return;
   const localPlayer = multiplayerPlayers.find(function (player) { return player.id === multiplayerPlayerId; });
   if (!localPlayer) return;
-  if (Number.isFinite(localPlayer.x)) paddle.x = localPlayer.x;
   if (Number.isFinite(localPlayer.y)) paddle.y = localPlayer.y;
   if (Number.isFinite(localPlayer.width)) paddle.width = localPlayer.width;
-  if (Number.isFinite(localPlayer.angle)) paddle.angle = localPlayer.angle;
 }
 
 function getPaddleForPlayer(playerId) {
@@ -1439,6 +1440,7 @@ function restartGame() {
   widePaddleTimer = 0;
   slowBallTimer = 0;
   magnetTimer = 0;
+  magnetPlayerId = null;
   powerUpNotice = null;
   hitStopFrames = 0;
   screenShakeFrames = 0;

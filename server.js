@@ -51,6 +51,7 @@ function playersIn(room) {
       x: player.x,
       previousX: player.previousX,
       y: player.y,
+      previousY: player.previousY,
       width: player.width,
       angle: player.angle,
       previousAngle: player.previousAngle,
