@@ -1,5 +1,5 @@
 const crypto = require("node:crypto");
-const httpServer = require("http-server").createServer({ root: __dirname });
+const httpServer = require("http-server").createServer({ root: __dirname, cache: -1 });
 const WebSocket = require("ws");
 
 const port = Number(process.env.PORT) || 8080;
@@ -49,6 +49,11 @@ function playersIn(room) {
       name: player.name,
       color: player.color,
       x: player.x,
+      previousX: player.previousX,
+      y: player.y,
+      width: player.width,
+      angle: player.angle,
+      previousAngle: player.previousAngle,
       ready: player.ready,
       host: player.host
     };
@@ -125,6 +130,12 @@ function createLobby(socket, message) {
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[0];
+  player.x = 255;
+  player.previousX = player.x;
+  player.y = 420;
+  player.width = 90;
+  player.angle = 0;
+  player.previousAngle = 0;
   player.host = true;
   player.ready = true;
   room.players.set(player.id, player);
@@ -146,6 +157,12 @@ function joinLobby(socket, message) {
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[1];
+  player.x = 255;
+  player.previousX = player.x;
+  player.y = 390;
+  player.width = 90;
+  player.angle = 0;
+  player.previousAngle = 0;
   player.host = false;
   player.ready = false;
   room.players.set(player.id, player);
@@ -187,6 +204,13 @@ function handleMessage(socket, message) {
     return broadcastRoomState(room);
   }
 
+  if (message.type === "launch") {
+    if (player.host || !room.started) return;
+    const host = Array.from(room.players.values()).find(function (member) { return member.host; });
+    if (host) send(host.socket, { type: "launch", id: player.id });
+    return;
+  }
+
   if (message.type === "start") {
     const everyoneReady = Array.from(room.players.values()).every(function (member) {
       return member.host || member.ready;
@@ -203,9 +227,30 @@ function handleMessage(socket, message) {
 
   if (message.type === "paddle") {
     if (typeof message.x !== "number" || !Number.isFinite(message.x)) return;
-    player.x = Math.max(0, Math.min(510, message.x));
+    const width = typeof message.width === "number" && Number.isFinite(message.width)
+      ? Math.max(40, Math.min(145, message.width))
+      : player.width;
+    const angle = typeof message.angle === "number" && Number.isFinite(message.angle)
+      ? Math.max(-35, Math.min(35, message.angle))
+      : player.angle;
+    player.previousX = player.x;
+    player.previousAngle = player.angle;
+    player.width = width;
+    player.angle = angle;
+    player.x = Math.max(0, Math.min(600 - width, message.x));
     for (const other of room.players.values()) {
-      if (other !== player) send(other.socket, { type: "paddle", id: player.id, x: player.x });
+      if (other !== player) {
+        send(other.socket, {
+          type: "paddle",
+          id: player.id,
+          x: player.x,
+          previousX: player.previousX,
+          y: player.y,
+          width: player.width,
+          angle: player.angle,
+          previousAngle: player.previousAngle
+        });
+      }
     }
     return;
   }

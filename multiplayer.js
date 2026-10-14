@@ -173,9 +173,13 @@ function handleLobbyMessage(message) {
   }
   if (message.type === "paddle") {
     lobbyPlayers = lobbyPlayers.map(function (player) {
-      return player.id === message.id ? Object.assign({}, player, { x: message.x }) : player;
+      return player.id === message.id ? Object.assign({}, player, message) : player;
     });
     window.setMultiplayerPlayers(lobbyPlayers);
+    return;
+  }
+  if (message.type === "launch") {
+    window.launchLobbyBall(message.id);
     return;
   }
   if (message.type === "snapshot") {
@@ -261,12 +265,17 @@ lobbyCopyButton.addEventListener("click", async function () {
   }
 });
 
-window.updateLobbyPaddle = function (x) {
+window.updateLobbyPaddle = function (x, angle, width) {
   if (!lobbyActive || !lobbyStarted || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
   const now = performance.now();
   if (now - lastPaddleSentAt < 40) return;
   lastPaddleSentAt = now;
-  lobbySocket.send(JSON.stringify({ type: "paddle", x: x }));
+  lobbySocket.send(JSON.stringify({ type: "paddle", x: x, angle: angle, width: width }));
+};
+
+window.requestLobbyBallLaunch = function () {
+  if (!lobbyActive || !lobbyStarted || lobbyHost || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
+  lobbySocket.send(JSON.stringify({ type: "launch" }));
 };
 
 window.setInterval(function () {

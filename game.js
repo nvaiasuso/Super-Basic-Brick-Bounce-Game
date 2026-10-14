@@ -57,6 +57,7 @@ let powerUps = [];
 let widePaddleTimer = 0;
 let slowBallTimer = 0;
 let magnetTimer = 0;
+let magnetPlayerId = null;
 let powerUpNotice = null;
 let lasers = [];
 let hitStopFrames = 0;
@@ -131,6 +132,7 @@ function resetBall() {
   ball.vx = BALL_SPEED;  // right
   ball.vy = BALL_SPEED;  // down
   ball.stuck = false;
+  ball.stuckPlayerId = null;
   ball.perfect = false;
   ballTrail = [];
 }
@@ -230,13 +232,20 @@ function spawnExtraBall(sourceBall) {
   extraBalls.push(extraBall);
 }
 
-function launchStuckBall() {
+function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId)) {
   if (!ball.stuck) return;
-  const launch = reflectFromPaddle(0, BALL_SPEED, paddle.angle);
+  if (multiplayerActive && !multiplayerHost) {
+    if (ball.stuckPlayerId === multiplayerPlayerId && typeof window.requestLobbyBallLaunch === "function") {
+      window.requestLobbyBallLaunch();
+    }
+    return;
+  }
+  const launch = reflectFromPaddle(0, BALL_SPEED, targetPaddle.angle);
   const launchSpeed = Math.hypot(launch.vx, launch.vy);
   ball.vx = launch.vx * BALL_SPEED / launchSpeed;
   ball.vy = launch.vy * BALL_SPEED / launchSpeed;
   ball.stuck = false;
+  ball.stuckPlayerId = null;
 }
 
 function spawnBattleRewardBall() {
@@ -403,6 +412,20 @@ function setMultiplayerSession(active, isHost = false, playerId = null) {
 
 function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
+  if (!multiplayerActive) return;
+  const localPlayer = multiplayerPlayers.find(function (player) { return player.id === multiplayerPlayerId; });
+  if (!localPlayer) return;
+  if (Number.isFinite(localPlayer.x)) paddle.x = localPlayer.x;
+  if (Number.isFinite(localPlayer.y)) paddle.y = localPlayer.y;
+  if (Number.isFinite(localPlayer.width)) paddle.width = localPlayer.width;
+  if (Number.isFinite(localPlayer.angle)) paddle.angle = localPlayer.angle;
+}
+
+function getPaddleForPlayer(playerId) {
+  if (!multiplayerActive || !playerId || playerId === multiplayerPlayerId) return paddle;
+  return multiplayerPlayers.find(function (player) {
+    return player.id === playerId && !player.ai;
+  }) || paddle;
 }
 
 function addLobbyAIPlayers(players) {
@@ -451,10 +474,21 @@ function getLobbyGameSnapshot() {
       return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color, lobbyAI: bot.lobbyAI, lobbyName: bot.lobbyName };
     }),
     powerUps: powerUps.map(function (powerUp) { return Object.assign({}, powerUp); }),
+    players: multiplayerPlayers.map(function (player) {
+      if (player.id !== multiplayerPlayerId) return Object.assign({}, player);
+      return Object.assign({}, player, {
+        x: paddle.x,
+        y: paddle.y,
+        width: paddle.width,
+        angle: paddle.angle,
+        widePaddleTimer: widePaddleTimer
+      });
+    }),
     lasers: lasers.map(function (laser) { return Object.assign({}, laser); }),
     widePaddleTimer: widePaddleTimer,
     slowBallTimer: slowBallTimer,
     magnetTimer: magnetTimer,
+    magnetPlayerId: magnetPlayerId,
     powerUpNotice: powerUpNotice ? Object.assign({}, powerUpNotice) : null,
     nextBotState: getNextBotMultiplayerState()
   };
@@ -474,6 +508,7 @@ function applyLobbyGameSnapshot(state) {
   mola = state.mola || 0;
   brickHitStreak = state.brickHitStreak || 0;
   if (state.ball) Object.assign(ball, state.ball);
+  if (state.players) setMultiplayerPlayers(arrayFromLobbySnapshot(state.players));
   extraBalls = arrayFromLobbySnapshot(state.extraBalls).map(function (activeBall) { return Object.assign({}, activeBall); });
   bricks = arrayFromLobbySnapshot(state.bricks).map(function (brick) { return Object.assign({}, brick); });
   aiPaddles = arrayFromLobbySnapshot(state.aiPaddles).map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
@@ -482,6 +517,7 @@ function applyLobbyGameSnapshot(state) {
   widePaddleTimer = state.widePaddleTimer || 0;
   slowBallTimer = state.slowBallTimer || 0;
   magnetTimer = state.magnetTimer || 0;
+  magnetPlayerId = state.magnetPlayerId || null;
   powerUpNotice = state.powerUpNotice ? Object.assign({}, state.powerUpNotice) : null;
   setNextBotMultiplayerState(state.nextBotState);
 }
@@ -493,6 +529,11 @@ window.setMultiplayerSession = setMultiplayerSession;
 window.setMultiplayerPlayers = setMultiplayerPlayers;
 window.getLobbyGameSnapshot = getLobbyGameSnapshot;
 window.applyLobbyGameSnapshot = applyLobbyGameSnapshot;
+window.launchLobbyBall = function (playerId) {
+  if (multiplayerActive && multiplayerHost && ball.stuck && ball.stuckPlayerId === playerId) {
+    launchStuckBall(getPaddleForPlayer(playerId));
+  }
+};
 
 function toggleAdminMenu() {
   if (!adminMenu) return;
@@ -706,8 +747,20 @@ function update() {
       paddle.previousY = paddle.y;
       paddle.previousAngle = paddle.angle;
       movePaddle();
+      for (const activeBall of [ball].concat(extraBalls)) {
+        if (activeBall.stuck) {
+          const stuckPaddle = getPaddleForPlayer(activeBall.stuckPlayerId);
+          activeBall.x = stuckPaddle.x + stuckPaddle.width / 2 - activeBall.width / 2;
+          activeBall.y = stuckPaddle.y - activeBall.height - 1;
+        } else {
+          activeBall.previousX = activeBall.x;
+          activeBall.previousY = activeBall.y;
+          activeBall.x += activeBall.vx;
+          activeBall.y += activeBall.vy;
+        }
+      }
     }
-    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x);
+    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width);
     return;
   }
 
@@ -725,7 +778,7 @@ function update() {
   paddle.previousY = paddle.y;
   paddle.previousAngle = paddle.angle;
   movePaddle();
-  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x);
+  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width);
   if (isNextBotAIEnabled()) updateNextBotAI();
   updateNextBots();
   updateTemporaryPowerUps();
@@ -737,16 +790,18 @@ function update() {
 
   for (const activeBall of [ball].concat(extraBalls)) {
     if (activeBall === ball && activeBall.stuck) {
-      activeBall.x = paddle.x + paddle.width / 2 - activeBall.width / 2;
-      activeBall.y = paddle.y - activeBall.height - 1;
+      const stuckPaddle = getPaddleForPlayer(activeBall.stuckPlayerId);
+      activeBall.x = stuckPaddle.x + stuckPaddle.width / 2 - activeBall.width / 2;
+      activeBall.y = stuckPaddle.y - activeBall.height - 1;
       continue;
     }
     moveBall(activeBall);
     bounceOffWalls(activeBall);   // collisions.js
     if (bounceOffPaddle(activeBall, paddle)) {
       paddleSquashFrames = 6;
-      if (magnetTimer > 0 && !autoPlay && activeBall === ball) {
+      if (magnetTimer > 0 && !autoPlay && activeBall === ball && (!magnetPlayerId || magnetPlayerId === multiplayerPlayerId)) {
         ball.stuck = true;
+        ball.stuckPlayerId = multiplayerPlayerId;
         ball.vx = 0;
         ball.vy = 0;
       }
@@ -761,7 +816,13 @@ function update() {
     if (bounceOffAiPaddles(activeBall)) {
       // AI paddles bounce the ball too
     }
-    if (multiplayerActive) bounceOffMultiplayerPaddles(activeBall);
+    const remotePaddleHit = multiplayerActive ? bounceOffMultiplayerPaddles(activeBall) : null;
+    if (remotePaddleHit && magnetTimer > 0 && !autoPlay && activeBall === ball && remotePaddleHit === magnetPlayerId) {
+      ball.stuck = true;
+      ball.stuckPlayerId = remotePaddleHit;
+      ball.vx = 0;
+      ball.vy = 0;
+    }
     if (bounceOffBricks(activeBall)) {
       return;
     }
@@ -890,18 +951,21 @@ function updateSpecialBricks() {
   }
 }
 
-function applyPowerUp(powerUp) {
+function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
   if (powerUp.type === "wide") {
-    const center = paddle.x + paddle.width / 2;
-    paddle.width = Math.min(145, BASE_PADDLE_WIDTH + 45);
-    paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, center - paddle.width / 2));
-    widePaddleTimer = 600;
+    const targetPaddle = getPaddleForPlayer(catcherId);
+    const center = targetPaddle.x + targetPaddle.width / 2;
+    targetPaddle.width = Math.min(145, BASE_PADDLE_WIDTH + 45);
+    targetPaddle.x = Math.max(0, Math.min(WIDTH - targetPaddle.width, center - targetPaddle.width / 2));
+    if (targetPaddle === paddle) widePaddleTimer = 600;
+    else targetPaddle.widePaddleTimer = 600;
     powerUpNotice = { text: "WIDE PADDLE", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "slow") {
     slowBallTimer = 480;
     powerUpNotice = { text: "SLOW BALL", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "magnet") {
     magnetTimer = 600;
+    magnetPlayerId = catcherId || null;
     powerUpNotice = { text: "MAGNET", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "multi") {
     if (extraBalls.length < 5) spawnExtraBall(ball);
@@ -916,12 +980,29 @@ function updatePowerUps() {
   for (let index = powerUps.length - 1; index >= 0; index--) {
     const powerUp = powerUps[index];
     powerUp.y += powerUp.speed;
-    const caught = powerUp.x < paddle.x + paddle.width &&
+    let catcherId = multiplayerActive ? multiplayerPlayerId : null;
+    let catchingPaddle = paddle;
+    let caught = powerUp.x < paddle.x + paddle.width &&
       powerUp.x + powerUp.width > paddle.x &&
       powerUp.y < paddle.y + paddle.height &&
       powerUp.y + powerUp.height > paddle.y;
+    if (!caught && multiplayerActive && multiplayerHost) {
+      for (const player of multiplayerPlayers) {
+        if (player.id === multiplayerPlayerId || player.ai) continue;
+        const playerY = Number.isFinite(player.y) ? player.y : paddle.y - 30;
+        if (powerUp.x < player.x + player.width &&
+            powerUp.x + powerUp.width > player.x &&
+            powerUp.y < playerY + paddle.height &&
+            powerUp.y + powerUp.height > playerY) {
+          caught = true;
+          catcherId = player.id;
+          catchingPaddle = player;
+          break;
+        }
+      }
+    }
     if (caught) {
-      applyPowerUp(powerUp);
+      applyPowerUp(powerUp, catcherId);
       powerUps.splice(index, 1);
     } else if (powerUp.y > HEIGHT) {
       powerUps.splice(index, 1);
@@ -935,8 +1016,22 @@ function updateTemporaryPowerUps() {
     paddle.width = BASE_PADDLE_WIDTH;
     paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, center - paddle.width / 2));
   }
+  if (multiplayerActive && multiplayerHost) {
+    for (const player of multiplayerPlayers) {
+      if (player.id === multiplayerPlayerId || player.ai || player.widePaddleTimer <= 0) continue;
+      player.widePaddleTimer--;
+      if (player.widePaddleTimer === 0) {
+        const center = player.x + player.width / 2;
+        player.width = BASE_PADDLE_WIDTH;
+        player.x = Math.max(0, Math.min(WIDTH - player.width, center - player.width / 2));
+      }
+    }
+  }
   if (slowBallTimer > 0) slowBallTimer--;
-  if (magnetTimer > 0 && --magnetTimer === 0 && ball.stuck) launchStuckBall();
+  if (magnetTimer > 0 && --magnetTimer === 0) {
+    if (ball.stuck) launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
+    magnetPlayerId = null;
+  }
   if (powerUpNotice && --powerUpNotice.timer <= 0) powerUpNotice = null;
 }
 
