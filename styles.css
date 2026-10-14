@@ -9,17 +9,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--theme-bg, #000);
+  background: var(--theme-bg, #080d0c);
   background-image:
+    linear-gradient(145deg, rgba(42, 65, 43, 0.34), transparent 52%),
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 36px 36px;
+  background-size: auto, 36px 36px, 36px 36px;
   color: #fff;
   font-family: "Courier New", monospace;
 }
 
 main {
   width: 100%;
+  max-width: 1080px;
+  padding: 28px;
+  text-align: left;
+}
+
+.game-active main {
   max-width: 640px;
   padding: 16px;
   text-align: center;
@@ -35,8 +42,8 @@ canvas {
 }
 
 #title-demo {
-  margin: 0 auto 16px;
-  border: 1px solid rgba(255, 255, 255, 0.32);
+  margin: 0 0 14px;
+  border: 1px solid rgba(214, 255, 85, 0.45);
   box-shadow: none;
 }
 
@@ -61,41 +68,70 @@ p {
 }
 
 .main-menu {
-  padding: 18px 0;
-  border-bottom: 1px solid var(--theme-accent, #fff);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.menu-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.menu-feature {
+  min-width: 0;
+  padding: 24px 0;
+}
+
+.menu-kicker {
+  margin: 0 0 12px;
+  color: var(--theme-accent, #d6ff55);
+  font-size: 11px;
+  font-weight: bold;
 }
 
 .main-menu h1 {
-  margin: 0 0 16px;
-  font-size: 24px;
-  color: var(--theme-accent, #fff);
+  margin: 0 0 20px;
+  color: var(--theme-accent, #d6ff55);
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 0.96;
+}
+
+.menu-tagline {
+  margin: 0 0 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
 }
 
 .main-menu-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .lobby-panel {
-  max-width: 480px;
-  margin: 20px auto 0;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.24);
+  min-width: 0;
+  margin: 0;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(4, 8, 7, 0.78);
 }
 
 .lobby-panel h2 {
-  margin: 0 0 12px;
+  margin: 0 0 20px;
   color: var(--theme-accent, #fff);
-  font-size: 16px;
+  font-size: 21px;
 }
 
 .lobby-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   text-align: left;
 }
 
@@ -121,9 +157,11 @@ p {
 }
 
 #lobby-status {
-  min-height: 1.5em;
-  margin: 10px 0 0;
+  min-height: 3em;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.66);
   font-size: 12px;
+  line-height: 1.5;
 }
 
 .lobby-room {
@@ -143,6 +181,32 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.ai-invite-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.ai-invite-controls[hidden] {
+  display: none;
+}
+
+.ai-invite-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.ai-invite-controls input {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font: inherit;
 }
 
 .lobby-room-heading output {
@@ -189,9 +253,9 @@ button:disabled {
 
 button {
   min-width: 44px;
-  padding: 6px 10px;
-  border: 1px solid #fff;
-  background: #000;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: #090d0b;
   color: #fff;
   font: inherit;
   cursor: pointer;
@@ -212,6 +276,25 @@ button[aria-pressed="true"] {
 button:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
+}
+
+.primary-action {
+  min-width: 150px;
+  border-color: var(--theme-accent, #d6ff55);
+  background: var(--theme-accent, #d6ff55);
+  color: #10150b;
+  font-weight: bold;
+}
+
+.primary-action:hover {
+  background: #fff;
+  border-color: #fff;
+}
+
+#game-info {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  text-align: left;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -256,12 +339,33 @@ button:focus-visible {
   margin: 0;
 }
 
-@media (max-width: 480px) {
-  .lobby-fields {
+@media (max-width: 680px) {
+  main {
+    padding: 18px;
+  }
+
+  .menu-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .menu-feature {
+    padding: 8px 0;
+  }
+
+  .main-menu h1 {
+    font-size: 40px;
+  }
+
+  .lobby-panel {
+    padding: 16px;
+  }
+
+  .ai-invite-controls {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .lobby-fields button {
-    width: 100%;
+  .game-active main {
+    padding: 12px;
   }
 }

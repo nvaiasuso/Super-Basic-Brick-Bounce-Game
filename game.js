@@ -357,6 +357,8 @@ const menuAdminButton = document.getElementById("menu-admin");
 function showMainMenu() {
   gameStarted = false;
   paused = false;
+  document.body.classList.add("menu-active");
+  document.body.classList.remove("game-active");
   mainMenu.hidden = false;
   controlMenu.hidden = true;
   adminMenu.hidden = true;
@@ -382,6 +384,8 @@ function openMenuControls() {
 function beginGame() {
   restartGame();
   gameStarted = true;
+  document.body.classList.remove("menu-active");
+  document.body.classList.add("game-active");
   mainMenu.hidden = true;
   controlMenu.hidden = true;
   adminMenu.hidden = true;
@@ -399,6 +403,27 @@ function setMultiplayerSession(active, isHost = false, playerId = null) {
 
 function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
+}
+
+function addLobbyAIPlayers(players) {
+  const lobbyPlayers = Array.isArray(players) ? players : [];
+  aiPaddles = lobbyPlayers.map(function (player, index) {
+    const width = 72;
+    return {
+      x: Math.max(0, Math.min(WIDTH - width, player.x || 0)),
+      y: HEIGHT - 58 - (index % 9) * 24,
+      width: width,
+      height: 10,
+      speed: 3.5,
+      angle: 0,
+      color: player.color || getCurrentSkin().accent,
+      assignedBall: ball,
+      lobbyAI: true,
+      lobbyName: player.name,
+      lobbyIndex: index,
+      lobbyCount: lobbyPlayers.length
+    };
+  });
 }
 
 function beginLobbyGame(isHost, playerId) {
@@ -423,7 +448,7 @@ function getLobbyGameSnapshot() {
     extraBalls: extraBalls.map(function (activeBall) { return Object.assign({}, activeBall); }),
     bricks: bricks.map(function (brick) { return Object.assign({}, brick); }),
     aiPaddles: aiPaddles.map(function (bot) {
-      return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color };
+      return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color, lobbyAI: bot.lobbyAI, lobbyName: bot.lobbyName };
     }),
     powerUps: powerUps.map(function (powerUp) { return Object.assign({}, powerUp); }),
     lasers: lasers.map(function (laser) { return Object.assign({}, laser); }),
@@ -462,6 +487,7 @@ function applyLobbyGameSnapshot(state) {
 }
 
 window.beginLobbyGame = beginLobbyGame;
+window.addLobbyAIPlayers = addLobbyAIPlayers;
 window.endLobbyGame = endLobbyGame;
 window.setMultiplayerSession = setMultiplayerSession;
 window.setMultiplayerPlayers = setMultiplayerPlayers;
@@ -586,7 +612,11 @@ for (const adminButton of document.querySelectorAll("[data-admin]")) {
     } else if (action === "restart") {
       restartGame();
     } else if (action === "menu") {
-      showMainMenu();
+      if (multiplayerActive && typeof window.leaveLobbySession === "function") {
+        window.leaveLobbySession();
+      } else {
+        showMainMenu();
+      }
     }
   });
 }
@@ -1019,6 +1049,26 @@ function updateAiPaddles() {
 
     if (!target) continue;
 
+    if (bot.lobbyAI) {
+      let targetX = target.x + target.width / 2;
+      if (target.vy > 0) {
+        const framesToPaddle = Math.max(0, (bot.y - target.y) / target.vy);
+        const span = WIDTH - target.width;
+        const foldedX = ((target.x + target.vx * framesToPaddle) % (span * 2) + span * 2) % (span * 2);
+        targetX = foldedX > span ? span * 2 - foldedX : foldedX;
+        targetX += target.width / 2;
+      }
+      const formationSlot = bot.lobbyIndex % 6;
+      targetX += (formationSlot - 2.5) * 58;
+      targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
+      bot.previousX = bot.x;
+      bot.previousY = bot.y;
+      const dx = targetX - (bot.x + bot.width / 2);
+      bot.x += Math.sign(dx) * Math.min(bot.speed, Math.abs(dx));
+      bot.x = Math.max(0, Math.min(WIDTH - bot.width, bot.x));
+      continue;
+    }
+
     const mainBallDistance = Math.abs((ball.x + ball.width / 2) - (bot.x + bot.width / 2));
     const nearestDistance = Math.min(...activeBalls.map(function (activeBall) {
       return Math.abs((activeBall.x + activeBall.width / 2) - (bot.x + bot.width / 2));
@@ -1049,7 +1099,7 @@ function bounceOffAiPaddles(activeBall) {
 
 function bounceOffMultiplayerPaddles(activeBall) {
   for (const player of multiplayerPlayers) {
-    if (player.id === multiplayerPlayerId) continue;
+    if (player.id === multiplayerPlayerId || player.ai) continue;
     const remotePaddle = {
       x: player.x,
       y: paddle.y,
@@ -1136,7 +1186,7 @@ function draw() {
   ctx.restore();
   if (multiplayerActive) {
     for (const player of multiplayerPlayers) {
-      if (player.id === multiplayerPlayerId) continue;
+      if (player.id === multiplayerPlayerId || player.ai) continue;
       ctx.fillStyle = player.color || skin.accent;
       ctx.fillRect(player.x, paddle.y, paddle.width, paddle.height);
       ctx.fillStyle = "white";
@@ -1148,6 +1198,12 @@ function draw() {
   for (const bot of aiPaddles) {
     ctx.fillStyle = bot.color || skin.accent;
     ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
+    if (bot.lobbyName) {
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.font = "10px Courier New";
+      ctx.fillText(bot.lobbyName, bot.x + bot.width / 2, bot.y - 5);
+    }
   }
   if (ballTrail.length) {
     ballTrail.forEach(function (position, index) {

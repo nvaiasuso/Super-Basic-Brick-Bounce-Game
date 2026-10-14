@@ -9,3 +9,11 @@
 - Break five normal bricks in a row to spawn an extra ball. The HUD shows the current streak and number of balls.
 - Avoid striped killbricks: touching one costs a life. Missing the paddle also costs a life. You have three lives.
 - After winning or losing, press R to restart.
+
+## Play together
+
+- Start the game with `npm start` and open the same running server in both players' browsers.
+- The host selects **Make a Lobby** and shares the six-character code.
+- The other player enters the code, selects **Join Lobby**, then marks themselves ready. The host starts the match when ready.
+- The host can add as many named AI players as desired before starting; a lobby can start with AI players even when no second person joins.
+- For players outside your local network, deploy this Node server somewhere both browsers can reach. The host must support WebSocket connections on the same address as the game; static-only hosting is not enough.
