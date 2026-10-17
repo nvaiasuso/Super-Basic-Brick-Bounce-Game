@@ -29,7 +29,11 @@ const GAME_MODES = [
   { label: "Chaos", accent: "#ff6b6b", background: "#1b0505", ballSpeedMultiplier: 1.28, powerUpDropChance: 0.18 },
   { label: "Neon", accent: "#39ff14", background: "#050b1a", ballSpeedMultiplier: 1.15, powerUpDropChance: 0.16 },
   { label: "Retro", accent: "#ffd166", background: "#1f1a0c", ballSpeedMultiplier: 0.96, powerUpDropChance: 0.1 },
-  { label: "Void", accent: "#b38cff", background: "#070912", ballSpeedMultiplier: 1.22, powerUpDropChance: 0.15 }
+  { label: "Void", accent: "#b38cff", background: "#070912", ballSpeedMultiplier: 1.22, powerUpDropChance: 0.15 },
+  { label: "Sunset", accent: "#ff8c69", background: "#220d09", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.17 },
+  { label: "Ice", accent: "#7be7ff", background: "#08141b", ballSpeedMultiplier: 0.92, powerUpDropChance: 0.12 },
+  { label: "Arena", accent: "#f4faff", background: "#0d1118", ballSpeedMultiplier: 1.18, powerUpDropChance: 0.2 },
+  { label: "Candy", accent: "#ff75d8", background: "#1a0d1e", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.19 }
 ];
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
