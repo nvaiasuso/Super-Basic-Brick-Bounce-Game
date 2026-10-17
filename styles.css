@@ -362,7 +362,9 @@ button:focus-visible {
   font: inherit;
 }
 
-#mobile-controls-toggle {
+#mobile-controls-toggle,
+#fullscreen-toggle,
+#menu-fullscreen {
   margin-bottom: 8px;
 }
 

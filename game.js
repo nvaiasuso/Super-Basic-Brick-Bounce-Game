@@ -364,6 +364,62 @@ let autoAimAngle = 0;
 let autoPlanCooldown = 0;
 const controlMenu = document.getElementById("control-menu");
 const resumeButton = document.getElementById("resume");
+const customKeybinds = {};
+let pendingKeybindAction = null;
+
+function normalizeHotkeyName(key) {
+  if (!key) return "";
+  const normalized = String(key).toLowerCase();
+  if (normalized === " ") return " ";
+  if (normalized === "arrowleft") return "arrowleft";
+  if (normalized === "arrowright") return "arrowright";
+  if (normalized === "arrowup") return "arrowup";
+  if (normalized === "arrowdown") return "arrowdown";
+  return normalized;
+}
+
+function formatHotkeyName(key) {
+  const normalized = normalizeHotkeyName(key || "");
+  const labels = {
+    " ": "Space",
+    arrowleft: "←",
+    arrowright: "→",
+    arrowup: "↑",
+    arrowdown: "↓",
+    enter: "Enter",
+    escape: "Esc"
+  };
+  if (labels[normalized]) return labels[normalized];
+  return normalized ? normalized.toUpperCase() : "";
+}
+
+function setCustomHotkey(action, key) {
+  customKeybinds[action] = normalizeHotkeyName(key);
+  const actionButton = document.querySelector('[data-hotkey-action="' + action + '"]');
+  if (actionButton) {
+    const hotkey = customKeybinds[action];
+    const label = actionButton.dataset.hotkeyLabel || actionButton.textContent.replace(/\s*\([A-Za-z0-9←→↑↓\s]+\)$/, "");
+    actionButton.dataset.hotkeyLabel = label;
+    actionButton.textContent = hotkey ? label + " (" + formatHotkeyName(hotkey) + ")" : label;
+  }
+}
+
+function assignRightClickHotkey(button) {
+  button.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
+    pendingKeybindAction = button.dataset.hotkeyAction;
+    const label = button.dataset.hotkeyLabel || button.textContent.replace(/\s*\([A-Za-z0-9←→↑↓\s]+\)$/, "");
+    button.dataset.hotkeyLabel = label;
+    button.textContent = label + " (Press key…)";
+  });
+}
+
+for (const hotkeyButton of document.querySelectorAll("[data-hotkey-action]")) {
+  const action = hotkeyButton.dataset.hotkeyAction;
+  const defaultKey = action === "toggle-fullscreen" ? "f" : action === "lobby-add-ai" ? "a" : action === "lobby-start" ? "enter" : action === "start-game" ? "s" : null;
+  if (defaultKey) setCustomHotkey(action, defaultKey);
+  assignRightClickHotkey(hotkeyButton);
+}
 
 function setPaused(value) {
   paused = value;
@@ -517,7 +573,7 @@ function addLobbyAIPlayers(players) {
     const width = 72;
     return {
       x: Math.max(0, Math.min(WIDTH - width, player.x || 0)),
-      y: HEIGHT - 58 - (index % 9) * 24,
+      y: HEIGHT - 46,
       width: width,
       height: 10,
       speed: 3.5,
@@ -757,6 +813,21 @@ function toggleAdminMenu() {
   adminMenu.hidden = !adminMenu.hidden;
 }
 
+function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      const target = document.documentElement || document.body;
+      if (target && target.requestFullscreen) {
+        target.requestFullscreen();
+      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  } catch (error) {
+    // Fullscreen is optional; ignore unsupported browser behavior.
+  }
+}
+
 autoPlayButton.addEventListener("click", function () {
   autoPlay = !autoPlay;
   autoPlayButton.setAttribute("aria-pressed", String(autoPlay));
@@ -906,7 +977,15 @@ if (adminModeSelect) {
 }
 
 document.addEventListener("keydown", function (event) {
-  const key = event.key.toLowerCase();
+  const key = normalizeHotkeyName(event.key);
+
+  if (pendingKeybindAction) {
+    const capturedAction = pendingKeybindAction;
+    event.preventDefault();
+    pendingKeybindAction = null;
+    setCustomHotkey(capturedAction, key || "");
+    return;
+  }
 
   if (key === "escape") {
     event.preventDefault();
@@ -920,6 +999,62 @@ document.addEventListener("keydown", function (event) {
       return;
     }
     setPaused(!paused);
+    return;
+  }
+
+  if (customKeybinds["toggle-fullscreen"] && key === customKeybinds["toggle-fullscreen"]) {
+    event.preventDefault();
+    toggleFullscreen();
+    return;
+  }
+
+  if (customKeybinds["start-game"] && key === customKeybinds["start-game"] && !gameStarted) {
+    event.preventDefault();
+    beginGame();
+    return;
+  }
+
+  if (customKeybinds["lobby-start"] && key === customKeybinds["lobby-start"] && lobbyHost && lobbyActive && !lobbyStarted) {
+    event.preventDefault();
+    if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
+      lobbySocket.send(JSON.stringify({ type: "start" }));
+    }
+    return;
+  }
+
+  if (customKeybinds["lobby-add-ai"] && key === customKeybinds["lobby-add-ai"] && lobbyHost && lobbyActive) {
+    event.preventDefault();
+    if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
+      lobbySocket.send(JSON.stringify({ type: "add-ai", name: (lobbyAINameInput && lobbyAINameInput.value.trim()) || "CPU" }));
+      if (lobbyAINameInput) lobbyAINameInput.value = "";
+    }
+    return;
+  }
+
+  if (customKeybinds["toggle-admin"] && key === customKeybinds["toggle-admin"]) {
+    event.preventDefault();
+    toggleAdminMenu();
+    return;
+  }
+
+  if (customKeybinds["toggle-autoplay"] && key === customKeybinds["toggle-autoplay"]) {
+    event.preventDefault();
+    autoPlay = !autoPlay;
+    autoPlayButton.setAttribute("aria-pressed", String(autoPlay));
+    autoPlayButton.textContent = autoPlay ? "Auto-play: On" : "Auto-play: Off";
+    return;
+  }
+
+  if (customKeybinds["toggle-mobile-controls"] && key === customKeybinds["toggle-mobile-controls"]) {
+    event.preventDefault();
+    mobileControlsEnabled = !mobileControlsEnabled;
+    try {
+      localStorage.setItem("blockBreakerMobileControls", String(mobileControlsEnabled));
+    } catch (error) {
+      // Ignore storage errors and keep the in-memory toggle live.
+    }
+    refreshMobileControlsButton();
+    refreshTouchControls();
     return;
   }
 
@@ -963,6 +1098,16 @@ document.addEventListener("keydown", function (event) {
     event.preventDefault();
   }
 });
+
+const fullscreenButton = document.getElementById("fullscreen-toggle");
+if (fullscreenButton) {
+  fullscreenButton.addEventListener("click", toggleFullscreen);
+}
+
+const mainMenuFullscreenButton = document.getElementById("menu-fullscreen");
+if (mainMenuFullscreenButton) {
+  mainMenuFullscreenButton.addEventListener("click", toggleFullscreen);
+}
 
 document.addEventListener("keyup", function (event) {
   keys[event.key.toLowerCase()] = false;
@@ -1407,6 +1552,7 @@ function updateAiPaddles() {
     if (!target) continue;
 
     if (bot.lobbyAI) {
+      bot.y = HEIGHT - 46;
       let targetX = target.x + target.width / 2;
       if (target.vy > 0) {
         const framesToPaddle = Math.max(0, (bot.y - target.y) / target.vy);

@@ -16,9 +16,10 @@
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
           <p class="menu-tagline">Eight levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
-            <button type="button" id="start-game" class="primary-action">Start Game</button>
-            <button type="button" id="menu-controls">Settings</button>
-            <button type="button" id="menu-admin">Admin Tools</button>
+            <button type="button" id="start-game" class="primary-action" data-hotkey-action="start-game">Start Game</button>
+            <button type="button" id="menu-controls" data-hotkey-action="menu-controls">Settings</button>
+            <button type="button" id="menu-admin" data-hotkey-action="toggle-admin">Admin Tools</button>
+            <button type="button" id="menu-fullscreen" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
           </div>
         </section>
         <section class="lobby-panel" aria-label="Online lobby">
@@ -97,8 +98,9 @@
           <option value="9">Candy</option>
         </select>
       </label>
-      <button type="button" id="mobile-controls-toggle" aria-pressed="true">Mobile Controls: On</button>
-      <button type="button" id="autoplay" aria-pressed="false">Auto-play: Off</button>
+      <button type="button" id="mobile-controls-toggle" aria-pressed="true" data-hotkey-action="toggle-mobile-controls">Mobile Controls: On</button>
+      <button type="button" id="autoplay" aria-pressed="false" data-hotkey-action="toggle-autoplay">Auto-play: Off</button>
+      <button type="button" id="fullscreen-toggle" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
       <button type="button" id="resume">Resume</button>
       <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
     </section>
