@@ -442,7 +442,7 @@ function showMainMenu() {
   adminMenu.hidden = true;
   canvas.hidden = true;
   refreshTouchControls();
-  document.getElementById("control-title").textContent = "Paused — Controls";
+  document.getElementById("control-title").textContent = "Paused — Settings";
   resumeButton.textContent = "Resume";
   for (const key of Object.keys(keys)) {
     keys[key] = false;
@@ -456,7 +456,7 @@ function openMenuControls() {
   gameInfo.hidden = true;
   refreshTouchControls()
   gameInfo.hidden = true;
-  document.getElementById("control-title").textContent = "Controls";
+  document.getElementById("control-title").textContent = "Settings";
   resumeButton.textContent = "Back to menu";
   setPaused(true);
 }
