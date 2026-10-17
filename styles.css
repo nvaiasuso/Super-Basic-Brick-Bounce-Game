@@ -41,6 +41,40 @@ canvas {
   box-shadow: 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
+.touch-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.touch-controls[hidden] {
+  display: none;
+}
+
+.touch-control {
+  flex: 1 1 0;
+  min-width: 54px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(10, 12, 11, 0.9);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.touch-control:active,
+.touch-control.is-pressed {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(1px);
+}
+
 #title-demo {
   margin: 0 0 14px;
   border: 1px solid rgba(214, 255, 85, 0.45);

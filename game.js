@@ -329,6 +329,7 @@ const resumeButton = document.getElementById("resume");
 function setPaused(value) {
   paused = value;
   controlMenu.hidden = !paused;
+  refreshTouchControls();
   for (const key of Object.keys(keys)) {
     keys[key] = false;
   }
@@ -368,9 +369,15 @@ const adminMenu = document.getElementById("admin-menu");
 const adminSkinSelect = document.getElementById("skin-select");
 const mainMenu = document.getElementById("main-menu");
 const gameInfo = document.getElementById("game-info");
+const touchControls = document.getElementById("touch-controls");
 const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
+
+function refreshTouchControls() {
+  if (!touchControls) return;
+  touchControls.hidden = !(gameStarted && !paused);
+}
 
 function showMainMenu() {
   gameStarted = false;
@@ -381,7 +388,7 @@ function showMainMenu() {
   controlMenu.hidden = true;
   adminMenu.hidden = true;
   canvas.hidden = true;
-  gameInfo.hidden = true;
+  refreshTouchControls();
   document.getElementById("control-title").textContent = "Paused — Controls";
   resumeButton.textContent = "Resume";
   for (const key of Object.keys(keys)) {
@@ -393,6 +400,8 @@ function openMenuControls() {
   mainMenu.hidden = true;
   adminMenu.hidden = true;
   canvas.hidden = true;
+  gameInfo.hidden = true;
+  refreshTouchControls()
   gameInfo.hidden = true;
   document.getElementById("control-title").textContent = "Controls";
   resumeButton.textContent = "Back to menu";
@@ -409,6 +418,7 @@ function beginGame() {
   adminMenu.hidden = true;
   canvas.hidden = false;
   gameInfo.hidden = false;
+  refreshTouchControls();
   lastTime = performance.now();
 }
 
@@ -881,6 +891,44 @@ document.addEventListener("keyup", function (event) {
   keys[event.key.toLowerCase()] = false;
 });
 
+function setTouchControlState(controlName, pressed) {
+  const boundKey = CONTROL_KEYS[controlName];
+  if (!boundKey) return;
+  keys[boundKey] = pressed;
+  const button = document.querySelector('[data-touch="' + controlName + '"]');
+  if (button) {
+    button.classList.toggle("is-pressed", pressed);
+  }
+}
+
+for (const button of document.querySelectorAll("[data-touch]")) {
+  button.addEventListener("pointerdown", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setTouchControlState(button.dataset.touch, true);
+    button.setPointerCapture(event.pointerId);
+  });
+
+  button.addEventListener("pointerup", function (event) {
+    event.preventDefault();
+    setTouchControlState(button.dataset.touch, false);
+    if (typeof button.releasePointerCapture === "function") {
+      try {
+        button.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        // Ignore capture release failures after pointer leaves the button.
+      }
+    }
+  });
+
+  button.addEventListener("pointerleave", function () {
+    setTouchControlState(button.dataset.touch, false);
+  });
+
+  button.addEventListener("pointercancel", function () {
+    setTouchControlState(button.dataset.touch, false);
+  });
+}
 
 // ------------------------------------------------------------
 // UPDATE: runs 60 times every second. Move things, then check
