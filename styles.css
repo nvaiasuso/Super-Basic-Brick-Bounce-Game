@@ -362,6 +362,10 @@ button:focus-visible {
   font: inherit;
 }
 
+#mobile-controls-toggle {
+  margin-bottom: 8px;
+}
+
 .admin-actions {
   display: flex;
   flex-wrap: wrap;

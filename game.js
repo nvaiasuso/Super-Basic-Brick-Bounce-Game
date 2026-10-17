@@ -56,6 +56,7 @@ const CONTROL_LABELS = {
 };
 let currentSkin = 0;
 let currentMode = 0;
+let mobileControlsEnabled = true;
 let extraBalls = [];
 let brickHitStreak = 0;
 let mola = 0;
@@ -409,9 +410,26 @@ const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
 
+function readMobileSetting() {
+  try {
+    const value = localStorage.getItem("blockBreakerMobileControls");
+    if (value === null) return true;
+    return value === "true";
+  } catch (error) {
+    return true;
+  }
+}
+
 function refreshTouchControls() {
   if (!touchControls) return;
-  touchControls.hidden = !(gameStarted && !paused);
+  touchControls.hidden = !(gameStarted && !paused && mobileControlsEnabled);
+}
+
+function refreshMobileControlsButton() {
+  const button = document.getElementById("mobile-controls-toggle");
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(mobileControlsEnabled));
+  button.textContent = "Mobile Controls: " + (mobileControlsEnabled ? "On" : "Off");
 }
 
 function showMainMenu() {
@@ -740,6 +758,20 @@ autoPlayButton.addEventListener("click", function () {
   autoPlayButton.setAttribute("aria-pressed", String(autoPlay));
   autoPlayButton.textContent = autoPlay ? "Auto-play: On" : "Auto-play: Off";
 });
+
+const mobileControlsButton = document.getElementById("mobile-controls-toggle");
+if (mobileControlsButton) {
+  mobileControlsButton.addEventListener("click", function () {
+    mobileControlsEnabled = !mobileControlsEnabled;
+    try {
+      localStorage.setItem("blockBreakerMobileControls", String(mobileControlsEnabled));
+    } catch (error) {
+      // Ignore storage errors and keep the in-memory toggle live.
+    }
+    refreshMobileControlsButton();
+    refreshTouchControls();
+  });
+}
 
 resumeButton.addEventListener("click", function () {
   if (gameStarted) {
@@ -1680,9 +1712,12 @@ function restartGame() {
 }
 
 window.addEventListener("load", function () {
+  mobileControlsEnabled = readMobileSetting();
   refreshControlButtons();
+  refreshMobileControlsButton();
   applyMode(currentMode);
   applySkin(currentSkin);
+  refreshTouchControls();
 });
 
 
