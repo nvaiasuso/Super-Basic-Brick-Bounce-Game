@@ -302,7 +302,13 @@
     const testButton = document.createElement("button");
     testButton.type = "button";
     testButton.textContent = "Run self-test";
-    actions.append(copyButton, testButton);
+    const updateCheckButton = document.createElement("button");
+    updateCheckButton.type = "button";
+    updateCheckButton.textContent = "Check Updates";
+    const firebaseButton = document.createElement("button");
+    firebaseButton.type = "button";
+    firebaseButton.textContent = "Test Firebase";
+    actions.append(copyButton, testButton, updateCheckButton, firebaseButton);
 
     const result = document.createElement("div");
     result.id = "netdebug-result";
@@ -524,10 +530,76 @@
       });
     }
 
+    function firebaseRequest(url, options) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(function () { controller.abort(); }, 4000);
+      return fetch(url, Object.assign({ cache: "no-store", signal: controller.signal }, options || {}))
+        .finally(function () { window.clearTimeout(timeout); });
+    }
+
+    async function testFirebaseProjects() {
+      const projects = [
+        { name: "the-loude-exe", databaseURL: "https://the-loude-exe-default-rtdb.firebaseio.com" },
+        { name: "zombie-game-eaffd", databaseURL: "https://zombie-game-eaffd-default-rtdb.firebaseio.com" },
+        { name: "monglescreenget", databaseURL: "https://monglescreenget-default-rtdb.firebaseio.com" }
+      ];
+      firebaseButton.disabled = true;
+      result.textContent = "Testing Firebase read/write access...";
+      const outcomes = [];
+
+      for (const project of projects) {
+        const rootUrl = project.databaseURL.replace(/\/+$/, "");
+        const token = "netdebug-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+        const probeUrl = rootUrl + "/_netdebug/" + encodeURIComponent(token) + ".json";
+        let readResult = "unknown";
+        let writeResult = "not tested";
+        let cleanupResult = "not needed";
+
+        try {
+          const readResponse = await firebaseRequest(rootUrl + "/.json?shallow=true", { method: "GET" });
+          readResult = readResponse.ok ? "allowed (" + readResponse.status + ")" : "denied/unavailable (" + readResponse.status + ")";
+        } catch (error) {
+          readResult = error && error.name === "AbortError" ? "timed out" : "network/CORS error";
+        }
+
+        try {
+          const writeResponse = await firebaseRequest(probeUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ diagnostic: true, timestamp: new Date().toISOString() })
+          });
+          writeResult = writeResponse.ok ? "allowed (" + writeResponse.status + ")" : "denied (" + writeResponse.status + ")";
+          if (writeResponse.ok) {
+            try {
+              const deleteResponse = await firebaseRequest(probeUrl, { method: "DELETE" });
+              cleanupResult = deleteResponse.ok ? "deleted" : "FAILED (" + deleteResponse.status + "; remove " + probeUrl + ")";
+            } catch (error) {
+              cleanupResult = "FAILED (network error; remove " + probeUrl + ")";
+            }
+          }
+        } catch (error) {
+          writeResult = error && error.name === "AbortError" ? "timed out" : "network/CORS error";
+        }
+
+        outcomes.push(project.name + ": read " + readResult + "; write " + writeResult + "; probe " + cleanupResult);
+        recordEvent("firebase test " + project.name + " " + writeResult);
+      }
+
+      result.textContent = outcomes.join("\n") + "\n\nGame updates use the /lobby WebSocket, not Firebase. These checks do not switch or change the game transport.";
+      firebaseButton.disabled = false;
+    }
+
+    function checkUpdates() {
+      runSelfTest();
+      result.textContent += "\n\nPlayer updates currently use the /lobby WebSocket. If its socket or ping fails, restarting npm start repairs the local server; changing Firebase projects will not affect this transport.";
+    }
+
     toggle.addEventListener("click", function () { setVisible(panel.hidden); });
     closeButton.addEventListener("click", function () { setVisible(false); });
     copyButton.addEventListener("click", copyReport);
     testButton.addEventListener("click", runSelfTest);
+    updateCheckButton.addEventListener("click", checkUpdates);
+    firebaseButton.addEventListener("click", testFirebaseProjects);
     window.addEventListener("resize", function () { if (!panel.hidden) placePanel(); });
     window.addEventListener("keydown", function (event) {
       safely(function () {
