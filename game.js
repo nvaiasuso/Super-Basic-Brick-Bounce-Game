@@ -23,6 +23,14 @@ const BALL_SPEED = 4;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
 const POWERUP_DROP_CHANCE = 0.12;
+const GAME_MODES = [
+  { label: "Normal", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
+  { label: "Dark", accent: "#8ec5ff", background: "#02070b", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.14 },
+  { label: "Chaos", accent: "#ff6b6b", background: "#1b0505", ballSpeedMultiplier: 1.28, powerUpDropChance: 0.18 },
+  { label: "Neon", accent: "#39ff14", background: "#050b1a", ballSpeedMultiplier: 1.15, powerUpDropChance: 0.16 },
+  { label: "Retro", accent: "#ffd166", background: "#1f1a0c", ballSpeedMultiplier: 0.96, powerUpDropChance: 0.1 },
+  { label: "Void", accent: "#b38cff", background: "#070912", ballSpeedMultiplier: 1.22, powerUpDropChance: 0.15 }
+];
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
@@ -47,6 +55,7 @@ const CONTROL_LABELS = {
   tiltRight: "Tilt right"
 };
 let currentSkin = 0;
+let currentMode = 0;
 let extraBalls = [];
 let brickHitStreak = 0;
 let mola = 0;
@@ -107,6 +116,27 @@ function getCurrentSkin() {
   return SKINS[currentSkin % SKINS.length];
 }
 
+function getCurrentMode() {
+  return GAME_MODES[currentMode % GAME_MODES.length];
+}
+
+function getModeBallSpeed() {
+  return BALL_SPEED * getCurrentMode().ballSpeedMultiplier;
+}
+
+function applyMode(nextModeIndex = currentMode) {
+  currentMode = ((nextModeIndex % GAME_MODES.length) + GAME_MODES.length) % GAME_MODES.length;
+  const mode = getCurrentMode();
+  if (typeof document !== "undefined") {
+    document.documentElement.style.setProperty("--theme-bg", mode.background);
+    document.documentElement.style.setProperty("--theme-accent", mode.accent);
+    const modeSelect = document.getElementById("mode-select");
+    if (modeSelect) {
+      modeSelect.value = String(currentMode);
+    }
+  }
+}
+
 function applySkin(nextSkinIndex = currentSkin) {
   currentSkin = ((nextSkinIndex % SKINS.length) + SKINS.length) % SKINS.length;
   const skin = getCurrentSkin();
@@ -114,8 +144,9 @@ function applySkin(nextSkinIndex = currentSkin) {
   paddle.color = skin.paddle;
   paddle.accent = skin.accent;
   if (typeof document !== "undefined") {
-    document.documentElement.style.setProperty("--theme-bg", skin.background);
-    document.documentElement.style.setProperty("--theme-accent", skin.accent);
+    const mode = getCurrentMode();
+    document.documentElement.style.setProperty("--theme-bg", mode.background || skin.background);
+    document.documentElement.style.setProperty("--theme-accent", mode.accent || skin.accent);
     const skinSelect = document.getElementById("skin-select");
     if (skinSelect) {
       skinSelect.value = String(currentSkin);
@@ -129,8 +160,9 @@ function resetBall() {
   ball.y = HEIGHT / 2 - ball.height / 2;
   ball.previousX = ball.x;
   ball.previousY = ball.y;
-  ball.vx = BALL_SPEED;  // right
-  ball.vy = BALL_SPEED;  // down
+  const speed = getModeBallSpeed();
+  ball.vx = speed;  // right
+  ball.vy = speed;  // down
   ball.stuck = false;
   ball.stuckPlayerId = null;
   ball.perfect = false;
@@ -215,9 +247,10 @@ function updateHitEffects() {
 function spawnExtraBall(sourceBall) {
   const angle = (extraBalls.length % 2 === 0 ? 1 : -1) * Math.PI / 6;
   const sourceSpeed = Math.hypot(sourceBall.vx, sourceBall.vy);
-  const speed = sourceSpeed || BALL_SPEED;
-  const sourceVx = sourceSpeed ? sourceBall.vx : BALL_SPEED;
-  const sourceVy = sourceSpeed ? sourceBall.vy : BALL_SPEED;
+  const defaultSpeed = getModeBallSpeed();
+  const speed = sourceSpeed || defaultSpeed;
+  const sourceVx = sourceSpeed ? sourceBall.vx : defaultSpeed;
+  const sourceVy = sourceSpeed ? sourceBall.vy : defaultSpeed;
   const extraBall = {
     x: sourceBall.x,
     y: sourceBall.y,
@@ -243,16 +276,17 @@ function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId)) 
     }
     return;
   }
-  const launch = reflectFromPaddle(0, BALL_SPEED, targetPaddle.angle);
+  const speed = getModeBallSpeed();
+  const launch = reflectFromPaddle(0, speed, targetPaddle.angle);
   const launchSpeed = Math.hypot(launch.vx, launch.vy);
-  ball.vx = launch.vx * BALL_SPEED / launchSpeed;
-  ball.vy = launch.vy * BALL_SPEED / launchSpeed;
+  ball.vx = launch.vx * speed / launchSpeed;
+  ball.vy = launch.vy * speed / launchSpeed;
   ball.stuck = false;
   ball.stuckPlayerId = null;
 }
 
 function spawnBattleRewardBall() {
-  const speed = Math.max(BALL_SPEED, Math.hypot(ball.vx, ball.vy));
+  const speed = Math.max(getModeBallSpeed(), Math.hypot(ball.vx, ball.vy));
   let x = WIDTH / 2 - ball.width / 2;
   let y = HEIGHT * 0.56;
   for (let attempt = 0; attempt < 12; attempt++) {
@@ -367,6 +401,7 @@ for (const button of document.querySelectorAll("[data-control]")) {
 const autoPlayButton = document.getElementById("autoplay");
 const adminMenu = document.getElementById("admin-menu");
 const adminSkinSelect = document.getElementById("skin-select");
+const adminModeSelect = document.getElementById("mode-select");
 const mainMenu = document.getElementById("main-menu");
 const gameInfo = document.getElementById("game-info");
 const touchControls = document.getElementById("touch-controls");
@@ -828,6 +863,12 @@ if (adminSkinSelect) {
   });
 }
 
+if (adminModeSelect) {
+  adminModeSelect.addEventListener("change", function () {
+    applyMode(Number(adminModeSelect.value));
+  });
+}
+
 document.addEventListener("keydown", function (event) {
   const key = event.key.toLowerCase();
 
@@ -1085,7 +1126,7 @@ function moveBall(activeBall) {
 }
 
 function dropPowerUp(brick) {
-  if (Math.random() > POWERUP_DROP_CHANCE) return;
+  if (Math.random() > getCurrentMode().powerUpDropChance) return;
   const kinds = [
     { type: "wide", label: "W", color: "#4fe6ff" },
     { type: "slow", label: "S", color: "#ffd166" },
@@ -1640,6 +1681,7 @@ function restartGame() {
 
 window.addEventListener("load", function () {
   refreshControlButtons();
+  applyMode(currentMode);
   applySkin(currentSkin);
 });
 
