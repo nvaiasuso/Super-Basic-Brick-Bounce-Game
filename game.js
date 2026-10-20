@@ -466,6 +466,7 @@ const adminModeSelect = document.getElementById("mode-select");
 const mainMenu = document.getElementById("main-menu");
 const gameInfo = document.getElementById("game-info");
 const touchControls = document.getElementById("touch-controls");
+const touchLaunchButton = document.getElementById("touch-launch");
 const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
@@ -473,16 +474,25 @@ const menuAdminButton = document.getElementById("menu-admin");
 function readMobileSetting() {
   try {
     const value = localStorage.getItem("blockBreakerMobileControls");
-    if (value === null) return true;
+    if (value === null) return isTouchDevice();
     return value === "true";
   } catch (error) {
-    return true;
+    return isTouchDevice();
   }
+}
+
+function isTouchDevice() {
+  return navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
 }
 
 function refreshTouchControls() {
   if (!touchControls) return;
   touchControls.hidden = !(gameStarted && !paused && mobileControlsEnabled);
+}
+
+function refreshTouchLaunchButton() {
+  if (!touchLaunchButton) return;
+  touchLaunchButton.disabled = !ball.stuck || (multiplayerActive && ball.stuckPlayerId !== multiplayerPlayerId);
 }
 
 function refreshMobileControlsButton() {
@@ -1152,11 +1162,18 @@ for (const button of document.querySelectorAll("[data-touch]")) {
   });
 }
 
+if (touchLaunchButton) {
+  touchLaunchButton.addEventListener("click", function () {
+    launchStuckBall();
+  });
+}
+
 // ------------------------------------------------------------
 // UPDATE: runs 60 times every second. Move things, then check
 // what they touched.
 // ------------------------------------------------------------
 function update() {
+  refreshTouchLaunchButton();
   if (!gameStarted || paused) {
     return;
   }
@@ -1863,6 +1880,7 @@ function restartGame() {
 
 window.addEventListener("load", function () {
   mobileControlsEnabled = readMobileSetting();
+  document.body.classList.toggle("touch-device", isTouchDevice());
   refreshControlButtons();
   refreshMobileControlsButton();
   applyMode(currentMode);
@@ -1880,6 +1898,7 @@ window.addEventListener("load", function () {
 const STEP = 1000 / 60;
 let lastTime = 0;
 let leftover = 0;
+let lastLobbySnapshotSentAt = 0;
 
 function frame(now) {
   leftover = leftover + (now - lastTime);
@@ -1893,6 +1912,12 @@ function frame(now) {
   while (leftover >= STEP) {
     update();
     leftover = leftover - STEP;
+  }
+
+  if (multiplayerActive && multiplayerHost && now - lastLobbySnapshotSentAt >= 1000 / 30) {
+    if (typeof window.publishLobbyGameSnapshot === "function" && window.publishLobbyGameSnapshot()) {
+      lastLobbySnapshotSentAt = now;
+    }
   }
 
   draw();

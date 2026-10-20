@@ -14,6 +14,7 @@ const playerNameInput = document.getElementById("player-name");
 const lobbyAIControls = document.getElementById("lobby-ai-controls");
 const lobbyAINameInput = document.getElementById("lobby-ai-name");
 const lobbyAddAIButton = document.getElementById("lobby-add-ai");
+const multiplayerStatus = document.getElementById("multiplayer-status");
 
 let lobbySocket = null;
 let lobbyActionInFlight = false;
@@ -25,9 +26,17 @@ let lobbyStarted = false;
 let lobbyPlayers = [];
 let lobbyReady = false;
 let lastPaddleSentAt = 0;
+let lastSnapshotReceivedAt = 0;
+let hostWindowHidden = false;
 
 function setLobbyStatus(message) {
   lobbyStatus.textContent = message;
+}
+
+function setMultiplayerStatus(message) {
+  if (!multiplayerStatus) return;
+  multiplayerStatus.hidden = !message;
+  multiplayerStatus.textContent = message || "";
 }
 
 function setLobbyActionInFlight(value) {
@@ -131,6 +140,7 @@ function resetLobby(message) {
   lobbyCodeOutput.textContent = "";
   lobbyPlayerList.replaceChildren();
   setLobbyActionInFlight(false);
+  setMultiplayerStatus("");
   if (message) setLobbyStatus(message);
 }
 
@@ -143,6 +153,10 @@ function startLobbyGame(message) {
   lobbyRoom.hidden = true;
   window.beginLobbyGame(lobbyHost, lobbyPlayerId);
   window.setMultiplayerPlayers(lobbyPlayers);
+  hostWindowHidden = false;
+  lastSnapshotReceivedAt = performance.now();
+  setMultiplayerStatus(lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream...");
+  if (lobbyHost) sendHostVisibility();
   if (lobbyHost) {
     window.addLobbyAIPlayers(lobbyPlayers.filter(function (player) { return player.ai; }));
   }
@@ -183,7 +197,16 @@ function handleLobbyMessage(message) {
     return;
   }
   if (message.type === "snapshot") {
+    lastSnapshotReceivedAt = performance.now();
     window.applyLobbyGameSnapshot(message.state);
+    if (!hostWindowHidden) setMultiplayerStatus("Live game stream");
+    return;
+  }
+  if (message.type === "host-visibility") {
+    hostWindowHidden = Boolean(message.hidden);
+    setMultiplayerStatus(hostWindowHidden
+      ? "Host window is in the background; live sync may pause. Keep the host window visible."
+      : "Host is active; syncing live game...");
     return;
   }
   if (message.type === "left") {
@@ -278,12 +301,28 @@ window.requestLobbyBallLaunch = function () {
   lobbySocket.send(JSON.stringify({ type: "launch" }));
 };
 
-window.setInterval(function () {
-  if (!lobbyActive || !lobbyStarted || !lobbyHost || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
-  if (lobbySocket.bufferedAmount > 262144) return;
+window.publishLobbyGameSnapshot = function () {
+  if (!lobbyActive || !lobbyStarted || !lobbyHost || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return false;
+  if (lobbySocket.bufferedAmount > 262144) return false;
   try {
     lobbySocket.send(JSON.stringify({ type: "snapshot", state: window.getLobbyGameSnapshot() }));
+    return true;
   } catch (error) {
     setLobbyStatus("Game sync paused after a network error. Leave and rejoin the lobby to continue.");
+    return false;
   }
-}, 33);
+};
+
+function sendHostVisibility() {
+  if (!lobbyActive || !lobbyStarted || !lobbyHost || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
+  lobbySocket.send(JSON.stringify({ type: "host-visibility", hidden: document.hidden }));
+}
+
+document.addEventListener("visibilitychange", sendHostVisibility);
+
+window.setInterval(function () {
+  if (!lobbyActive || !lobbyStarted || lobbyHost || hostWindowHidden) return;
+  if (performance.now() - lastSnapshotReceivedAt > 1000) {
+    setMultiplayerStatus("Game stream is stale; checking the host connection...");
+  }
+}, 500);

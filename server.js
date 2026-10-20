@@ -219,6 +219,14 @@ function handleMessage(socket, message) {
     return;
   }
 
+  if (message.type === "host-visibility") {
+    if (!player.host || !room.started) return;
+    for (const other of room.players.values()) {
+      if (!other.host) send(other.socket, { type: "host-visibility", hidden: Boolean(message.hidden) });
+    }
+    return;
+  }
+
   if (message.type === "start") {
     const everyoneReady = Array.from(room.players.values()).every(function (member) {
       return member.host || member.ready;

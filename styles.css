@@ -55,6 +55,18 @@ canvas {
   display: none;
 }
 
+.multiplayer-status {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  color: var(--theme-accent, #d6ff55);
+  font-size: 12px;
+  text-align: center;
+}
+
+.multiplayer-status[hidden] {
+  display: none;
+}
+
 .touch-control {
   flex: 1 1 0;
   min-width: 54px;
@@ -73,6 +85,10 @@ canvas {
 .touch-control.is-pressed {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(1px);
+}
+
+.touch-launch {
+  font-size: 14px;
 }
 
 #title-demo {
@@ -294,6 +310,14 @@ button {
   font: inherit;
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.touch-device button {
+  min-height: 44px;
+}
+
+.touch-device .touch-control {
+  min-height: 60px;
 }
 
 button:hover {
