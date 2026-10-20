@@ -27,7 +27,7 @@ main {
 }
 
 .game-active main {
-  max-width: 640px;
+  max-width: 840px;
   padding: 16px;
   text-align: center;
 }

@@ -168,7 +168,7 @@ function resetBall() {
   ball.vx = 0;
   ball.vy = 0;
   ball.stuck = true;
-  ball.stuckPlayerId = multiplayerActive ? multiplayerPlayerId : null;
+  ball.stuckPlayerId = multiplayerActive && multiplayerHost ? multiplayerPlayerId : null;
   ball.perfect = false;
   ballTrail = [];
 }
@@ -571,9 +571,10 @@ function setMultiplayerPlayers(players) {
 
 function getPaddleForPlayer(playerId) {
   if (!multiplayerActive || !playerId || playerId === multiplayerPlayerId) return paddle;
-  return multiplayerPlayers.find(function (player) {
-    return player.id === playerId && !player.ai;
-  }) || paddle;
+  const player = multiplayerPlayers.find(function (entry) {
+    return entry.id === playerId && !entry.ai;
+  });
+  return player || aiPaddles.find(function (bot) { return bot.lobbyPlayerId === playerId; }) || paddle;
 }
 
 function addLobbyAIPlayers(players) {
@@ -585,11 +586,12 @@ function addLobbyAIPlayers(players) {
       y: HEIGHT - 46,
       width: width,
       height: 10,
-      speed: 3.5,
+      speed: 2.4 + (index % 3) * 0.35,
       angle: 0,
       color: player.color || getCurrentSkin().accent,
       assignedBall: ball,
       lobbyAI: true,
+      lobbyPlayerId: player.id,
       lobbyName: player.name,
       lobbyIndex: index,
       lobbyCount: lobbyPlayers.length
@@ -598,8 +600,8 @@ function addLobbyAIPlayers(players) {
 }
 
 function beginLobbyGame(isHost, playerId) {
-  beginGame();
   setMultiplayerSession(true, isHost, playerId);
+  beginGame();
 }
 
 function endLobbyGame() {
@@ -1185,7 +1187,7 @@ function update() {
       paddle.previousAngle = paddle.angle;
       movePaddle();
     }
-    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width);
+    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
     return;
   }
 
@@ -1203,7 +1205,7 @@ function update() {
   paddle.previousY = paddle.y;
   paddle.previousAngle = paddle.angle;
   movePaddle();
-  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width);
+  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
   if (isNextBotAIEnabled()) updateNextBotAI();
   updateNextBots();
   updateTemporaryPowerUps();
@@ -1238,7 +1240,14 @@ function update() {
         perfectNotice = { timer: 48 };
       }
     }
-    if (bounceOffAiPaddles(activeBall)) {
+    const aiPaddleHit = bounceOffAiPaddles(activeBall);
+    if (aiPaddleHit && magnetTimer > 0 && activeBall === ball && aiPaddleHit === magnetPlayerId) {
+      ball.stuck = true;
+      ball.stuckPlayerId = aiPaddleHit;
+      ball.vx = 0;
+      ball.vy = 0;
+    }
+    if (aiPaddleHit) {
       // AI paddles bounce the ball too
     }
     const remotePaddleHit = multiplayerActive ? bounceOffMultiplayerPaddles(activeBall) : null;
@@ -1391,6 +1400,8 @@ function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
   } else if (powerUp.type === "magnet") {
     magnetTimer = 600;
     magnetPlayerId = catcherId || null;
+    const targetPaddle = getPaddleForPlayer(catcherId);
+    if (targetPaddle.lobbyAI) targetPaddle.magnetReleaseTimer = 45;
     powerUpNotice = { text: "MAGNET", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "multi") {
     if (extraBalls.length < 5) spawnExtraBall(ball);
@@ -1424,6 +1435,19 @@ function updatePowerUps() {
         }
       }
     }
+    if (!caught && multiplayerActive && multiplayerHost) {
+      for (const bot of aiPaddles) {
+        if (!bot.lobbyAI) continue;
+        if (powerUp.x < bot.x + bot.width &&
+            powerUp.x + powerUp.width > bot.x &&
+            powerUp.y < bot.y + bot.height &&
+            powerUp.y + powerUp.height > bot.y) {
+          caught = true;
+          catcherId = bot.lobbyPlayerId;
+          break;
+        }
+      }
+    }
     if (caught) {
       applyPowerUp(powerUp, catcherId);
       powerUps.splice(index, 1);
@@ -1449,6 +1473,14 @@ function updateTemporaryPowerUps() {
         player.x = Math.max(0, Math.min(WIDTH - player.width, center - player.width / 2));
       }
     }
+    for (const bot of aiPaddles) {
+      if (!bot.lobbyAI || (bot.widePaddleTimer || 0) <= 0) continue;
+      if (--bot.widePaddleTimer === 0) {
+        const center = bot.x + bot.width / 2;
+        bot.width = 72;
+        bot.x = Math.max(0, Math.min(WIDTH - bot.width, center - bot.width / 2));
+      }
+    }
   }
   if (slowBallTimer > 0) slowBallTimer--;
   if (magnetTimer > 0 && --magnetTimer === 0) {
@@ -1460,7 +1492,7 @@ function updateTemporaryPowerUps() {
 
 function createLevelLasers(currentLevel) {
   if (currentLevel < 3) return [];
-  const count = Math.min(3, Math.floor((currentLevel - 1) / 2));
+  const count = Math.min(5, Math.floor((currentLevel - 1) / 2));
   return Array.from({ length: count }, function (_, index) {
     return {
       x: 60 + Math.random() * (WIDTH - 120),
@@ -1553,6 +1585,11 @@ function drawLasers() {
 function updateAiPaddles() {
   const activeBalls = [ball].concat(extraBalls);
   for (const bot of aiPaddles) {
+    if (bot.lobbyAI && ball.stuck && ball.stuckPlayerId === bot.lobbyPlayerId) {
+      bot.magnetReleaseTimer = (bot.magnetReleaseTimer || 45) - 1;
+      if (bot.magnetReleaseTimer <= 0) launchStuckBall(bot);
+      continue;
+    }
     let target = bot.assignedBall && activeBalls.includes(bot.assignedBall) ? bot.assignedBall : null;
     if (!target) {
       let bestDistance = Infinity;
@@ -1570,15 +1607,27 @@ function updateAiPaddles() {
     if (bot.lobbyAI) {
       bot.y = HEIGHT - 46;
       let targetX = target.x + target.width / 2;
+      const greenBalls = extraBalls.filter(function (activeBall) { return activeBall.vy > 0; })
+        .sort(function (first, second) { return second.y - first.y; });
+      const greenTarget = greenBalls.length ? greenBalls[bot.lobbyIndex % greenBalls.length] : null;
+      if (greenTarget) target = greenTarget;
       if (target.vy > 0) {
         const framesToPaddle = Math.max(0, (bot.y - target.y) / target.vy);
         const span = WIDTH - target.width;
-        const foldedX = ((target.x + target.vx * framesToPaddle) % (span * 2) + span * 2) % (span * 2);
-        targetX = foldedX > span ? span * 2 - foldedX : foldedX;
-        targetX += target.width / 2;
+        const unfoldedX = target.x + target.vx * framesToPaddle;
+        const foldedX = ((unfoldedX % (span * 2)) + span * 2) % (span * 2);
+        targetX = (foldedX > span ? span * 2 - foldedX : foldedX) + target.width / 2;
       }
-      const formationSlot = bot.lobbyIndex % 6;
-      targetX += (formationSlot - 2.5) * 58;
+      const greenIsUrgent = Boolean(greenTarget && greenTarget.y > HEIGHT * 0.58);
+      if (!greenIsUrgent) {
+        const catchablePowerUp = powerUps.find(function (powerUp) {
+          const framesToCatch = (bot.y - powerUp.y) / powerUp.speed;
+          const paddleCenter = bot.x + bot.width / 2;
+          return framesToCatch > 0 && Math.abs(powerUp.x + powerUp.width / 2 - paddleCenter) <= bot.speed * framesToCatch + bot.width;
+        });
+        if (catchablePowerUp) targetX = catchablePowerUp.x + catchablePowerUp.width / 2;
+      }
+      targetX += Math.sin(simulationFrame * 0.018 + bot.lobbyIndex * 2) * 9;
       targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
       bot.previousX = bot.x;
       bot.previousY = bot.y;
@@ -1610,7 +1659,7 @@ function updateAiPaddles() {
 function bounceOffAiPaddles(activeBall) {
   for (const bot of aiPaddles) {
     if (bounceOffPaddle(activeBall, bot)) {
-      return true;
+      return bot.lobbyAI ? bot.lobbyPlayerId : true;
     }
   }
   return false;

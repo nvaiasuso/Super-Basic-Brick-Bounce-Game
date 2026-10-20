@@ -292,6 +292,17 @@ function updateNextBotBattle() {
   } else {
     if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
     if (keys[CONTROL_KEYS.right]) battle.shieldAngle += 0.14;
+    if (multiplayerHost) {
+      for (const player of multiplayerPlayers) {
+        if (player.left) battle.shieldAngle -= 0.14;
+        if (player.right) battle.shieldAngle += 0.14;
+      }
+      if (aiPaddles.some(function (bot) { return bot.lobbyAI; })) {
+        const targetAngle = Math.atan2(battle.ballY - battle.centerY, battle.ballX - battle.centerX);
+        const difference = Math.atan2(Math.sin(targetAngle - battle.shieldAngle), Math.cos(targetAngle - battle.shieldAngle));
+        battle.shieldAngle += Math.max(-0.025, Math.min(0.025, difference));
+      }
+    }
   }
 
   battle.centerX += battle.centerVX;

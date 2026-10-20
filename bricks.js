@@ -63,6 +63,22 @@ const LEVEL_LAYOUTS = [
     ".######.",
     "..#..#.."
   ],
+  [
+    "X.####.X",
+    "########",
+    "##.XX.##",
+    "########",
+    "X######X",
+    "..#XX#.."
+  ],
+  [
+    "X######X",
+    "##.XX.##",
+    "########",
+    "X##..##X",
+    "########",
+    "...XX..."
+  ],
   []
 ];
 
@@ -78,8 +94,8 @@ function makeBricks(level) {
       width: 280,
       height: 112,
       type: "boss",
-      hp: 30,
-      maxHp: 30,
+      hp: 40,
+      maxHp: 40,
       color: "#ff4f6d",
       isKill: false
     }];

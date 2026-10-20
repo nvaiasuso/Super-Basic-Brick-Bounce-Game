@@ -55,6 +55,8 @@ function playersIn(room) {
       width: player.width,
       angle: player.angle,
       previousAngle: player.previousAngle,
+      left: player.left,
+      right: player.right,
       ready: player.ready,
       host: player.host
     };
@@ -131,9 +133,9 @@ function createLobby(socket, message) {
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[0];
-  player.x = 255;
+  player.x = 355;
   player.previousX = player.x;
-  player.y = 420;
+  player.y = 570;
   player.previousY = player.y;
   player.width = 90;
   player.angle = 0;
@@ -159,9 +161,9 @@ function joinLobby(socket, message) {
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[1];
-  player.x = 255;
+  player.x = 355;
   player.previousX = player.x;
-  player.y = 390;
+  player.y = 540;
   player.previousY = player.y;
   player.width = 90;
   player.angle = 0;
@@ -252,9 +254,11 @@ function handleMessage(socket, message) {
     player.previousX = player.x;
     player.previousY = player.y;
     player.previousAngle = player.angle;
+    player.left = Boolean(message.left);
+    player.right = Boolean(message.right);
     player.width = width;
     player.angle = angle;
-    player.x = Math.max(0, Math.min(600 - width, message.x));
+    player.x = Math.max(0, Math.min(800 - width, message.x));
     for (const other of room.players.values()) {
       if (other !== player) {
         send(other.socket, {
@@ -266,7 +270,9 @@ function handleMessage(socket, message) {
           previousY: player.previousY,
           width: player.width,
           angle: player.angle,
-          previousAngle: player.previousAngle
+          previousAngle: player.previousAngle,
+          left: player.left,
+          right: player.right
         });
       }
     }
@@ -286,7 +292,7 @@ socketServer.on("connection", function (socket) {
     id: crypto.randomUUID(),
     name: "Player",
     color: playerColors[0],
-    x: 255,
+    x: 355,
     ready: false,
     host: false,
     roomCode: null,
