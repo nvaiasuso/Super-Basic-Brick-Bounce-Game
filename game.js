@@ -9,8 +9,8 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const WIDTH = canvas.width;   // 600
-const HEIGHT = canvas.height; // 450
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
 
 
 // ------------------------------------------------------------
@@ -19,7 +19,7 @@ const HEIGHT = canvas.height; // 450
 // the ball moves each update (vx = sideways, vy = up/down).
 // A positive vy means the ball is moving DOWN the screen.
 // ------------------------------------------------------------
-const BALL_SPEED = 4;
+const BALL_SPEED = 5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
 const POWERUP_DROP_CHANCE = 0.12;
@@ -38,7 +38,7 @@ const GAME_MODES = [
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
-const LEVEL_COUNT = 8;
+const LEVEL_COUNT = 10;
 const MULTIBALL_HIT_STREAK = 5;
 const SKINS = [
   { label: "Classic", paddle: "#ffffff", ball: "#ffffff", accent: "#ffffff", background: "#000000" },
@@ -165,11 +165,10 @@ function resetBall() {
   ball.y = HEIGHT / 2 - ball.height / 2;
   ball.previousX = ball.x;
   ball.previousY = ball.y;
-  const speed = getModeBallSpeed();
-  ball.vx = speed;  // right
-  ball.vy = speed;  // down
-  ball.stuck = false;
-  ball.stuckPlayerId = null;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.stuck = true;
+  ball.stuckPlayerId = multiplayerActive ? multiplayerPlayerId : null;
   ball.perfect = false;
   ballTrail = [];
 }
