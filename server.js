@@ -42,6 +42,12 @@ function cleanName(value) {
   return name || "Player";
 }
 
+function cleanChatText(value) {
+  return typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 300)
+    : "";
+}
+
 function playersIn(room) {
   const humanPlayers = Array.from(room.players.values()).map(function (player) {
     return {
@@ -163,7 +169,7 @@ function joinLobby(socket, message) {
   player.color = playerColors[1];
   player.x = 355;
   player.previousX = player.x;
-  player.y = 540;
+  player.y = 570;
   player.previousY = player.y;
   player.width = 90;
   player.angle = 0;
@@ -196,6 +202,18 @@ function handleMessage(socket, message) {
     if (player.host) return sendError(socket, "The host starts the game when everyone is ready.");
     player.ready = Boolean(message.ready);
     return broadcastRoomState(room);
+  }
+
+  if (message.type === "chat") {
+    const text = cleanChatText(message.text);
+    if (!text) return;
+    return broadcastRoom(room, {
+      type: "chat",
+      id: player.id,
+      name: player.name,
+      text: text,
+      sentAt: Date.now()
+    });
   }
 
   if (message.type === "add-ai") {

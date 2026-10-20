@@ -68,6 +68,41 @@
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
     <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch. Break every outlined brick, avoid the striped killbricks and red laser warnings, and clear all 10 levels. In multiplayer battles, teammates and CPU partners can help rotate the shield to keep the ball inside the moving ring. Catch falling power-ups with the paddle. Toggle Nextbot AI in Admin Tools for automatic dodging and shield tracking. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
+      <div class="chat-heading">
+        <h2>Lobby Chat</h2>
+        <span id="chat-status" aria-live="polite"></span>
+      </div>
+      <ol id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></ol>
+      <form id="chat-form" class="chat-form" autocomplete="off">
+        <label class="visually-hidden" for="chat-input">Message</label>
+        <input id="chat-input" name="message" type="text" maxlength="300" placeholder="Message your lobby" required>
+        <button type="submit">Send</button>
+      </form>
+    </section>
+    <section id="music-player" class="music-player" aria-label="Music player">
+      <div class="music-heading">
+        <div>
+          <p class="menu-kicker">SOUNDTRACK</p>
+          <h2>Music Player</h2>
+        </div>
+        <label class="music-upload">Add files
+          <input id="music-upload" type="file" accept="audio/*,video/mp4,.mp4" multiple>
+        </label>
+      </div>
+      <video id="music-media" controls playsinline preload="metadata" aria-label="Music track playback"></video>
+      <div class="music-controls">
+        <button type="button" id="music-previous" aria-label="Previous track" title="Previous track">Prev</button>
+        <button type="button" id="music-next" aria-label="Next track" title="Next track">Next</button>
+        <label for="music-mode">Playback</label>
+        <select id="music-mode">
+          <option value="playlist">Play playlist</option>
+          <option value="one">Repeat one</option>
+        </select>
+      </div>
+      <p id="music-current" class="music-current" aria-live="polite">Choose a track to begin.</p>
+      <ol id="music-playlist" class="music-playlist" aria-label="Playlist"></ol>
+    </section>
     <section id="control-menu" class="controls" aria-label="Game controls" hidden>
       <h2 id="control-title">Paused — Settings</h2>
       <div class="key-bindings">
@@ -132,6 +167,7 @@
   <script src="bricks.js"></script>
   <script src="collisions.js"></script>
   <script src="multiplayer.js"></script>
+  <script src="music.js"></script>
   <script src="netdebug.js"></script>
 </body>
 </html>

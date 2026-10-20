@@ -15,6 +15,11 @@ const lobbyAIControls = document.getElementById("lobby-ai-controls");
 const lobbyAINameInput = document.getElementById("lobby-ai-name");
 const lobbyAddAIButton = document.getElementById("lobby-add-ai");
 const multiplayerStatus = document.getElementById("multiplayer-status");
+const multiplayerChat = document.getElementById("multiplayer-chat");
+const chatMessages = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+const chatStatus = document.getElementById("chat-status");
 
 let lobbySocket = null;
 let lobbyActionInFlight = false;
@@ -37,6 +42,21 @@ function setMultiplayerStatus(message) {
   if (!multiplayerStatus) return;
   multiplayerStatus.hidden = !message;
   multiplayerStatus.textContent = message || "";
+}
+
+function appendChatMessage(message) {
+  const item = document.createElement("li");
+  const heading = document.createElement("strong");
+  const text = document.createElement("span");
+  const time = document.createElement("time");
+  heading.textContent = message.name || "Player";
+  text.textContent = message.text || "";
+  time.dateTime = new Date(message.sentAt || Date.now()).toISOString();
+  time.textContent = new Date(message.sentAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  item.append(heading, text, time);
+  chatMessages.append(item);
+  while (chatMessages.children.length > 100) chatMessages.firstElementChild.remove();
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function setLobbyActionInFlight(value) {
@@ -113,6 +133,7 @@ function renderLobbyPlayers() {
 function showLobbyRoom(message) {
   lobbySetup.hidden = true;
   lobbyRoom.hidden = false;
+  multiplayerChat.hidden = false;
   lobbyCodeOutput.textContent = lobbyCode;
   lobbyPlayers = message.players || [];
   const localPlayer = lobbyPlayers.find(function (player) { return player.id === lobbyPlayerId; });
@@ -139,6 +160,9 @@ function resetLobby(message) {
   lobbyRoom.hidden = true;
   lobbyCodeOutput.textContent = "";
   lobbyPlayerList.replaceChildren();
+  multiplayerChat.hidden = true;
+  chatMessages.replaceChildren();
+  chatStatus.textContent = "";
   setLobbyActionInFlight(false);
   setMultiplayerStatus("");
   if (message) setLobbyStatus(message);
@@ -200,6 +224,10 @@ function handleLobbyMessage(message) {
     lastSnapshotReceivedAt = performance.now();
     window.applyLobbyGameSnapshot(message.state);
     if (!hostWindowHidden) setMultiplayerStatus("Live game stream");
+    return;
+  }
+  if (message.type === "chat") {
+    appendChatMessage(message);
     return;
   }
   if (message.type === "host-visibility") {
@@ -268,6 +296,18 @@ lobbyLeaveButton.addEventListener("click", function () {
   }
   resetLobby("You left the lobby.");
   if (wasStarted) window.endLobbyGame();
+});
+
+chatForm.addEventListener("submit", function (event) {
+  event.preventDefault();
+  const text = chatInput.value.trim().slice(0, 300);
+  if (!text || !lobbyActive || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+    chatStatus.textContent = "Chat is unavailable while disconnected.";
+    return;
+  }
+  lobbySocket.send(JSON.stringify({ type: "chat", text: text }));
+  chatInput.value = "";
+  chatStatus.textContent = "";
 });
 
 window.leaveLobbySession = function () {

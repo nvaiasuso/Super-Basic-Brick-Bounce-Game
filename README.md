@@ -18,4 +18,6 @@
 - The other player enters the code, selects **Join Lobby**, then marks themselves ready. The host starts the match when ready.
 - The host can add as many named AI players as desired before starting; a lobby can start with AI players even when no second person joins.
 - AI partners control their own paddles, collect power-ups, and prioritize keeping green extra balls in play. Teammates can help steer the shield during nextbot battles.
+- Use Lobby Chat to message everyone in the room before or during a match.
+- The music player includes the repository tracks and accepts multiple uploaded audio or MP4 files. Choose a playlist track, use Previous/Next, and select playlist playback or Repeat one.
 - For players outside your local network, deploy this Node server somewhere both browsers can reach. The host must support WebSocket connections on the same address as the game; static-only hosting is not enough.
