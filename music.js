@@ -5,6 +5,40 @@ const musicCurrent = document.getElementById("music-current");
 const musicMode = document.getElementById("music-mode");
 const musicTracks = [];
 let currentMusicIndex = -1;
+const repositoryMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+
+function addMusicTracks(tracks) {
+  for (const track of tracks) {
+    if (typeof track.title === "string" && typeof track.url === "string") {
+      musicTracks.push(track);
+    }
+  }
+  if (musicTracks.length === 0) throw new Error("No repository music found");
+  renderMusicPlaylist();
+  playTrack(0, false);
+}
+
+async function loadGitHubMusic() {
+  const response = await fetch(
+    "https://api.github.com/repos/nvaiasuso/Super-Basic-Brick-Bounce-Game/git/trees/main?recursive=1",
+    { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" }
+  );
+  if (!response.ok) throw new Error("GitHub music scan failed");
+
+  const repository = await response.json();
+  const tracks = (repository.tree || [])
+    .filter(function (entry) {
+      return entry.type === "blob" && repositoryMusicExtensions.has(entry.path.slice(entry.path.lastIndexOf(".")).toLowerCase());
+    })
+    .map(function (entry) {
+      const encodedPath = entry.path.split("/").map(encodeURIComponent).join("/");
+      return {
+        title: entry.path.split("/").pop().replace(/\.[^.]+$/, ""),
+        url: "https://raw.githubusercontent.com/nvaiasuso/Super-Basic-Brick-Bounce-Game/main/" + encodedPath
+      };
+    });
+  addMusicTracks(tracks);
+}
 
 function updateMusicMode() {
   musicMedia.loop = musicMode.value === "one";
@@ -117,16 +151,13 @@ async function loadRepositoryMusic() {
   try {
     const response = await fetch("/api/music", { cache: "no-store" });
     if (!response.ok) throw new Error("Music scan failed");
-    const tracks = await response.json();
-    for (const track of tracks) {
-      if (typeof track.title === "string" && typeof track.url === "string") {
-        musicTracks.push(track);
-      }
-    }
-    renderMusicPlaylist();
-    playTrack(0, false);
+    addMusicTracks(await response.json());
   } catch (error) {
-    musicCurrent.textContent = "Could not load repository music.";
+    try {
+      await loadGitHubMusic();
+    } catch (fallbackError) {
+      musicCurrent.textContent = "Could not load music from the repository.";
+    }
   }
 }
 
