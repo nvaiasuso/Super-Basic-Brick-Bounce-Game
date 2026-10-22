@@ -1206,7 +1206,7 @@ function update() {
   paddle.previousAngle = paddle.angle;
   movePaddle();
   if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
-  if (isNextBotAIEnabled()) updateNextBotAI();
+  if (autoPlay || isNextBotAIEnabled()) updateNextBotAI();
   updateNextBots();
   updateTemporaryPowerUps();
   updatePowerUps();
@@ -1214,6 +1214,9 @@ function update() {
   if (updateLasers()) return;
 
   updateAiPaddles();
+  if (autoPlay && ball.stuck) {
+    launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
+  }
 
   for (const activeBall of [ball].concat(extraBalls)) {
     if (activeBall === ball && activeBall.stuck) {

@@ -27,14 +27,18 @@ const NEXTBOT_ROSTER = [
   { name: "FROST", color: "#38bdf8", accent: "#e2e8f0", speed: 1.12 },
   { name: "TROPIC", color: "#059669", accent: "#fbbf24", speed: 1.28 },
   { name: "STRATA", color: "#78350f", accent: "#fcd34d", speed: 1.00 },
-  { name: "VELVET", color: "#be185d", accent: "#6366f1", speed: 0.34 }
+  { name: "VELVET", color: "#be185d", accent: "#6366f1", speed: 0.94 },
+  { name: "PANDEMONIUM", color: "#e11d48", accent: "#facc15", speed: 1.82 },
+  { name: "RUSH", color: "#f97316", accent: "#fb7185", speed: 1.92 },
+  { name: "WARDEN", color: "#475569", accent: "#38bdf8", speed: 0.88 },
+  { name: "AFTERIMAGE", color: "#a855f7", accent: "#67e8f9", speed: 1.58 }
 
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
-const MAX_ACTIVE_NEXTBOTS = 4;
+const MAX_ACTIVE_NEXTBOTS = 6;
 const BATTLE_DURATION = 720;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
@@ -287,7 +291,7 @@ function updateNextBotBattle() {
   battle.time++;
   battle.radius = BATTLE_START_RADIUS - Math.min(1, battle.time / BATTLE_DURATION) * (BATTLE_START_RADIUS - BATTLE_END_RADIUS);
 
-  if (nextBotAI) {
+  if (nextBotAI || autoPlay) {
     steerBattleShieldAI(battle);
   } else {
     if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
