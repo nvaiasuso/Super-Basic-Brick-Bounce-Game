@@ -1,8 +1,9 @@
 const crypto = require("node:crypto");
+const net = require("node:net");
 const httpServer = require("http-server").createServer({ root: __dirname, cache: -1 });
 const WebSocket = require("ws");
 
-const port = Number(process.env.PORT) || 8080;
+const requestedPort = Number(process.env.PORT) || 8080;
 const rooms = new Map();
 const clients = new Map();
 const roomCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -330,8 +331,31 @@ socketServer.on("connection", function (socket) {
   });
 });
 
-httpServer.listen(port, "0.0.0.0", function () {
-  console.log("Block Breaker with lobby server running on port " + port);
+function findAvailablePort(candidatePort) {
+  return new Promise(function (resolve, reject) {
+    const probe = net.createServer();
+    probe.once("error", function (error) {
+      if (error.code === "EADDRINUSE" && !process.env.PORT) {
+        resolve(findAvailablePort(candidatePort + 1));
+      } else {
+        reject(error);
+      }
+    });
+    probe.listen(candidatePort, "0.0.0.0", function () {
+      probe.close(function () {
+        resolve(candidatePort);
+      });
+    });
+  });
+}
+
+findAvailablePort(requestedPort).then(function (port) {
+  httpServer.listen(port, "0.0.0.0", function () {
+    console.log("Block Breaker with lobby server running at http://localhost:" + port);
+  });
+}).catch(function (error) {
+  console.error("Could not find a free game server port:", error.message);
+  process.exitCode = 1;
 });
 
 function closeServer() {
