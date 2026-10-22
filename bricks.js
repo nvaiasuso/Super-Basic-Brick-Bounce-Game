@@ -79,7 +79,191 @@ const LEVEL_LAYOUTS = [
     "########",
     "...XX..."
   ],
-  []
+  [],
+  [
+    "X##..##X",
+    "########",
+    "##X..X##",
+    "########",
+    ".######.",
+    "..####.."
+  ],
+  [
+    "#.#..#.#",
+    "########",
+    ".##XX##.",
+    "########",
+    "##....##",
+    "X......X"
+  ],
+  [
+    "X#######",
+    "##X##X##",
+    "########",
+    ".##XX##.",
+    "########",
+    "#######X"
+  ],
+  [
+    "##X##X##",
+    "########",
+    "X##..##X",
+    "########",
+    "..####..",
+    "X##XX##X"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "##X##X##",
+    "########",
+    "X######X",
+    "##X##X##"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "##.XX.##",
+    "########",
+    "X######X",
+    "#X####X#"
+  ],
+  [
+    "##X##X##",
+    "########",
+    "X##XX##X",
+    "########",
+    "##....##",
+    "X######X"
+  ],
+  [
+    "X######X",
+    "##X##X##",
+    "########",
+    "X##XX##X",
+    "########",
+    "##X##X##"
+  ],
+  [
+    "#X####X#",
+    "########",
+    "XX####XX",
+    "########",
+    "##X##X##",
+    "X######X"
+  ],
+  [
+    "X#X##X#X",
+    "##X##X##",
+    "########",
+    "X##XX##X",
+    "########",
+    "##X##X##"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "##XX..##",
+    "##..XX##",
+    "########",
+    "X######X"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "X##XX##X",
+    "########",
+    "##X##X##",
+    "X######X"
+  ],
+  [
+    "##X##X##",
+    "########",
+    "X##XX##X",
+    "##....##",
+    "########",
+    "X#X##X#X"
+  ],
+  [
+    "X######X",
+    "##X##X##",
+    "########",
+    "X#X##X#X",
+    "########",
+    "##XX..##"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "##XX##X#",
+    "#X##XX##",
+    "########",
+    "X######X"
+  ],
+  [
+    "##X##X##",
+    "X######X",
+    "########",
+    "X##XX##X",
+    "########",
+    "##X##X##"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "XX####XX",
+    "##X##X##",
+    "########",
+    "X#X##X#X"
+  ],
+  [
+    "##X##X##",
+    "X######X",
+    "########",
+    "##XX..##",
+    "##..XX##",
+    "X######X"
+  ],
+  [
+    "X######X",
+    "########",
+    "#X####X#",
+    "##X##X##",
+    "########",
+    "X##XX##X"
+  ],
+  [
+    "X#X##X#X",
+    "##X##X##",
+    "########",
+    "X##XX##X",
+    "########",
+    "##X##X##"
+  ],
+  [
+    "XX####XX",
+    "########",
+    "X##XX##X",
+    "##X##X##",
+    "########",
+    "X#X##X#X"
+  ],
+  [
+    "X#X##X#X",
+    "########",
+    "XX##XX##",
+    "##XX##XX",
+    "########",
+    "X#X##X#X"
+  ],
+  [
+    "X##X##XX",
+    "########",
+    "##X##X##",
+    "X##XX##X",
+    "########",
+    "XX##X##X"
+  ]
 ];
 
 const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff", "#b28dff"];
@@ -87,15 +271,22 @@ const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff",
 // # bricks are breakable; X bricks are lethal hazards; . is empty space.
 function makeBricks(level) {
   const list = [];
-  if (level === LEVEL_COUNT - 1) {
+  if (level === 9 || level === 15 || level === 21 || level === 27 || level === LEVEL_COUNT - 1) {
+    const bossHealth = 40 + Math.max(0, level - 9) * 5;
+    const bossWidth = 320;
+    const bossHeight = 140;
     return [{
-      x: 160,
+      x: (WIDTH - bossWidth) / 2,
       y: 82,
-      width: 280,
-      height: 112,
+      originX: (WIDTH - bossWidth) / 2,
+      originY: 82,
+      moveAmplitude: 112,
+      movePhase: level * 0.7,
+      width: bossWidth,
+      height: bossHeight,
       type: "boss",
-      hp: 40,
-      maxHp: 40,
+      hp: bossHealth,
+      maxHp: bossHealth,
       color: "#ff4f6d",
       isKill: false
     }];
@@ -150,6 +341,10 @@ function makeBricks(level) {
 function drawBricks() {
   for (const brick of bricks) {
     if (brick.hidden) continue;
+    if (brick.type === "boss") {
+      drawBoss(brick);
+      continue;
+    }
     ctx.fillStyle = brick.isKill ? "white" : brick.color || "black";
     if (brick.type === "armored" && brick.damaged) ctx.fillStyle = "#555563";
     ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
@@ -165,11 +360,11 @@ function drawBricks() {
       ctx.stroke();
     }
 
-    if (brick.type === "armored" || brick.type === "boss") {
+    if (brick.type === "armored") {
       ctx.fillStyle = "#111";
       ctx.textAlign = "center";
-      ctx.font = brick.type === "boss" ? "bold 24px Courier New" : "bold 10px Courier New";
-      ctx.fillText(String(brick.hp), brick.x + brick.width / 2, brick.y + brick.height / 2 + (brick.type === "boss" ? 8 : 3));
+      ctx.font = "bold 10px Courier New";
+      ctx.fillText(String(brick.hp), brick.x + brick.width / 2, brick.y + brick.height / 2 + 3);
     } else if (brick.type === "explosive") {
       ctx.fillStyle = "#1b1010";
       ctx.textAlign = "center";
@@ -185,5 +380,105 @@ function drawBricks() {
       ctx.lineTo(brick.x + brick.width / 2 + 4, brick.y + 5);
       ctx.stroke();
     }
+  }
+
+  function drawBoss(boss) {
+    const phase = boss.hp <= boss.maxHp / 2;
+    const centerX = boss.x + boss.width / 2;
+    const pulse = Math.sin(simulationFrame * 0.12);
+    const bob = Math.sin(simulationFrame * 0.045) * 3;
+    const top = boss.y + bob;
+    const left = boss.x;
+    const right = boss.x + boss.width;
+    const height = boss.height;
+    const gradient = ctx.createLinearGradient(left, top, right, top + height);
+    gradient.addColorStop(0, phase ? "#ffb000" : "#ff758f");
+    gradient.addColorStop(0.5, phase ? "#f43f5e" : "#9b4dff");
+    gradient.addColorStop(1, phase ? "#7f1d1d" : "#32105e");
+
+    ctx.save();
+    ctx.translate(0, Math.sin(simulationFrame * 0.07) * 2);
+    ctx.shadowColor = phase ? "#ff3030" : "#bb66ff";
+    ctx.shadowBlur = phase ? 24 : 16;
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = phase ? "#ffe066" : "#e9c8ff";
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(left + 26, top + 50);
+    ctx.lineTo(left - 10, top + 68 + pulse * 5);
+    ctx.lineTo(left + 42, top + 82);
+    ctx.lineTo(left + 34, top + 112);
+    ctx.lineTo(left + 85, top + 94);
+    ctx.lineTo(left + 94, top + 72);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(right - 26, top + 50);
+    ctx.lineTo(right + 10, top + 68 - pulse * 5);
+    ctx.lineTo(right - 42, top + 82);
+    ctx.lineTo(right - 34, top + 112);
+    ctx.lineTo(right - 85, top + 94);
+    ctx.lineTo(right - 94, top + 72);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(centerX - 85, top + 50);
+    ctx.lineTo(centerX - 76, top + 22);
+    ctx.lineTo(centerX - 50, top + 34);
+    ctx.lineTo(centerX - 30, top + 14);
+    ctx.lineTo(centerX, top + 30);
+    ctx.lineTo(centerX + 30, top + 14);
+    ctx.lineTo(centerX + 50, top + 34);
+    ctx.lineTo(centerX + 76, top + 22);
+    ctx.lineTo(centerX + 85, top + 50);
+    ctx.lineTo(centerX + 74, top + 91);
+    ctx.lineTo(centerX + 49, top + 114);
+    ctx.lineTo(centerX, top + 126);
+    ctx.lineTo(centerX - 49, top + 114);
+    ctx.lineTo(centerX - 74, top + 91);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#160b24";
+    ctx.beginPath();
+    ctx.ellipse(centerX, top + 70, 62, 36, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = phase ? "#fff176" : "#62f5ff";
+    ctx.beginPath();
+    ctx.ellipse(centerX - 30, top + 62, 13, 9, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(centerX + 30, top + 62, 13, 9, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.moveTo(centerX - 34, top + 91);
+    ctx.lineTo(centerX + 34, top + 91);
+    ctx.lineTo(centerX + 22, top + 105);
+    ctx.lineTo(centerX, top + 98);
+    ctx.lineTo(centerX - 22, top + 105);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 12px Courier New";
+    ctx.fillText(phase ? "VOID WARDEN // ENRAGED" : "VOID WARDEN", centerX, top + 119);
+
+    const barWidth = boss.width * 0.74;
+    const barX = centerX - barWidth / 2;
+    const barY = top + height + 12;
+    ctx.fillStyle = "#220b12";
+    ctx.fillRect(barX, barY, barWidth, 9);
+    ctx.fillStyle = phase ? "#ffb000" : "#ff365b";
+    ctx.fillRect(barX, barY, barWidth * Math.max(0, boss.hp / boss.maxHp), 9);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barWidth, 9);
+    ctx.restore();
   }
 }

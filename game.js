@@ -38,7 +38,7 @@ const GAME_MODES = [
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
-const LEVEL_COUNT = 10;
+const LEVEL_COUNT = 34;
 const MULTIBALL_HIT_STREAK = 5;
 const SKINS = [
   { label: "Classic", paddle: "#ffffff", ball: "#ffffff", accent: "#ffffff", background: "#000000" },
@@ -73,6 +73,7 @@ let slowBallTimer = 0;
 let magnetTimer = 0;
 let magnetPlayerId = null;
 let powerUpNotice = null;
+let levelNotice = null;
 let lasers = [];
 let hitStopFrames = 0;
 let screenShakeFrames = 0;
@@ -462,6 +463,7 @@ const autoPlayButton = document.getElementById("autoplay");
 const adminMenu = document.getElementById("admin-menu");
 const adminSkinSelect = document.getElementById("skin-select");
 const adminModeSelect = document.getElementById("mode-select");
+const adminLevelSelect = document.getElementById("admin-level-select");
 const mainMenu = document.getElementById("main-menu");
 const gameInfo = document.getElementById("game-info");
 const touchControls = document.getElementById("touch-controls");
@@ -580,13 +582,13 @@ function getPaddleForPlayer(playerId) {
 function addLobbyAIPlayers(players) {
   const lobbyPlayers = Array.isArray(players) ? players : [];
   aiPaddles = lobbyPlayers.map(function (player, index) {
-    const width = 72;
+    const width = BASE_PADDLE_WIDTH;
     return {
       x: Math.max(0, Math.min(WIDTH - width, player.x || 0)),
-      y: HEIGHT - 46,
+      y: paddle.y,
       width: width,
-      height: 10,
-      speed: 2.4 + (index % 3) * 0.35,
+      height: paddle.height,
+      speed: paddle.speed,
       angle: 0,
       color: player.color || getCurrentSkin().accent,
       assignedBall: ball,
@@ -641,6 +643,7 @@ function getLobbyGameSnapshot() {
     magnetTimer: magnetTimer,
     magnetPlayerId: magnetPlayerId,
     powerUpNotice: powerUpNotice ? Object.assign({}, powerUpNotice) : null,
+    levelNotice: levelNotice ? Object.assign({}, levelNotice) : null,
     nextBotState: getNextBotMultiplayerState()
   };
 }
@@ -778,6 +781,7 @@ function applyInterpolatedLobbySnapshot(now = performance.now()) {
   magnetTimer = latestState.magnetTimer || 0;
   magnetPlayerId = latestState.magnetPlayerId || null;
   powerUpNotice = latestState.powerUpNotice ? Object.assign({}, latestState.powerUpNotice) : null;
+  levelNotice = latestState.levelNotice ? Object.assign({}, latestState.levelNotice) : null;
   setNextBotMultiplayerState(interpolateLobbyNextBotState(oldState.nextBotState, newState.nextBotState, latestState.nextBotState, amount));
 }
 
@@ -963,6 +967,13 @@ for (const adminButton of document.querySelectorAll("[data-admin]")) {
     } else if (action === "level") {
       gameOver = false;
       advanceLevel();
+    } else if (action === "skip-level") {
+      const selectedLevel = Number(adminLevelSelect && adminLevelSelect.value);
+      if (Number.isInteger(selectedLevel) && selectedLevel >= 1 && selectedLevel <= LEVEL_COUNT) {
+        gameOver = false;
+        gameWon = false;
+        startLevel(selectedLevel - 1);
+      }
     } else if (action === "restart") {
       restartGame();
     } else if (action === "menu") {
@@ -1207,6 +1218,7 @@ function update() {
   movePaddle();
   if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
   if (autoPlay || isNextBotAIEnabled()) updateNextBotAI();
+  if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
   updateNextBots();
   updateTemporaryPowerUps();
   updatePowerUps();
@@ -1301,7 +1313,7 @@ function movePaddle() {
       autoPlanCooldown = 4;
     }
     paddle.angle = autoAimAngle;
-    const targetX = paddle.autoTargetX - paddle.width / 2;
+    const targetX = dodgeLaserTarget(paddle.autoTargetX, paddle) - paddle.width / 2;
     paddle.x += Math.sign(targetX - paddle.x) * Math.min(paddle.speed, Math.abs(targetX - paddle.x));
   }
 
@@ -1381,6 +1393,10 @@ function updateSpecialBricks() {
     if (brick.type === "moving") {
       brick.x = brick.originX + Math.sin(simulationFrame * 0.035 + brick.movePhase) * brick.moveAmplitude;
     }
+    if (brick.type === "boss") {
+      brick.x = brick.originX + Math.sin(simulationFrame * 0.022 + brick.movePhase) * brick.moveAmplitude;
+      brick.y = brick.originY + Math.sin(simulationFrame * 0.037 + brick.movePhase) * 7;
+    }
     if (brick.falling) {
       brick.y += brick.fallSpeed;
       if (brick.y > HEIGHT) bricks.splice(index, 1);
@@ -1394,20 +1410,20 @@ function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
     const center = targetPaddle.x + targetPaddle.width / 2;
     targetPaddle.width = Math.min(145, BASE_PADDLE_WIDTH + 45);
     targetPaddle.x = Math.max(0, Math.min(WIDTH - targetPaddle.width, center - targetPaddle.width / 2));
-    if (targetPaddle === paddle) widePaddleTimer = 600;
-    else targetPaddle.widePaddleTimer = 600;
+    if (targetPaddle === paddle) widePaddleTimer = 300;
+    else targetPaddle.widePaddleTimer = 300;
     powerUpNotice = { text: "WIDE PADDLE", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "slow") {
-    slowBallTimer = 480;
+    slowBallTimer = 300;
     powerUpNotice = { text: "SLOW BALL", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "magnet") {
-    magnetTimer = 600;
+    magnetTimer = 300;
     magnetPlayerId = catcherId || null;
     const targetPaddle = getPaddleForPlayer(catcherId);
     if (targetPaddle.lobbyAI) targetPaddle.magnetReleaseTimer = 45;
     powerUpNotice = { text: "MAGNET", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "multi") {
-    if (extraBalls.length < 5) spawnExtraBall(ball);
+    spawnExtraBall(ball);
     powerUpNotice = { text: "MULTIBALL", timer: 100, color: powerUp.color };
   } else if (powerUp.type === "life") {
     lives = Math.min(STARTING_LIVES + 3, lives + 1);
@@ -1480,7 +1496,7 @@ function updateTemporaryPowerUps() {
       if (!bot.lobbyAI || (bot.widePaddleTimer || 0) <= 0) continue;
       if (--bot.widePaddleTimer === 0) {
         const center = bot.x + bot.width / 2;
-        bot.width = 72;
+        bot.width = BASE_PADDLE_WIDTH;
         bot.x = Math.max(0, Math.min(WIDTH - bot.width, center - bot.width / 2));
       }
     }
@@ -1491,11 +1507,12 @@ function updateTemporaryPowerUps() {
     magnetPlayerId = null;
   }
   if (powerUpNotice && --powerUpNotice.timer <= 0) powerUpNotice = null;
+  if (levelNotice && --levelNotice.timer <= 0) levelNotice = null;
 }
 
 function createLevelLasers(currentLevel) {
   if (currentLevel < 3) return [];
-  const count = Math.min(5, Math.floor((currentLevel - 1) / 2));
+  const count = 1 + Math.floor((currentLevel - 3) / 2);
   return Array.from({ length: count }, function (_, index) {
     return {
       x: 60 + Math.random() * (WIDTH - 120),
@@ -1504,6 +1521,43 @@ function createLevelLasers(currentLevel) {
       hitRegistered: false
     };
   });
+}
+
+function dodgeLaserTarget(targetCenterX, targetPaddle) {
+  const activeLasers = lasers.filter(function (laser) {
+    return laser.mode === "warning" || laser.mode === "firing";
+  });
+  if (activeLasers.length === 0) return targetCenterX;
+
+  const halfWidth = targetPaddle.width / 2;
+  const candidates = [targetCenterX];
+  for (const laser of activeLasers) {
+    candidates.push(laser.x - targetPaddle.width - 18 + halfWidth);
+    candidates.push(laser.x + 18 + halfWidth);
+  }
+
+  let safestTarget = targetCenterX;
+  let bestScore = Infinity;
+  for (const candidate of candidates) {
+    const centerX = Math.max(halfWidth, Math.min(WIDTH - halfWidth, candidate));
+    const intersectsLaser = activeLasers.some(function (laser) {
+      return Math.abs(centerX - laser.x) <= halfWidth + 12;
+    });
+    const score = Math.abs(centerX - targetCenterX) + (intersectsLaser ? WIDTH * 2 : 0);
+    if (score < bestScore) {
+      safestTarget = centerX;
+      bestScore = score;
+    }
+  }
+  return safestTarget;
+}
+
+function movePaddleAwayFromLasers(targetPaddle) {
+  const safeCenterX = dodgeLaserTarget(targetPaddle.x + targetPaddle.width / 2, targetPaddle);
+  const targetX = safeCenterX - targetPaddle.width / 2;
+  targetPaddle.x += Math.sign(targetX - targetPaddle.x) *
+    Math.min(targetPaddle.speed, Math.abs(targetX - targetPaddle.x));
+  targetPaddle.x = Math.max(0, Math.min(WIDTH - targetPaddle.width, targetPaddle.x));
 }
 
 function updateLasers() {
@@ -1526,19 +1580,31 @@ function updateLasers() {
 
     if (laser.mode === "firing" && !laser.hitRegistered) {
       laser.hitRegistered = true;
-      if (!invincible && laser.x >= paddle.x && laser.x <= paddle.x + paddle.width) {
+      const beamWidth = 7;
+      const hitMainBall = ball.x < laser.x + beamWidth && ball.x + ball.width > laser.x - beamWidth;
+      extraBalls = extraBalls.filter(function (activeBall) {
+        return activeBall.x >= laser.x + beamWidth || activeBall.x + activeBall.width <= laser.x - beamWidth;
+      });
+      if (typeof nextBots !== "undefined") {
+        const removedBots = nextBots.filter(function (bot) {
+          return bot.x + 12 >= laser.x - beamWidth && bot.x - 12 <= laser.x + beamWidth;
+        });
+        nextBots = nextBots.filter(function (bot) {
+          return bot.x + 12 < laser.x - beamWidth || bot.x - 12 > laser.x + beamWidth;
+        });
+        if (nextBotBattle && removedBots.some(function (bot) { return bot === nextBotBattle.bot; })) {
+          nextBotBattle = null;
+          nextBotBanner = { text: "LASER DESTROYED THE NEXTBOT", timer: 110 };
+        }
+      }
+      if (!invincible && laser.x >= paddle.x - 6 && laser.x <= paddle.x + paddle.width + 6) {
         loseLife();
         return true;
       }
-      const beamWidth = 7;
-      const hitMainBall = ball.x < laser.x + beamWidth && ball.x + ball.width > laser.x - beamWidth;
       if (!invincible && hitMainBall) {
         loseLife();
         return true;
       }
-      extraBalls = extraBalls.filter(function (activeBall) {
-        return activeBall.x >= laser.x + beamWidth || activeBall.x + activeBall.width <= laser.x - beamWidth;
-      });
     }
   }
   return false;
@@ -1608,29 +1674,50 @@ function updateAiPaddles() {
     if (!target) continue;
 
     if (bot.lobbyAI) {
-      bot.y = HEIGHT - 46;
-      let targetX = target.x + target.width / 2;
-      const greenBalls = extraBalls.filter(function (activeBall) { return activeBall.vy > 0; })
-        .sort(function (first, second) { return second.y - first.y; });
-      const greenTarget = greenBalls.length ? greenBalls[bot.lobbyIndex % greenBalls.length] : null;
-      if (greenTarget) target = greenTarget;
-      if (target.vy > 0) {
-        const framesToPaddle = Math.max(0, (bot.y - target.y) / target.vy);
-        const span = WIDTH - target.width;
-        const unfoldedX = target.x + target.vx * framesToPaddle;
-        const foldedX = ((unfoldedX % (span * 2)) + span * 2) % (span * 2);
-        targetX = (foldedX > span ? span * 2 - foldedX : foldedX) + target.width / 2;
+      bot.y = paddle.y;
+      const landings = activeBalls.map(function (activeBall) {
+        const projection = projectToPaddle(activeBall, bricks, bot.y);
+        return {
+          ball: activeBall,
+          frames: projection.steps,
+          landingX: projection.x,
+          hazard: projection.hazard
+        };
+      }).sort(function (first, second) { return first.frames - second.frames; });
+      const whiteLanding = landings.find(function (entry) { return entry.ball === ball; });
+      const greenLandings = landings.filter(function (entry) { return entry.ball !== ball; });
+      const nextGreenLanding = greenLandings[bot.lobbyIndex % Math.max(1, greenLandings.length)] || null;
+      const whiteNeedsSaving = whiteLanding &&
+        (whiteLanding.hazard || whiteLanding.frames < 210 ||
+         Math.abs(whiteLanding.landingX - (bot.x + bot.width / 2)) > bot.speed * whiteLanding.frames + bot.width / 2);
+      const assignedLanding = whiteNeedsSaving || !nextGreenLanding || nextGreenLanding.hazard ? whiteLanding : nextGreenLanding;
+      if (assignedLanding) target = assignedLanding.ball;
+      let targetFrames = assignedLanding ? assignedLanding.frames : Infinity;
+      let targetX = assignedLanding ? assignedLanding.landingX : target.x + target.width / 2;
+      let catchablePowerUp = null;
+      for (const powerUp of whiteNeedsSaving ? [] : powerUps) {
+        const framesToCatch = (bot.y - powerUp.y - powerUp.height) / powerUp.speed;
+        const powerUpX = powerUp.x + powerUp.width / 2;
+        const paddleCenter = bot.x + bot.width / 2;
+        if (framesToCatch <= 0 || framesToCatch >= targetFrames - 8 ||
+            Math.abs(powerUpX - paddleCenter) > bot.speed * framesToCatch + bot.width / 2) continue;
+        if (!catchablePowerUp || framesToCatch < catchablePowerUp.frames) {
+          catchablePowerUp = { x: powerUpX, frames: framesToCatch };
+        }
       }
-      const greenIsUrgent = Boolean(greenTarget && greenTarget.y > HEIGHT * 0.58);
-      if (!greenIsUrgent) {
-        const catchablePowerUp = powerUps.find(function (powerUp) {
-          const framesToCatch = (bot.y - powerUp.y) / powerUp.speed;
-          const paddleCenter = bot.x + bot.width / 2;
-          return framesToCatch > 0 && Math.abs(powerUp.x + powerUp.width / 2 - paddleCenter) <= bot.speed * framesToCatch + bot.width;
-        });
-        if (catchablePowerUp) targetX = catchablePowerUp.x + catchablePowerUp.width / 2;
+      if (catchablePowerUp) targetX = catchablePowerUp.x;
+      const laserSafeTarget = dodgeLaserTarget(targetX, bot);
+      if (Number.isFinite(targetFrames)) {
+        const currentCenter = bot.x + bot.width / 2;
+        const maximumTravel = bot.speed * Math.max(0, targetFrames - 3);
+        const reachableLaserTarget = Math.max(currentCenter - maximumTravel, Math.min(currentCenter + maximumTravel, laserSafeTarget));
+        const reachableBallTarget = assignedLanding
+          ? Math.max(currentCenter - maximumTravel, Math.min(currentCenter + maximumTravel, assignedLanding.landingX))
+          : reachableLaserTarget;
+        targetX = targetFrames < 45 ? reachableBallTarget : reachableLaserTarget;
+      } else {
+        targetX = laserSafeTarget;
       }
-      targetX += Math.sin(simulationFrame * 0.018 + bot.lobbyIndex * 2) * 9;
       targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
       bot.previousX = bot.x;
       bot.previousY = bot.y;
@@ -1822,6 +1909,12 @@ function draw() {
     ctx.font = "bold 14px Courier New";
     ctx.fillText(powerUpNotice.text, WIDTH / 2, 90);
   }
+  if (levelNotice) {
+    ctx.fillStyle = "#fff176";
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px Courier New";
+    ctx.fillText(levelNotice.text, WIDTH / 2, 112);
+  }
   if (perfectNotice) {
     ctx.fillStyle = "#fff176";
     ctx.textAlign = "center";
@@ -1887,11 +1980,24 @@ function advanceLevel() {
     gameWon = true;
     return;
   }
-  level++;
+  startLevel(level + 1);
+}
+
+function startLevel(nextLevel) {
+  level = nextLevel;
   bricks = makeBricks(level);
   setNextBotsForLevel(level);
   lasers = createLevelLasers(level);
   powerUps = [];
+  const features = [];
+  if (level >= 2) features.push(level === 2 ? "NEXTBOTS START" : "NEXTBOTS ACTIVE");
+  if (level === 3) features.push("LASERS START");
+  else if (level > 3) features.push(lasers.length + " LASERS ACTIVE");
+  if (level === 9 || level === 15 || level === 21 || level === 27 || level === LEVEL_COUNT - 1) features.push("BOSS");
+  levelNotice = {
+    text: "LEVEL " + (level + 1) + " START" + (features.length ? " // " + features.join(" // ") : ""),
+    timer: 150
+  };
   resetBall();
 }
 
@@ -1909,6 +2015,7 @@ function restartGame() {
   brickHitStreak = 0;
   extraBalls = [];
   powerUps = [];
+  levelNotice = null;
   widePaddleTimer = 0;
   slowBallTimer = 0;
   magnetTimer = 0;
@@ -1923,10 +2030,7 @@ function restartGame() {
   comboNotice = null;
   paddle.width = BASE_PADDLE_WIDTH;
   selectNextBots();
-  bricks = makeBricks(level);
-  setNextBotsForLevel(level);
-  lasers = createLevelLasers(level);
-  resetBall();
+  startLevel(level);
 }
 
 window.addEventListener("load", function () {

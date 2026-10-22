@@ -8,6 +8,15 @@
 
 // Returns true if two rectangles (like the ball and a brick) overlap.
 function boxesTouch(a, b) {
+  if (b.type === "boss") {
+    const centerX = b.x + b.width / 2;
+    const centerY = b.y + b.height / 2;
+    const radiusX = b.width * 0.34 + a.width / 2;
+    const radiusY = b.height * 0.38 + a.height / 2;
+    const normalizedX = (a.x + a.width / 2 - centerX) / radiusX;
+    const normalizedY = (a.y + a.height / 2 - centerY) / radiusY;
+    return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+  }
   return (
     a.x < b.x + b.width &&
     a.x + a.width > b.x &&
@@ -231,7 +240,7 @@ function bounceOffBricks(activeBall) {
   }
 }
 
-function projectToPaddle(source, sourceBricks) {
+function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
   const projectedBall = {
     x: source.x,
     y: source.y,
@@ -247,6 +256,15 @@ function projectToPaddle(source, sourceBricks) {
   for (let step = 0; step < 500; step++) {
     projectedBall.x += projectedBall.vx;
     projectedBall.y += projectedBall.vy;
+
+    for (const brick of projectedBricks) {
+      if (brick.type === "moving") {
+        brick.x = brick.originX + Math.sin((simulationFrame + step) * 0.035 + brick.movePhase) * brick.moveAmplitude;
+      } else if (brick.type === "boss") {
+        brick.x = brick.originX + Math.sin((simulationFrame + step) * 0.022 + brick.movePhase) * brick.moveAmplitude;
+        brick.y = brick.originY + Math.sin((simulationFrame + step) * 0.037 + brick.movePhase) * 7;
+      }
+    }
 
     if (projectedBall.x < 0 || projectedBall.x + projectedBall.width > WIDTH) {
       projectedBall.vx = -projectedBall.vx;
@@ -267,7 +285,8 @@ function projectToPaddle(source, sourceBricks) {
           x: WIDTH / 2,
           vx: BALL_SPEED,
           vy: BALL_SPEED,
-          hazard: true
+          hazard: true,
+          steps: step + 1
         };
       }
 
@@ -280,23 +299,28 @@ function projectToPaddle(source, sourceBricks) {
         projectedBall.vy = -projectedBall.vy;
         projectedBall.y = projectedBall.y < brick.y ? brick.y - projectedBall.height : brick.y + brick.height;
       }
-      projectedBricks.splice(i, 1);
+      if ((brick.type === "boss" || brick.type === "armored") && (brick.hp || 1) > 1) {
+        brick.hp--;
+      } else {
+        projectedBricks.splice(i, 1);
+      }
       hit = true;
       break;
     }
 
     if (hit) continue;
-    if (projectedBall.vy > 0 && projectedBall.y + projectedBall.height >= paddle.y) {
+    if (projectedBall.vy > 0 && projectedBall.y + projectedBall.height >= targetPaddleY) {
       return {
         x: projectedBall.x + projectedBall.width / 2,
         vx: projectedBall.vx,
         vy: projectedBall.vy,
-        hazard: false
+        hazard: false,
+        steps: step + 1
       };
     }
   }
 
-  return { x: WIDTH / 2, vx: source.vx, vy: source.vy, hazard: false };
+  return { x: WIDTH / 2, vx: source.vx, vy: source.vy, hazard: false, steps: 500 };
 }
 
 function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
@@ -363,13 +387,46 @@ function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
 }
 
 function planAutoPlay() {
-  const projection = projectToPaddle(ball, bricks);
+  const projections = [ball].concat(extraBalls).map(function (activeBall) {
+    return { activeBall: activeBall, landing: projectToPaddle(activeBall, bricks) };
+  });
+  const whiteProjection = projections.find(function (entry) { return entry.activeBall === ball; });
+  const greenProjection = projections.filter(function (entry) { return entry.activeBall !== ball; })
+    .reduce(function (soonest, candidate) {
+      return !soonest || candidate.landing.steps < soonest.landing.steps ? candidate : soonest;
+    }, null);
+  let chosenProjection = whiteProjection;
+  if (greenProjection && !greenProjection.landing.hazard &&
+      !whiteProjection.landing.hazard &&
+      whiteProjection.landing.steps > 240 &&
+      whiteProjection.landing.steps > greenProjection.landing.steps + 24 &&
+      Math.abs(whiteProjection.landing.x - greenProjection.landing.x) > paddle.width + 24) {
+    chosenProjection = greenProjection;
+  }
+  const projection = chosenProjection.landing;
   const targetX = Math.max(paddle.width / 2, Math.min(WIDTH - paddle.width / 2, projection.x));
+  const targetFrames = projection.steps;
+  let powerUpTarget = null;
+
+  for (const powerUp of powerUps) {
+    const framesToCatch = (paddle.y - powerUp.y - powerUp.height) / powerUp.speed;
+    if (framesToCatch <= 0 || framesToCatch >= targetFrames - 8) continue;
+    const powerUpX = powerUp.x + powerUp.width / 2;
+    const paddleCenterX = paddle.x + paddle.width / 2;
+    if (Math.abs(powerUpX - paddleCenterX) > paddle.speed * framesToCatch + paddle.width / 2) continue;
+    if (!powerUpTarget || framesToCatch < powerUpTarget.frames) {
+      powerUpTarget = { x: powerUpX, frames: framesToCatch };
+    }
+  }
+
+  const catchX = powerUpTarget
+    ? Math.max(paddle.width / 2, Math.min(WIDTH - paddle.width / 2, powerUpTarget.x))
+    : targetX;
   let bestAngle = 0;
   let bestScore = -Infinity;
 
   for (let angle = -MAX_PADDLE_TILT; angle <= MAX_PADDLE_TILT; angle += 5) {
-    const score = scoreAutoShot(targetX, angle, projection.vx, projection.vy);
+    const score = scoreAutoShot(catchX, angle, projection.vx, projection.vy);
     if (score > bestScore) {
       bestScore = score;
       bestAngle = angle;
@@ -377,7 +434,7 @@ function planAutoPlay() {
   }
 
   return {
-    x: projection.x,
+    x: catchX,
     angle: bestAngle
   };
 }

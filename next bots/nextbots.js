@@ -28,7 +28,7 @@ const NEXTBOT_ROSTER = [
   { name: "TROPIC", color: "#059669", accent: "#fbbf24", speed: 1.28 },
   { name: "STRATA", color: "#78350f", accent: "#fcd34d", speed: 1.00 },
   { name: "VELVET", color: "#be185d", accent: "#6366f1", speed: 0.94 },
-  { name: "PANDEMONIUM", color: "#e11d48", accent: "#facc15", speed: 1.82 },
+  { name: "PANDEMONIUM", color: "#e11d48", accent: "#facc15", speed: 1.82, telegraphFrames: 300 },
   { name: "RUSH", color: "#f97316", accent: "#fb7185", speed: 1.92 },
   { name: "WARDEN", color: "#475569", accent: "#38bdf8", speed: 0.88 },
   { name: "AFTERIMAGE", color: "#a855f7", accent: "#67e8f9", speed: 1.58 }
@@ -38,7 +38,6 @@ const NEXTBOT_ROSTER = [
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
-const MAX_ACTIVE_NEXTBOTS = 6;
 const BATTLE_DURATION = 720;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
@@ -48,6 +47,7 @@ let nextBotBattle = null;
 let nextBotCooldown = 0;
 let nextBotBanner = null;
 let nextBotAI = false;
+let nextBotTeamupTimer = 0;
 
 function makeNextBot(definition, index) {
   return Object.assign({}, definition, {
@@ -57,6 +57,7 @@ function makeNextBot(definition, index) {
     targetY: 100 + Math.random() * 170,
     mode: "walk",
     thinkTimer: 110 + Math.random() * 150,
+    attackQueued: false,
     phaseTimer: 0,
     angle: 0,
     dashVX: 0,
@@ -65,7 +66,6 @@ function makeNextBot(definition, index) {
 }
 
 function spawnNextBot() {
-  if (nextBots.length >= MAX_ACTIVE_NEXTBOTS) return null;
   const available = NEXTBOT_ROSTER.filter(function (definition) {
     return !nextBots.some(function (bot) { return bot.name === definition.name; });
   });
@@ -89,6 +89,7 @@ function selectNextBots() {
   nextBotBattle = null;
   nextBotCooldown = 0;
   nextBotBanner = null;
+  nextBotTeamupTimer = 0;
 }
 
 function getNextBotMultiplayerState() {
@@ -114,7 +115,8 @@ function getNextBotMultiplayerState() {
     battle: battle,
     banner: nextBotBanner ? Object.assign({}, nextBotBanner) : null,
     cooldown: nextBotCooldown,
-    ai: nextBotAI
+    ai: nextBotAI,
+    teamupTimer: nextBotTeamupTimer
   };
 }
 
@@ -127,11 +129,12 @@ function setNextBotMultiplayerState(state) {
   }) : null;
   nextBotBanner = state.banner ? Object.assign({}, state.banner) : null;
   nextBotCooldown = state.cooldown || 0;
+  nextBotTeamupTimer = state.teamupTimer || 0;
   if (nextBotAI !== Boolean(state.ai)) setNextBotAI(Boolean(state.ai));
 }
 
 function setNextBotsForLevel(currentLevel) {
-  const targetCount = currentLevel < 2 ? 0 : Math.min(MAX_ACTIVE_NEXTBOTS, Math.floor((currentLevel + 1) / 2));
+  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2);
   while (nextBots.length < targetCount) spawnNextBot();
   while (nextBots.length > targetCount) removeNextBot();
 }
@@ -201,11 +204,7 @@ function updateNextBots() {
       }
       bot.angle = Math.atan2(paddle.y + paddle.height / 2 - bot.y, paddle.x + paddle.width / 2 - bot.x);
       bot.thinkTimer--;
-      if (bot.thinkTimer <= 0 && nextBotCooldown === 0) {
-        bot.angle = Math.atan2(paddle.y + paddle.height / 2 - bot.y, paddle.x + paddle.width / 2 - bot.x);
-        bot.mode = "telegraph";
-        bot.phaseTimer = NEXTBOT_TELEGRAPH_FRAMES;
-      }
+      if (bot.thinkTimer <= 0) bot.attackQueued = true;
       continue;
     }
 
@@ -232,10 +231,40 @@ function updateNextBots() {
     if (bot.phaseTimer <= 0 || bot.x < -30 || bot.x > WIDTH + 30 || bot.y < -30 || bot.y > HEIGHT + 30) {
       bot.mode = "walk";
       bot.thinkTimer = 115 + Math.random() * 115;
+      bot.attackQueued = false;
       bot.targetX = 45 + Math.random() * (WIDTH - 90);
       bot.targetY = 95 + Math.random() * 205;
     }
   }
+
+  if (nextBotCooldown > 0) return;
+  const activeAttacks = nextBots.filter(function (bot) {
+    return bot.mode === "telegraph" || bot.mode === "dash";
+  }).length;
+  const queuedBot = nextBots.find(function (bot) {
+    return bot.mode === "walk" && bot.attackQueued;
+  });
+  if (!queuedBot) {
+    nextBotTeamupTimer = 0;
+    return;
+  }
+  if (activeAttacks === 0) {
+    startNextBotAttack(queuedBot);
+    nextBotTeamupTimer = 0;
+  } else if (activeAttacks === 1) {
+    if (nextBotTeamupTimer === 0) nextBotTeamupTimer = 36;
+    nextBotTeamupTimer--;
+    if (nextBotTeamupTimer <= 0) startNextBotAttack(queuedBot);
+  } else {
+    nextBotTeamupTimer = 0;
+  }
+}
+
+function startNextBotAttack(bot) {
+  bot.angle = Math.atan2(paddle.y + paddle.height / 2 - bot.y, paddle.x + paddle.width / 2 - bot.x);
+  bot.mode = "telegraph";
+  bot.phaseTimer = bot.telegraphFrames || NEXTBOT_TELEGRAPH_FRAMES;
+  bot.attackQueued = false;
 }
 
 function segmentHitsPaddle(startX, startY, endX, endY) {
@@ -387,8 +416,14 @@ function finishNextBotBattle(won) {
     timer: 110
   };
   for (const bot of nextBots) {
-    bot.mode = "walk";
-    bot.thinkTimer = 130 + Math.random() * 100;
+    if (bot.mode === "telegraph" || bot.mode === "dash") {
+      bot.mode = "walk";
+      bot.attackQueued = true;
+    }
+    if (bot === defeatedBot) {
+      bot.thinkTimer = 130 + Math.random() * 100;
+      bot.attackQueued = false;
+    }
   }
 
   if (won) {
@@ -435,6 +470,15 @@ function drawNextBots() {
     ctx.textAlign = "center";
     ctx.font = "10px Courier New";
     ctx.fillText(bot.name, centerX, centerY - 20);
+    if (bot.mode === "telegraph") {
+      ctx.fillStyle = bot.accent;
+      ctx.font = "bold 10px Courier New";
+      ctx.fillText("ATTACK IN " + (bot.phaseTimer / 60).toFixed(1) + "s", centerX, centerY - 33);
+    } else if (bot.attackQueued) {
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "bold 9px Courier New";
+      ctx.fillText("ATTACK QUEUED", centerX, centerY - 33);
+    }
   }
 
   if (nextBotBattle) drawNextBotBattle();
