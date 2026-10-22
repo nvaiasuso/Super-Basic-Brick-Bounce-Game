@@ -1,6 +1,12 @@
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const net = require("node:net");
-const httpServer = require("http-server").createServer({ root: __dirname, cache: -1 });
+const path = require("node:path");
+const httpServer = require("http-server").createServer({
+  root: __dirname,
+  cache: -1,
+  before: [musicApiMiddleware]
+});
 const WebSocket = require("ws");
 
 const requestedPort = Number(process.env.PORT) || 8080;
@@ -8,6 +14,46 @@ const rooms = new Map();
 const clients = new Map();
 const roomCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const playerColors = ["#d6ff55", "#55d9ff"];
+const musicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+
+async function findMusicFiles(directory, files) {
+  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await findMusicFiles(entryPath, files);
+    } else if (entry.isFile() && musicExtensions.has(path.extname(entry.name).toLowerCase())) {
+      const relativePath = path.relative(__dirname, entryPath).split(path.sep).join("/");
+      files.push({
+        title: path.basename(entry.name, path.extname(entry.name)),
+        url: "/" + relativePath.split("/").map(encodeURIComponent).join("/")
+      });
+    }
+  }
+}
+
+function musicApiMiddleware(request, response) {
+  const pathname = new URL(request.url, "http://localhost").pathname;
+  if (pathname !== "/api/music") return response.emit("next");
+  if (request.method !== "GET") {
+    response.statusCode = 405;
+    return response.end();
+  }
+
+  const files = [];
+  findMusicFiles(__dirname, files).then(function () {
+    files.sort(function (first, second) {
+      return first.title.localeCompare(second.title);
+    });
+    response.setHeader("Content-Type", "application/json; charset=utf-8");
+    response.setHeader("Cache-Control", "no-store");
+    response.end(JSON.stringify(files));
+  }).catch(function () {
+    response.statusCode = 500;
+    response.end("Could not scan repository music.");
+  });
+}
 
 const socketServer = new WebSocket.Server({
   server: httpServer.server,

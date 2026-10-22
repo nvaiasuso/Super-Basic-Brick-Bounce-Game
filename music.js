@@ -3,11 +3,7 @@ const musicUpload = document.getElementById("music-upload");
 const musicPlaylist = document.getElementById("music-playlist");
 const musicCurrent = document.getElementById("music-current");
 const musicMode = document.getElementById("music-mode");
-const musicTracks = [
-  { title: "Femboy Friday - indxgo", url: encodeURIComponent("Femboy Friday - indxgo (720p, h264).mp4") },
-  { title: "MEGALOVANIA - Toby Fox", url: encodeURIComponent("MEGALOVANIA - Toby Fox (720p, h264).mp4") },
-  { title: "We Only Guzzle Diesel - Red White and Country", url: encodeURIComponent("We Only Guzzle Diesel - Red White and Country (720p, h264).mp4") }
-];
+const musicTracks = [];
 let currentMusicIndex = -1;
 
 function updateMusicMode() {
@@ -117,10 +113,27 @@ musicMedia.addEventListener("ended", function () {
   }
 });
 
+async function loadRepositoryMusic() {
+  try {
+    const response = await fetch("/api/music", { cache: "no-store" });
+    if (!response.ok) throw new Error("Music scan failed");
+    const tracks = await response.json();
+    for (const track of tracks) {
+      if (typeof track.title === "string" && typeof track.url === "string") {
+        musicTracks.push(track);
+      }
+    }
+    renderMusicPlaylist();
+    playTrack(0, false);
+  } catch (error) {
+    musicCurrent.textContent = "Could not load repository music.";
+  }
+}
+
 window.addEventListener("beforeunload", function () {
   for (const track of musicTracks) {
     if (track.objectUrl) URL.revokeObjectURL(track.objectUrl);
   }
 });
 
-playTrack(0, false);
+loadRepositoryMusic();
