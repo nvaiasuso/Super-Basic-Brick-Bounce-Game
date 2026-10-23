@@ -396,11 +396,18 @@ function planAutoPlay() {
       return !soonest || candidate.landing.steps < soonest.landing.steps ? candidate : soonest;
     }, null);
   let chosenProjection = whiteProjection;
-  if (greenProjection && !greenProjection.landing.hazard &&
-      !whiteProjection.landing.hazard &&
-      whiteProjection.landing.steps > 240 &&
-      whiteProjection.landing.steps > greenProjection.landing.steps + 24 &&
-      Math.abs(whiteProjection.landing.x - greenProjection.landing.x) > paddle.width + 24) {
+  const whiteFramesAfterGreen = greenProjection
+    ? whiteProjection.landing.steps - greenProjection.landing.steps
+    : -1;
+  const canCatchGreenSafely = greenProjection &&
+    !greenProjection.landing.hazard &&
+    !whiteProjection.landing.hazard &&
+    greenProjection.landing.steps + 12 < whiteProjection.landing.steps &&
+    Math.abs(greenProjection.landing.x - (paddle.x + paddle.width / 2)) <=
+      paddle.speed * greenProjection.landing.steps + paddle.width / 2 &&
+    Math.abs(whiteProjection.landing.x - greenProjection.landing.x) <=
+      paddle.speed * whiteFramesAfterGreen + paddle.width / 2;
+  if (canCatchGreenSafely) {
     chosenProjection = greenProjection;
   }
   const projection = chosenProjection.landing;
@@ -414,6 +421,9 @@ function planAutoPlay() {
     const powerUpX = powerUp.x + powerUp.width / 2;
     const paddleCenterX = paddle.x + paddle.width / 2;
     if (Math.abs(powerUpX - paddleCenterX) > paddle.speed * framesToCatch + paddle.width / 2) continue;
+    if (framesToCatch >= whiteProjection.landing.steps - 8 ||
+        Math.abs(whiteProjection.landing.x - powerUpX) >
+          paddle.speed * (whiteProjection.landing.steps - framesToCatch) + paddle.width / 2) continue;
     if (!powerUpTarget || framesToCatch < powerUpTarget.frames) {
       powerUpTarget = { x: powerUpX, frames: framesToCatch };
     }

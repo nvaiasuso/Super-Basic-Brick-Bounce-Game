@@ -936,52 +936,70 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
+const repeatAdminActions = new Set(["ball", "break", "ai", "kill-ai", "spawn-nextbot", "remove-nextbot", "life"]);
+const adminRepeatCount = document.getElementById("admin-repeat-count");
+const adminRepeatStatus = document.getElementById("admin-repeat-status");
+
+function runAdminAction(action) {
+  if (action === "ball") {
+    addAdminBall();
+  } else if (action === "break") {
+    breakNearestBrick();
+  } else if (action === "ai") {
+    spawnAdminAiPaddle();
+  } else if (action === "kill-ai") {
+    removeAdminAiPaddle();
+  } else if (action === "test") {
+    testAdminTools();
+  } else if (action === "invincibility") {
+    invincible = !invincible;
+    refreshInvincibilityButton();
+  } else if (action === "nextbot-ai") {
+    setNextBotAI(!isNextBotAIEnabled());
+  } else if (action === "spawn-nextbot") {
+    spawnNextBot();
+  } else if (action === "remove-nextbot") {
+    removeNextBot();
+  } else if (action === "life") {
+    lives++;
+    if (gameOver) {
+      gameOver = false;
+      resetBall();
+    }
+  } else if (action === "level") {
+    gameOver = false;
+    advanceLevel();
+  } else if (action === "skip-level") {
+    const selectedLevel = Number(adminLevelSelect && adminLevelSelect.value);
+    if (Number.isInteger(selectedLevel) && selectedLevel >= 1 && selectedLevel <= LEVEL_COUNT) {
+      gameOver = false;
+      gameWon = false;
+      startLevel(selectedLevel - 1);
+    }
+  } else if (action === "restart") {
+    restartGame();
+  } else if (action === "menu") {
+    if (multiplayerActive && typeof window.leaveLobbySession === "function") {
+      window.leaveLobbySession();
+    } else {
+      showMainMenu();
+    }
+  }
+}
+
 for (const adminButton of document.querySelectorAll("[data-admin]")) {
   adminButton.addEventListener("click", function () {
+    runAdminAction(adminButton.dataset.admin);
+  });
+  adminButton.addEventListener("contextmenu", function (event) {
     const action = adminButton.dataset.admin;
-    if (action === "ball") {
-      addAdminBall();
-    } else if (action === "break") {
-      breakNearestBrick();
-    } else if (action === "ai") {
-      spawnAdminAiPaddle();
-    } else if (action === "kill-ai") {
-      removeAdminAiPaddle();
-    } else if (action === "test") {
-      testAdminTools();
-    } else if (action === "invincibility") {
-      invincible = !invincible;
-      refreshInvincibilityButton();
-    } else if (action === "nextbot-ai") {
-      setNextBotAI(!isNextBotAIEnabled());
-    } else if (action === "spawn-nextbot") {
-      spawnNextBot();
-    } else if (action === "remove-nextbot") {
-      removeNextBot();
-    } else if (action === "life") {
-      lives++;
-      if (gameOver) {
-        gameOver = false;
-        resetBall();
-      }
-    } else if (action === "level") {
-      gameOver = false;
-      advanceLevel();
-    } else if (action === "skip-level") {
-      const selectedLevel = Number(adminLevelSelect && adminLevelSelect.value);
-      if (Number.isInteger(selectedLevel) && selectedLevel >= 1 && selectedLevel <= LEVEL_COUNT) {
-        gameOver = false;
-        gameWon = false;
-        startLevel(selectedLevel - 1);
-      }
-    } else if (action === "restart") {
-      restartGame();
-    } else if (action === "menu") {
-      if (multiplayerActive && typeof window.leaveLobbySession === "function") {
-        window.leaveLobbySession();
-      } else {
-        showMainMenu();
-      }
+    if (!repeatAdminActions.has(action)) return;
+    event.preventDefault();
+    const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
+    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 10;
+    for (let index = 0; index < count; index++) runAdminAction(action);
+    if (adminRepeatStatus) {
+      adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times.";
     }
   });
 }
@@ -1209,7 +1227,6 @@ function update() {
 
   if (isNextBotBattleActive()) {
     updateNextBotBattle();
-    return;
   }
 
   paddle.previousX = paddle.x;
@@ -1287,7 +1304,7 @@ function update() {
     }
   }
 
-  if (!bricks.some(function (brick) { return !brick.isKill; })) {
+  if (!bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
     advanceLevel();
   }
 }
@@ -1340,7 +1357,7 @@ function moveBall(activeBall) {
     ballTrail.push({ x: activeBall.x + activeBall.width / 2, y: activeBall.y + activeBall.height / 2 });
     if (ballTrail.length > 8) ballTrail.shift();
   }
-  const attackScale = isNextBotAttackActive() ? 0.68 : 1;
+  const attackScale = isNextBotBattleActive() ? 0.45 : (isNextBotAttackActive() ? 0.68 : 1);
   const powerUpScale = slowBallTimer > 0 ? 0.7 : 1;
   activeBall.x += activeBall.vx * attackScale * powerUpScale;
   activeBall.y += activeBall.vy * attackScale * powerUpScale;
@@ -1511,8 +1528,8 @@ function updateTemporaryPowerUps() {
 }
 
 function createLevelLasers(currentLevel) {
-  if (currentLevel < 3) return [];
-  const count = 1 + Math.floor((currentLevel - 3) / 2);
+  if (currentLevel < 2) return [];
+  const count = currentLevel === 2 ? 1 : 2 + Math.floor((currentLevel - 3) / 2);
   return Array.from({ length: count }, function (_, index) {
     return {
       x: 60 + Math.random() * (WIDTH - 120),
@@ -1688,14 +1705,19 @@ function updateAiPaddles() {
       const greenLandings = landings.filter(function (entry) { return entry.ball !== ball; });
       const nextGreenLanding = greenLandings[bot.lobbyIndex % Math.max(1, greenLandings.length)] || null;
       const whiteNeedsSaving = whiteLanding &&
-        (whiteLanding.hazard || whiteLanding.frames < 210 ||
+        (whiteLanding.hazard || whiteLanding.frames < 300 ||
          Math.abs(whiteLanding.landingX - (bot.x + bot.width / 2)) > bot.speed * whiteLanding.frames + bot.width / 2);
-      const assignedLanding = whiteNeedsSaving || !nextGreenLanding || nextGreenLanding.hazard ? whiteLanding : nextGreenLanding;
+      const greenIsSafeToCatch = whiteLanding && nextGreenLanding && !whiteNeedsSaving &&
+        !nextGreenLanding.hazard && nextGreenLanding.frames + 12 < whiteLanding.frames &&
+        Math.abs(nextGreenLanding.landingX - (bot.x + bot.width / 2)) <= bot.speed * nextGreenLanding.frames + bot.width / 2 &&
+        Math.abs(whiteLanding.landingX - nextGreenLanding.landingX) <=
+          bot.speed * (whiteLanding.frames - nextGreenLanding.frames) + bot.width / 2;
+      const assignedLanding = greenIsSafeToCatch ? nextGreenLanding : whiteLanding;
       if (assignedLanding) target = assignedLanding.ball;
       let targetFrames = assignedLanding ? assignedLanding.frames : Infinity;
       let targetX = assignedLanding ? assignedLanding.landingX : target.x + target.width / 2;
       let catchablePowerUp = null;
-      for (const powerUp of whiteNeedsSaving ? [] : powerUps) {
+      for (const powerUp of whiteNeedsSaving || greenIsSafeToCatch ? [] : powerUps) {
         const framesToCatch = (bot.y - powerUp.y - powerUp.height) / powerUp.speed;
         const powerUpX = powerUp.x + powerUp.width / 2;
         const paddleCenter = bot.x + bot.width / 2;
@@ -1991,8 +2013,8 @@ function startLevel(nextLevel) {
   powerUps = [];
   const features = [];
   if (level >= 2) features.push(level === 2 ? "NEXTBOTS START" : "NEXTBOTS ACTIVE");
-  if (level === 3) features.push("LASERS START");
-  else if (level > 3) features.push(lasers.length + " LASERS ACTIVE");
+  if (level === 2) features.push("LASERS START");
+  else if (level > 2) features.push(lasers.length + " LASERS ACTIVE");
   if (level === 9 || level === 15 || level === 21 || level === 27 || level === LEVEL_COUNT - 1) features.push("BOSS");
   levelNotice = {
     text: "LEVEL " + (level + 1) + " START" + (features.length ? " // " + features.join(" // ") : ""),

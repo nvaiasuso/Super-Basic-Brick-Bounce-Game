@@ -38,7 +38,7 @@ const NEXTBOT_ROSTER = [
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
-const BATTLE_DURATION = 720;
+const BATTLE_DURATION = 300;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
 
@@ -56,7 +56,7 @@ function makeNextBot(definition, index) {
     targetX: 70 + Math.random() * (WIDTH - 140),
     targetY: 100 + Math.random() * 170,
     mode: "walk",
-    thinkTimer: 110 + Math.random() * 150,
+    thinkTimer: definition.name === "PANDEMONIUM" ? 1 : 110 + Math.random() * 150,
     attackQueued: false,
     phaseTimer: 0,
     angle: 0,
@@ -97,6 +97,7 @@ function getNextBotMultiplayerState() {
   if (nextBotBattle) {
     battle = {
       botName: nextBotBattle.bot.name,
+      playerId: nextBotBattle.playerId,
       time: nextBotBattle.time,
       centerX: nextBotBattle.centerX,
       centerY: nextBotBattle.centerY,
@@ -241,9 +242,13 @@ function updateNextBots() {
   const activeAttacks = nextBots.filter(function (bot) {
     return bot.mode === "telegraph" || bot.mode === "dash";
   }).length;
-  const queuedBot = nextBots.find(function (bot) {
+  const queuedBot = nextBots.filter(function (bot) {
     return bot.mode === "walk" && bot.attackQueued;
-  });
+  }).sort(function (first, second) {
+    if (first.name === "PANDEMONIUM") return -1;
+    if (second.name === "PANDEMONIUM") return 1;
+    return 0;
+  })[0];
   if (!queuedBot) {
     nextBotTeamupTimer = 0;
     return;
@@ -251,7 +256,7 @@ function updateNextBots() {
   if (activeAttacks === 0) {
     startNextBotAttack(queuedBot);
     nextBotTeamupTimer = 0;
-  } else if (activeAttacks === 1) {
+  } else if (activeAttacks < 3) {
     if (nextBotTeamupTimer === 0) nextBotTeamupTimer = 36;
     nextBotTeamupTimer--;
     if (nextBotTeamupTimer <= 0) startNextBotAttack(queuedBot);
@@ -294,6 +299,7 @@ function segmentHitsPaddle(startX, startY, endX, endY) {
 }
 
 function beginNextBotBattle(bot) {
+  if (nextBotBattle) return;
   const centerX = WIDTH / 2;
   const centerY = HEIGHT / 2;
   const shieldAngle = -Math.PI / 2;
@@ -301,6 +307,7 @@ function beginNextBotBattle(bot) {
   const ballAngle = shieldAngle;
   nextBotBattle = {
     bot: bot,
+    playerId: multiplayerActive ? multiplayerPlayerId : null,
     time: 0,
     centerX: centerX,
     centerY: centerY,
@@ -326,10 +333,6 @@ function updateNextBotBattle() {
     if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
     if (keys[CONTROL_KEYS.right]) battle.shieldAngle += 0.14;
     if (multiplayerHost) {
-      for (const player of multiplayerPlayers) {
-        if (player.left) battle.shieldAngle -= 0.14;
-        if (player.right) battle.shieldAngle += 0.14;
-      }
       if (aiPaddles.some(function (bot) { return bot.lobbyAI; })) {
         const targetAngle = Math.atan2(battle.ballY - battle.centerY, battle.ballX - battle.centerX);
         const difference = Math.atan2(Math.sin(targetAngle - battle.shieldAngle), Math.cos(targetAngle - battle.shieldAngle));
@@ -481,6 +484,14 @@ function drawNextBots() {
     }
   }
 
+  const queuedCount = nextBots.filter(function (bot) { return bot.attackQueued; }).length;
+  if (queuedCount > 0) {
+    ctx.fillStyle = "#ffd166";
+    ctx.textAlign = "center";
+    ctx.font = "bold 13px Courier New";
+    ctx.fillText("NEXTBOT ATTACK QUEUED: " + queuedCount, WIDTH / 2, 46);
+  }
+
   if (nextBotBattle) drawNextBotBattle();
   if (nextBotBanner) {
     ctx.fillStyle = "white";
@@ -492,7 +503,7 @@ function drawNextBots() {
 
 function drawNextBotBattle() {
   const battle = nextBotBattle;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.88)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   ctx.textAlign = "center";

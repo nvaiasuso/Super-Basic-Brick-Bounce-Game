@@ -155,6 +155,15 @@
         <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
         <button type="button" data-admin="life">Add life</button>
         <button type="button" data-admin="level">Next level</button>
+        <label for="admin-repeat-count">Right-click repeats</label>
+        <select id="admin-repeat-count" aria-label="Number of times to repeat an admin action">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">
           <option value="1">Level 1</option>

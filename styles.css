@@ -599,6 +599,10 @@ button:focus-visible {
   margin: 0;
 }
 
+.admin-actions small {
+  flex-basis: 100%;
+}
+
 @media (max-width: 680px) {
   main {
     padding: 18px;
