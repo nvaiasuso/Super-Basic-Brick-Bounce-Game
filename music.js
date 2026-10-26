@@ -3,9 +3,50 @@ const musicUpload = document.getElementById("music-upload");
 const musicPlaylist = document.getElementById("music-playlist");
 const musicCurrent = document.getElementById("music-current");
 const musicMode = document.getElementById("music-mode");
+const musicBass = document.getElementById("music-bass");
+const musicBassValue = document.getElementById("music-bass-value");
 const musicTracks = [];
 let currentMusicIndex = -1;
+let musicAudioContext = null;
+let bassFilter = null;
 const repositoryMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+
+musicMedia.crossOrigin = "anonymous";
+
+function setupBassBoost() {
+  const AudioContextType = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextType) {
+    musicBass.disabled = true;
+    musicBassValue.textContent = "Unavailable";
+    return;
+  }
+
+  try {
+    musicAudioContext = new AudioContextType();
+    bassFilter = musicAudioContext.createBiquadFilter();
+    bassFilter.type = "lowshelf";
+    bassFilter.frequency.value = 110;
+    const mediaSource = musicAudioContext.createMediaElementSource(musicMedia);
+    mediaSource.connect(bassFilter);
+    bassFilter.connect(musicAudioContext.destination);
+  } catch (error) {
+    musicBass.disabled = true;
+    musicBassValue.textContent = "Unavailable";
+  }
+}
+
+function updateBassBoost() {
+  const decibels = Number(musicBass.value);
+  musicBassValue.textContent = decibels + " dB";
+  if (bassFilter) bassFilter.gain.setTargetAtTime(decibels, musicAudioContext.currentTime, 0.04);
+}
+
+musicBass.addEventListener("input", updateBassBoost);
+musicMedia.addEventListener("play", function () {
+  if (musicAudioContext && musicAudioContext.state === "suspended") musicAudioContext.resume();
+});
+setupBassBoost();
+updateBassBoost();
 
 function addMusicTracks(tracks) {
   for (const track of tracks) {

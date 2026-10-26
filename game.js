@@ -8,6 +8,9 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+if (document.documentElement.classList.contains("textless")) {
+  ctx.fillText = function () {};
+}
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
@@ -38,7 +41,7 @@ const GAME_MODES = [
 const PADDLE_TILT_SPEED = 2;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
-const LEVEL_COUNT = 34;
+const LEVEL_COUNT = 50;
 const MULTIBALL_HIT_STREAK = 5;
 const SKINS = [
   { label: "Classic", paddle: "#ffffff", ball: "#ffffff", accent: "#ffffff", background: "#000000" },
@@ -70,11 +73,26 @@ let aiPaddles = [];
 let powerUps = [];
 let widePaddleTimer = 0;
 let slowBallTimer = 0;
+let fastBallTimer = 0;
+let shieldCharges = 0;
 let magnetTimer = 0;
 let magnetPlayerId = null;
 let powerUpNotice = null;
 let levelNotice = null;
 let lasers = [];
+let autoAdvanceLevel = true;
+let fpsEnabled = false;
+let fpsFrameCount = 0;
+let fpsSampleStart = 0;
+let currentFps = 0;
+const adminVisibility = {
+  blocks: true,
+  enemies: true,
+  lasers: true,
+  nextbots: true,
+  balls: true,
+  extras: true
+};
 let hitStopFrames = 0;
 let screenShakeFrames = 0;
 let particles = [];
@@ -471,6 +489,46 @@ const touchLaunchButton = document.getElementById("touch-launch");
 const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
+
+if (adminLevelSelect) {
+  adminLevelSelect.replaceChildren();
+  for (let index = 0; index < LEVEL_COUNT; index++) {
+    const option = document.createElement("option");
+    option.value = String(index + 1);
+    option.textContent = "Level " + (index + 1);
+    adminLevelSelect.append(option);
+  }
+}
+
+function refreshAdminVisibilityButtons() {
+  const allVisible = Object.values(adminVisibility).every(Boolean);
+  for (const button of document.querySelectorAll("[data-view-toggle]")) {
+    const view = button.dataset.viewToggle;
+    if (view === "all") {
+      button.textContent = allVisible ? "Hide all" : "Show all";
+      button.setAttribute("aria-pressed", String(allVisible));
+    } else {
+      const visible = adminVisibility[view];
+      button.textContent = button.dataset.viewLabel + ": " + (visible ? "On" : "Off");
+      button.setAttribute("aria-pressed", String(visible));
+    }
+  }
+}
+
+for (const button of document.querySelectorAll("[data-view-toggle]")) {
+  const view = button.dataset.viewToggle;
+  if (view !== "all") button.dataset.viewLabel = button.textContent.replace(/: On$/, "");
+  button.addEventListener("click", function () {
+    if (view === "all") {
+      const showAll = !Object.values(adminVisibility).every(Boolean);
+      for (const key of Object.keys(adminVisibility)) adminVisibility[key] = showAll;
+    } else {
+      adminVisibility[view] = !adminVisibility[view];
+    }
+    refreshAdminVisibilityButtons();
+  });
+}
+refreshAdminVisibilityButtons();
 
 function readMobileSetting() {
   try {
@@ -918,6 +976,59 @@ function breakNearestBrick() {
   brickHitStreak = 0;
 }
 
+function spawnAdminBrick() {
+  bricks.push({
+    x: 20 + Math.random() * (WIDTH - 78),
+    y: 92 + Math.random() * 90,
+    width: 58,
+    height: 20,
+    isKill: false,
+    type: "normal",
+    color: "#54c8ff"
+  });
+}
+
+function spawnAdminPowerUp() {
+  const kinds = [
+    { type: "wide", label: "W", color: "#4fe6ff" },
+    { type: "slow", label: "S", color: "#ffd166" },
+    { type: "magnet", label: "M", color: "#ff75d8" },
+    { type: "multi", label: "+", color: EXTRA_BALL_COLOR },
+    { type: "life", label: "1UP", color: "#ff6b6b" },
+    { type: "shield", label: "SH", color: "#7be7ff" },
+    { type: "fast", label: "F", color: "#ff9f43" }
+  ];
+  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  powerUps.push({
+    x: Math.random() * (WIDTH - 22),
+    y: 100,
+    width: 22,
+    height: 22,
+    speed: 2.4,
+    type: kind.type,
+    label: kind.label,
+    color: kind.color
+  });
+}
+
+function spawnAdminLaser() {
+  lasers.push({
+    x: 40 + Math.random() * (WIDTH - 80),
+    mode: "warning",
+    timer: 54,
+    hitRegistered: false
+  });
+}
+
+function spawnAdminEverything() {
+  addAdminBall();
+  spawnAdminBrick();
+  spawnAdminPowerUp();
+  spawnAdminLaser();
+  spawnAdminAiPaddle();
+  spawnNextBot();
+}
+
 function assignAiBallTargets() {
   const activeBalls = [ball].concat(extraBalls);
   for (let i = 0; i < aiPaddles.length; i++) {
@@ -936,13 +1047,21 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "break", "ai", "kill-ai", "spawn-nextbot", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
 function runAdminAction(action) {
   if (action === "ball") {
     addAdminBall();
+  } else if (action === "spawn-brick") {
+    spawnAdminBrick();
+  } else if (action === "spawn-powerup") {
+    spawnAdminPowerUp();
+  } else if (action === "spawn-laser") {
+    spawnAdminLaser();
+  } else if (action === "spawn-all") {
+    spawnAdminEverything();
   } else if (action === "break") {
     breakNearestBrick();
   } else if (action === "ai") {
@@ -956,6 +1075,16 @@ function runAdminAction(action) {
     refreshInvincibilityButton();
   } else if (action === "nextbot-ai") {
     setNextBotAI(!isNextBotAIEnabled());
+  } else if (action === "auto-advance") {
+    autoAdvanceLevel = !autoAdvanceLevel;
+    const button = document.getElementById("auto-advance-toggle");
+    button.setAttribute("aria-pressed", String(autoAdvanceLevel));
+    button.textContent = "Auto-advance: " + (autoAdvanceLevel ? "On" : "Off");
+  } else if (action === "fps") {
+    fpsEnabled = !fpsEnabled;
+    const button = document.getElementById("fps-toggle");
+    button.setAttribute("aria-pressed", String(fpsEnabled));
+    button.textContent = "FPS: " + (fpsEnabled ? "On" : "Off");
   } else if (action === "spawn-nextbot") {
     spawnNextBot();
   } else if (action === "remove-nextbot") {
@@ -996,7 +1125,8 @@ for (const adminButton of document.querySelectorAll("[data-admin]")) {
     if (!repeatAdminActions.has(action)) return;
     event.preventDefault();
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
-    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 10;
+    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(1000, requestedCount)) : 25;
+    if (adminRepeatCount) adminRepeatCount.value = String(count);
     for (let index = 0; index < count; index++) runAdminAction(action);
     if (adminRepeatStatus) {
       adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times.";
@@ -1234,7 +1364,6 @@ function update() {
   paddle.previousAngle = paddle.angle;
   movePaddle();
   if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
-  if (autoPlay || isNextBotAIEnabled()) updateNextBotAI();
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
   updateNextBots();
   updateTemporaryPowerUps();
@@ -1304,7 +1433,7 @@ function update() {
     }
   }
 
-  if (!bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
+  if (autoAdvanceLevel && !bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
     advanceLevel();
   }
 }
@@ -1359,8 +1488,9 @@ function moveBall(activeBall) {
   }
   const attackScale = isNextBotBattleActive() ? 0.45 : (isNextBotAttackActive() ? 0.68 : 1);
   const powerUpScale = slowBallTimer > 0 ? 0.7 : 1;
-  activeBall.x += activeBall.vx * attackScale * powerUpScale;
-  activeBall.y += activeBall.vy * attackScale * powerUpScale;
+  const speedBoostScale = fastBallTimer > 0 ? 1.25 : 1;
+  activeBall.x += activeBall.vx * attackScale * powerUpScale * speedBoostScale;
+  activeBall.y += activeBall.vy * attackScale * powerUpScale * speedBoostScale;
 }
 
 function dropPowerUp(brick) {
@@ -1370,7 +1500,9 @@ function dropPowerUp(brick) {
     { type: "slow", label: "S", color: "#ffd166" },
     { type: "magnet", label: "M", color: "#ff75d8" },
     { type: "multi", label: "+", color: EXTRA_BALL_COLOR },
-    { type: "life", label: "1UP", color: "#ff6b6b" }
+    { type: "life", label: "1UP", color: "#ff6b6b" },
+    { type: "shield", label: "SH", color: "#7be7ff" },
+    { type: "fast", label: "F", color: "#ff9f43" }
   ];
   const kind = kinds[Math.floor(Math.random() * kinds.length)];
   powerUps.push({
@@ -1409,10 +1541,20 @@ function updateSpecialBricks() {
     }
     if (brick.type === "moving") {
       brick.x = brick.originX + Math.sin(simulationFrame * 0.035 + brick.movePhase) * brick.moveAmplitude;
+    } else if (brick.type === "sweeper") {
+      brick.x = brick.originX + Math.sin(simulationFrame * 0.028 + brick.movePhase) * brick.moveAmplitude;
     }
     if (brick.type === "boss") {
       brick.x = brick.originX + Math.sin(simulationFrame * 0.022 + brick.movePhase) * brick.moveAmplitude;
       brick.y = brick.originY + Math.sin(simulationFrame * 0.037 + brick.movePhase) * 7;
+      if (brick.hp <= brick.maxHp * 0.8 && --brick.minionTimer <= 0) {
+        const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
+        if (minionCount < brick.minionLimit) {
+          const minion = spawnNextBot();
+          minion.bossMinion = true;
+        }
+        brick.minionTimer = brick.minionInterval;
+      }
     }
     if (brick.falling) {
       brick.y += brick.fallSpeed;
@@ -1445,6 +1587,12 @@ function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
   } else if (powerUp.type === "life") {
     lives = Math.min(STARTING_LIVES + 3, lives + 1);
     powerUpNotice = { text: "+1 LIFE", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "shield") {
+    shieldCharges = Math.min(3, shieldCharges + 1);
+    powerUpNotice = { text: "SHIELD CHARGE", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "fast") {
+    fastBallTimer = 300;
+    powerUpNotice = { text: "SPEED BOOST", timer: 100, color: powerUp.color };
   }
 }
 
@@ -1519,6 +1667,7 @@ function updateTemporaryPowerUps() {
     }
   }
   if (slowBallTimer > 0) slowBallTimer--;
+    if (fastBallTimer > 0) fastBallTimer--;
   if (magnetTimer > 0 && --magnetTimer === 0) {
     if (ball.stuck) launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
     magnetPlayerId = null;
@@ -1529,7 +1678,7 @@ function updateTemporaryPowerUps() {
 
 function createLevelLasers(currentLevel) {
   if (currentLevel < 2) return [];
-  const count = currentLevel === 2 ? 1 : 2 + Math.floor((currentLevel - 3) / 2);
+  const count = currentLevel === 2 ? 1 : Math.min(8, 2 + Math.floor((currentLevel - 3) / 2));
   return Array.from({ length: count }, function (_, index) {
     return {
       x: 60 + Math.random() * (WIDTH - 120),
@@ -1833,13 +1982,15 @@ function draw() {
   ctx.font = "13px Courier New";
   ctx.fillText("BRICK STREAK " + brickHitStreak + "/" + MULTIBALL_HIT_STREAK, 16, 46);
   ctx.fillText("MOLA " + mola, 16, 64);
-  if (widePaddleTimer > 0 || slowBallTimer > 0 || magnetTimer > 0) {
+  if (widePaddleTimer > 0 || slowBallTimer > 0 || magnetTimer > 0 || fastBallTimer > 0 || shieldCharges > 0) {
     ctx.textAlign = "center";
     ctx.font = "10px Courier New";
     const active = [];
     if (widePaddleTimer > 0) active.push("WIDE " + Math.ceil(widePaddleTimer / 60) + "s");
     if (slowBallTimer > 0) active.push("SLOW " + Math.ceil(slowBallTimer / 60) + "s");
     if (magnetTimer > 0) active.push("MAGNET " + Math.ceil(magnetTimer / 60) + "s");
+    if (fastBallTimer > 0) active.push("FAST " + Math.ceil(fastBallTimer / 60) + "s");
+    if (shieldCharges > 0) active.push("SHIELD x" + shieldCharges);
     ctx.fillText(active.join("  "), WIDTH / 2, 44);
   }
   ctx.textAlign = "right";
@@ -1853,7 +2004,16 @@ function draw() {
     ctx.fillStyle = "#ffd166";
     ctx.fillText("INVINCIBLE", WIDTH - 16, 64);
   }
-
+  if (fpsEnabled) {
+    ctx.fillStyle = "#7be7ff";
+    ctx.textAlign = "right";
+    ctx.fillText("FPS " + currentFps, WIDTH - 16, 84);
+  }
+  if (!autoAdvanceLevel && !bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
+    ctx.fillStyle = "#ffd166";
+    ctx.textAlign = "center";
+    ctx.fillText("LEVEL CLEAR - AUTO-ADVANCE OFF", WIDTH / 2, 84);
+  }
   ctx.fillStyle = "white";
   ctx.save();
   ctx.translate(paddle.x + paddle.width / 2, paddle.y + paddle.height / 2);
@@ -1881,17 +2041,19 @@ function draw() {
       ctx.fillText(player.name || "PLAYER", player.x + playerWidth / 2, playerY - 6);
     }
   }
-  for (const bot of aiPaddles) {
-    ctx.fillStyle = bot.color || skin.accent;
-    ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
-    if (bot.lobbyName) {
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-      ctx.font = "10px Courier New";
-      ctx.fillText(bot.lobbyName, bot.x + bot.width / 2, bot.y - 5);
+  if (adminVisibility.enemies) {
+    for (const bot of aiPaddles) {
+      ctx.fillStyle = bot.color || skin.accent;
+      ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
+      if (bot.lobbyName) {
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.font = "10px Courier New";
+        ctx.fillText(bot.lobbyName, bot.x + bot.width / 2, bot.y - 5);
+      }
     }
   }
-  if (ballTrail.length) {
+  if (adminVisibility.balls && adminVisibility.extras && ballTrail.length) {
     ballTrail.forEach(function (position, index) {
       ctx.globalAlpha = 0.5 * ((index + 1) / ballTrail.length);
       ctx.fillStyle = skin.ball;
@@ -1901,49 +2063,53 @@ function draw() {
     });
     ctx.globalAlpha = 1;
   }
-  for (const activeBall of [ball].concat(extraBalls)) {
-    const ballColor = activeBall === ball ? (activeBall.color || skin.ball) : EXTRA_BALL_COLOR;
-    ctx.fillStyle = ballColor;
-    ctx.shadowColor = ballColor;
-    ctx.shadowBlur = activeBall === ball ? 7 : 13;
-    ctx.fillRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
+  if (adminVisibility.balls) {
+    for (const activeBall of [ball].concat(extraBalls)) {
+      const ballColor = activeBall === ball ? (activeBall.color || skin.ball) : EXTRA_BALL_COLOR;
+      ctx.fillStyle = ballColor;
+      ctx.shadowColor = ballColor;
+      ctx.shadowBlur = activeBall === ball ? 7 : 13;
+      ctx.fillRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
+    }
   }
   ctx.shadowBlur = 0;
   ctx.shadowColor = "transparent";
 
-  drawBricks();  // bricks.js
-  for (const flash of brickFlashes) {
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(flash.x, flash.y, flash.width, flash.height);
+  if (adminVisibility.blocks || adminVisibility.enemies) drawBricks();  // bricks.js
+  if (adminVisibility.extras) {
+    for (const flash of brickFlashes) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(flash.x, flash.y, flash.width, flash.height);
+    }
+    for (const particle of particles) {
+      ctx.globalAlpha = particle.life / particle.maxLife;
+      ctx.fillStyle = particle.color;
+      ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+    }
+    ctx.globalAlpha = 1;
+    drawPowerUps();
   }
-  for (const particle of particles) {
-    ctx.globalAlpha = particle.life / particle.maxLife;
-    ctx.fillStyle = particle.color;
-    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
-  }
-  ctx.globalAlpha = 1;
-  drawPowerUps();
-  drawLasers();
-  drawNextBots();
-  if (powerUpNotice) {
+  if (adminVisibility.lasers) drawLasers();
+  if (adminVisibility.nextbots) drawNextBots();
+  if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
     ctx.textAlign = "center";
     ctx.font = "bold 14px Courier New";
     ctx.fillText(powerUpNotice.text, WIDTH / 2, 90);
   }
-  if (levelNotice) {
+  if (adminVisibility.extras && levelNotice) {
     ctx.fillStyle = "#fff176";
     ctx.textAlign = "center";
     ctx.font = "bold 14px Courier New";
     ctx.fillText(levelNotice.text, WIDTH / 2, 112);
   }
-  if (perfectNotice) {
+  if (adminVisibility.extras && perfectNotice) {
     ctx.fillStyle = "#fff176";
     ctx.textAlign = "center";
     ctx.font = "bold 12px Courier New";
     ctx.fillText("PERFECT", WIDTH / 2, paddle.y - 22 - (48 - perfectNotice.timer) * 0.35);
   }
-  if (comboNotice) {
+  if (adminVisibility.extras && comboNotice) {
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.font = "bold 12px Courier New";
@@ -1985,6 +2151,13 @@ function draw() {
 
 function loseLife() {
   if (invincible) return;
+  if (shieldCharges > 0) {
+    shieldCharges--;
+    extraBalls = [];
+    resetBall();
+    powerUpNotice = { text: "SHIELD SAVED YOU", timer: 100, color: "#7be7ff" };
+    return;
+  }
   lives--;
   autoPlanCooldown = 0;
   brickHitStreak = 0;
@@ -2008,6 +2181,7 @@ function advanceLevel() {
 function startLevel(nextLevel) {
   level = nextLevel;
   bricks = makeBricks(level);
+  clearBossMinions();
   setNextBotsForLevel(level);
   lasers = createLevelLasers(level);
   powerUps = [];
@@ -2015,7 +2189,7 @@ function startLevel(nextLevel) {
   if (level >= 2) features.push(level === 2 ? "NEXTBOTS START" : "NEXTBOTS ACTIVE");
   if (level === 2) features.push("LASERS START");
   else if (level > 2) features.push(lasers.length + " LASERS ACTIVE");
-  if (level === 9 || level === 15 || level === 21 || level === 27 || level === LEVEL_COUNT - 1) features.push("BOSS");
+  if (bricks[0] && bricks[0].type === "boss") features.push(bricks[0].bossName);
   levelNotice = {
     text: "LEVEL " + (level + 1) + " START" + (features.length ? " // " + features.join(" // ") : ""),
     timer: 150
@@ -2040,6 +2214,8 @@ function restartGame() {
   levelNotice = null;
   widePaddleTimer = 0;
   slowBallTimer = 0;
+  fastBallTimer = 0;
+  shieldCharges = 0;
   magnetTimer = 0;
   magnetPlayerId = null;
   powerUpNotice = null;
@@ -2078,6 +2254,14 @@ let leftover = 0;
 let lastLobbySnapshotSentAt = 0;
 
 function frame(now) {
+  fpsFrameCount++;
+  if (fpsSampleStart === 0) fpsSampleStart = now;
+  const fpsElapsed = now - fpsSampleStart;
+  if (fpsElapsed >= 500) {
+    currentFps = Math.round(fpsFrameCount * 1000 / fpsElapsed);
+    fpsFrameCount = 0;
+    fpsSampleStart = now;
+  }
   leftover = leftover + (now - lastTime);
   lastTime = now;
 

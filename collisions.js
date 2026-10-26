@@ -260,6 +260,8 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
     for (const brick of projectedBricks) {
       if (brick.type === "moving") {
         brick.x = brick.originX + Math.sin((simulationFrame + step) * 0.035 + brick.movePhase) * brick.moveAmplitude;
+      } else if (brick.type === "sweeper") {
+        brick.x = brick.originX + Math.sin((simulationFrame + step) * 0.028 + brick.movePhase) * brick.moveAmplitude;
       } else if (brick.type === "boss") {
         brick.x = brick.originX + Math.sin((simulationFrame + step) * 0.022 + brick.movePhase) * brick.moveAmplitude;
         brick.y = brick.originY + Math.sin((simulationFrame + step) * 0.037 + brick.movePhase) * 7;

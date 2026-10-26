@@ -84,6 +84,11 @@ function removeNextBot() {
   return removed;
 }
 
+function clearBossMinions() {
+  if (nextBotBattle && nextBotBattle.bot.bossMinion) nextBotBattle = null;
+  nextBots = nextBots.filter(function (bot) { return !bot.bossMinion; });
+}
+
 function selectNextBots() {
   nextBots = [];
   nextBotBattle = null;
@@ -160,27 +165,6 @@ function setNextBotAI(enabled) {
   if (button) {
     button.setAttribute("aria-pressed", String(nextBotAI));
     button.textContent = "Nextbot AI: " + (nextBotAI ? "On" : "Off");
-  }
-}
-
-function updateNextBotAI() {
-  for (const bot of nextBots) {
-    if (bot.mode !== "telegraph" && bot.mode !== "dash") continue;
-
-    const directionX = bot.mode === "dash" ? bot.dashVX / NEXTBOT_DASH_SPEED : Math.cos(bot.angle);
-    const directionY = bot.mode === "dash" ? bot.dashVY / NEXTBOT_DASH_SPEED : Math.sin(bot.angle);
-    if (Math.abs(directionY) < 1e-6) continue;
-
-    const targetY = paddle.y + paddle.height / 2;
-    const distance = (targetY - bot.y) / directionY;
-    if (distance < 0) continue;
-    const impactX = bot.x + directionX * distance;
-    if (impactX < paddle.x - 30 || impactX > paddle.x + paddle.width + 30) continue;
-
-    const safeX = impactX < WIDTH / 2 ? WIDTH - paddle.width : 0;
-    const movement = Math.max(-12, Math.min(12, safeX - paddle.x));
-    paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x + movement));
-    return;
   }
 }
 

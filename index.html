@@ -1,3 +1,4 @@
+  <small id="admin-repeat-status" role="status" aria-live="polite">Set a count, then right-click a repeatable action (up to 1,000 times).</small>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Block Breaker</title>
   <link rel="stylesheet" href="styles.css">
+  <script>
+    if (new URLSearchParams(window.location.search).has("textless")) {
+      document.documentElement.classList.add("textless");
+    }
+  </script>
 </head>
 <body class="menu-active">
   <main>
@@ -14,7 +20,7 @@
           <p class="menu-kicker">ARCADE / BLOCK BREAKER</p>
           <h1>BREAK THE<br>FIELD.</h1>
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
-          <p class="menu-tagline">Thirty-four levels. Three lives. Keep the ball alive.</p>
+          <p class="menu-tagline">Fifty levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
             <button type="button" id="start-game" class="primary-action" data-hotkey-action="start-game">Start Game</button>
             <button type="button" id="menu-controls" data-hotkey-action="menu-controls">Settings</button>
@@ -67,7 +73,7 @@
       <button type="button" id="touch-launch" class="touch-control touch-launch" aria-label="Launch ball" disabled>Launch</button>
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch. Break every outlined brick, avoid the striped killbricks and red laser warnings, and clear all 34 levels. In multiplayer battles, teammates and CPU partners can help rotate the shield to keep the ball inside the moving ring. Catch falling power-ups with the paddle; temporary effects last five seconds. Toggle Nextbot AI in Admin Tools for automatic dodging and shield tracking. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 50 levels. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
       <div class="chat-heading">
         <h2>Lobby Chat</h2>
@@ -100,6 +106,10 @@
           <option value="one">Repeat one</option>
         </select>
       </div>
+      <label class="bass-control" for="music-bass"><span>Bass boost</span>
+        <input id="music-bass" type="range" min="0" max="18" step="1" value="12" aria-label="Bass boost in decibels">
+        <output id="music-bass-value" for="music-bass">12 dB</output>
+      </label>
       <p id="music-current" class="music-current" aria-live="polite">Choose a track to begin.</p>
       <ol id="music-playlist" class="music-playlist" aria-label="Playlist"></ol>
     </section>
@@ -145,6 +155,9 @@
       <h2>Admin Tools</h2>
       <div class="admin-actions">
         <button type="button" data-admin="ball">Add ball</button>
+        <button type="button" data-admin="spawn-brick">Spawn block</button>
+        <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
+        <button type="button" data-admin="spawn-laser">Spawn laser</button>
         <button type="button" data-admin="break">Break block</button>
         <button type="button" data-admin="ai">Spawn AI paddle</button>
         <button type="button" data-admin="kill-ai">Kill AI paddle</button>
@@ -152,17 +165,24 @@
         <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
         <button type="button" id="nextbot-ai-toggle" data-admin="nextbot-ai" aria-pressed="false">Nextbot AI: Off</button>
         <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
+        <button type="button" data-admin="spawn-all">Spawn everything</button>
         <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
         <button type="button" data-admin="life">Add life</button>
         <button type="button" data-admin="level">Next level</button>
+        <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
+        <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">FPS: Off</button>
+        <div class="admin-visibility" aria-label="Display toggles">
+          <span>Display</span>
+          <button type="button" data-view-toggle="blocks" aria-pressed="true">Blocks: On</button>
+          <button type="button" data-view-toggle="enemies" aria-pressed="true">Enemies: On</button>
+          <button type="button" data-view-toggle="lasers" aria-pressed="true">Lasers: On</button>
+          <button type="button" data-view-toggle="nextbots" aria-pressed="true">Nextbots: On</button>
+          <button type="button" data-view-toggle="balls" aria-pressed="true">Balls: On</button>
+          <button type="button" data-view-toggle="extras" aria-pressed="true">Extras: On</button>
+          <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
+        </div>
         <label for="admin-repeat-count">Right-click repeats</label>
-        <select id="admin-repeat-count" aria-label="Number of times to repeat an admin action">
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="25" selected>25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
+        <input id="admin-repeat-count" type="number" min="1" max="1000" step="1" value="25" aria-label="Number of times to repeat an admin action">
         <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">
