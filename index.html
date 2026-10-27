@@ -95,6 +95,24 @@
           <input id="music-upload" type="file" accept="audio/*,video/mp4,.mp4" multiple>
         </label>
       </div>
+      <section class="shared-music" aria-label="Shared music storage">
+        <h3>Shared music</h3>
+        <form id="supabase-login-form" class="shared-music-form" autocomplete="on">
+          <label for="supabase-email">Admin email</label>
+          <input id="supabase-email" type="email" autocomplete="username" required>
+          <label for="supabase-password">Password</label>
+          <input id="supabase-password" type="password" autocomplete="current-password" required>
+          <button type="submit">Sign in</button>
+          <button type="button" id="supabase-sign-out" hidden>Sign out</button>
+        </form>
+        <form id="supabase-upload-form" class="shared-music-form" hidden>
+          <label for="supabase-track-file">Upload one audio or MP4 track</label>
+          <input id="supabase-track-file" type="file" accept="audio/*,video/mp4,.mp4" required>
+          <button type="submit">Upload track</button>
+        </form>
+        <p id="supabase-music-status" role="status" aria-live="polite">Sign in to upload a track. Shared tracks are listed below.</p>
+        <ol id="supabase-music-playlist" class="music-playlist" aria-label="Shared tracks"></ol>
+      </section>
       <video id="music-media" controls playsinline preload="metadata" aria-label="Music track playback"></video>
       <div class="music-controls">
         <button type="button" id="music-previous" aria-label="Previous track" title="Previous track">Prev</button>
@@ -243,6 +261,7 @@
   <script src="bricks.js"></script>
   <script src="collisions.js"></script>
   <script src="multiplayer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="music.js"></script>
   <script src="netdebug.js"></script>
 </body>
