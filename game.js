@@ -1089,6 +1089,15 @@ function runAdminAction(action) {
     spawnNextBot();
   } else if (action === "remove-nextbot") {
     removeNextBot();
+  } else if (action === "clear-balls") {
+    extraBalls = [];
+    assignAiBallTargets();
+  } else if (action === "clear-powerups") {
+    powerUps = [];
+  } else if (action === "clear-lasers") {
+    lasers = [];
+  } else if (action === "clear-ai") {
+    aiPaddles = [];
   } else if (action === "life") {
     lives++;
     if (gameOver) {
@@ -1116,14 +1125,14 @@ function runAdminAction(action) {
   }
 }
 
-for (const adminButton of document.querySelectorAll("[data-admin]")) {
+for (const adminButton of document.querySelectorAll("#admin-menu button")) {
   adminButton.addEventListener("click", function () {
-    runAdminAction(adminButton.dataset.admin);
+    if (adminButton.dataset.admin) runAdminAction(adminButton.dataset.admin);
   });
   adminButton.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
     const action = adminButton.dataset.admin;
     if (!repeatAdminActions.has(action)) return;
-    event.preventDefault();
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
     const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(1000, requestedCount)) : 25;
     if (adminRepeatCount) adminRepeatCount.value = String(count);

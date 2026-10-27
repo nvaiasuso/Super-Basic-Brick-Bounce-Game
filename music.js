@@ -8,11 +8,28 @@ const musicBassValue = document.getElementById("music-bass-value");
 const musicTrackTitle = document.getElementById("music-track-title");
 const musicTrackNotes = document.getElementById("music-track-notes");
 const adminMusicToggle = document.getElementById("admin-music-toggle");
+const supabaseLoginForm = document.getElementById("supabase-login-form");
+const supabaseUploadForm = document.getElementById("supabase-upload-form");
+const supabaseMusicStatus = document.getElementById("supabase-music-status");
+const supabaseEmail = document.getElementById("supabase-email");
+const supabasePassword = document.getElementById("supabase-password");
+const supabaseSignOut = document.getElementById("supabase-sign-out");
+const supabaseTrackFile = document.getElementById("supabase-track-file");
 const musicTracks = [];
 let currentMusicIndex = -1;
 let musicAudioContext = null;
 let bassFilter = null;
 const repositoryMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+const sharedMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+const maxSharedMusicBytes = 25 * 1024 * 1024;
+const SHARED_MUSIC_CONFIG = {
+  supabaseUrl: "https://fnshptqozatuozqoflca.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuc2hwdHFvemF0dW96cW9mbGNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MzMwMTIsImV4cCI6MjEwODEwOTAxMn0.W4lektRZbi4gSv3bsHe_19-ECMDA4jGBYJs9jb4zTE4",
+  bucket: "game-music"
+};
+const supabaseClient = window.supabase && typeof window.supabase.createClient === "function"
+  ? window.supabase.createClient(SHARED_MUSIC_CONFIG.supabaseUrl, SHARED_MUSIC_CONFIG.anonKey)
+  : null;
 const musicDetailsStorageKey = "blockBreakerMusicDetails";
 let savedMusicDetails = {};
 
@@ -77,6 +94,24 @@ function addMusicTracks(tracks) {
   if (musicTracks.length === 0) throw new Error("No repository music found");
   renderMusicPlaylist();
   playTrack(0, false);
+}
+
+function addSharedMusicTracks(objects) {
+  for (const object of objects) {
+    const extension = object.name.slice(object.name.lastIndexOf(".")).toLowerCase();
+    const metadataKey = "supabase:" + object.name;
+    if (object.id === null || !sharedMusicExtensions.has(extension)) continue;
+    if (musicTracks.some(function (track) { return track.metadataKey === metadataKey; })) continue;
+
+    const details = savedMusicDetails[metadataKey];
+    musicTracks.push({
+      title: details && typeof details.title === "string" ? details.title : object.name.replace(/\.[^.]+$/, ""),
+      description: details && typeof details.description === "string" ? details.description : "",
+      metadataKey: metadataKey,
+      storagePath: object.name
+    });
+  }
+  renderMusicPlaylist();
 }
 
 async function loadGitHubMusic() {
@@ -145,7 +180,7 @@ function renderMusicPlaylist() {
   });
 }
 
-function playTrack(index, shouldPlay) {
+async function playTrack(index, shouldPlay) {
   if (musicTracks.length === 0) {
     currentMusicIndex = -1;
     musicMedia.pause();
@@ -159,18 +194,40 @@ function playTrack(index, shouldPlay) {
 
   currentMusicIndex = (index + musicTracks.length) % musicTracks.length;
   const track = musicTracks[currentMusicIndex];
-  musicMedia.src = track.objectUrl || track.url;
-  musicMedia.load();
   updateMusicMode();
-  musicCurrent.textContent = track.title;
+  musicCurrent.textContent = track.storagePath ? "Loading " + track.title + "..." : track.title;
   updateTrackDetailsFields(track);
   renderMusicPlaylist();
+
+  if (track.storagePath) {
+    if (!supabaseClient) {
+      musicCurrent.textContent = "Shared music is unavailable right now.";
+      return;
+    }
+    let signedUrl;
+    try {
+      const result = await supabaseClient.storage
+        .from(SHARED_MUSIC_CONFIG.bucket)
+        .createSignedUrl(track.storagePath, 3600);
+      if (result.error || !result.data || !result.data.signedUrl) throw new Error("Signed URL unavailable");
+      signedUrl = result.data.signedUrl;
+    } catch (error) {
+      musicCurrent.textContent = "Could not load " + track.title + ". Check the bucket read policy.";
+      return;
+    }
+    if (musicTracks[currentMusicIndex] !== track) return;
+    musicMedia.src = signedUrl;
+  } else {
+    musicMedia.src = track.objectUrl || track.url;
+  }
+  musicMedia.load();
 
   if (shouldPlay) {
     musicMedia.play().catch(function () {
       musicCurrent.textContent = "Select play to start: " + track.title;
     });
   }
+  musicCurrent.textContent = track.title;
 }
 
 function removeTrack(index) {
@@ -287,6 +344,143 @@ musicMedia.addEventListener("ended", function () {
   }
 });
 
+async function loadSharedMusic() {
+  if (!supabaseClient) {
+    supabaseMusicStatus.textContent = "Shared music is unavailable because its client did not load.";
+    return;
+  }
+
+  supabaseMusicStatus.textContent = "Loading shared tracks...";
+  try {
+    const result = await supabaseClient.storage
+      .from(SHARED_MUSIC_CONFIG.bucket)
+      .list("", { limit: 100, sortBy: { column: "name", order: "asc" } });
+    if (result.error) throw result.error;
+    const sharedObjects = result.data || [];
+    addSharedMusicTracks(sharedObjects);
+    const trackCount = sharedObjects.filter(function (object) {
+      const extension = object.name.slice(object.name.lastIndexOf(".")).toLowerCase();
+      return object.id !== null && sharedMusicExtensions.has(extension);
+    }).length;
+    supabaseMusicStatus.textContent = trackCount
+      ? trackCount + " shared track(s) available."
+      : "No shared tracks yet.";
+  } catch (error) {
+    supabaseMusicStatus.textContent = "Could not list shared tracks. Check the bucket read policy.";
+  }
+}
+
+function updateSupabaseAuthUi(session) {
+  const isAuthenticated = Boolean(session && session.user);
+  supabaseEmail.disabled = isAuthenticated;
+  supabasePassword.disabled = isAuthenticated;
+  supabaseLoginForm.querySelector('button[type="submit"]').hidden = isAuthenticated;
+  supabaseSignOut.hidden = !isAuthenticated;
+  supabaseUploadForm.hidden = !isAuthenticated;
+  if (isAuthenticated) {
+    supabaseMusicStatus.textContent = "Signed in as " + (session.user.email || "admin") + ". Upload one track at a time.";
+  }
+}
+
+supabaseLoginForm.addEventListener("submit", async function (event) {
+  event.preventDefault();
+  if (!supabaseClient) {
+    supabaseMusicStatus.textContent = "Shared music is unavailable because its client did not load.";
+    return;
+  }
+
+  const signInButton = supabaseLoginForm.querySelector('button[type="submit"]');
+  signInButton.disabled = true;
+  supabaseMusicStatus.textContent = "Signing in...";
+  try {
+    const result = await supabaseClient.auth.signInWithPassword({
+      email: supabaseEmail.value.trim(),
+      password: supabasePassword.value
+    });
+    if (result.error) throw result.error;
+    supabasePassword.value = "";
+    updateSupabaseAuthUi(result.data.session);
+  } catch (error) {
+    supabaseMusicStatus.textContent = "Sign-in failed. Check the account and password.";
+  } finally {
+    signInButton.disabled = false;
+  }
+});
+
+supabaseSignOut.addEventListener("click", async function () {
+  if (!supabaseClient) return;
+  try {
+    const result = await supabaseClient.auth.signOut();
+    if (result.error) throw result.error;
+  } catch (error) {
+    supabaseMusicStatus.textContent = "Could not sign out.";
+    return;
+  }
+  supabasePassword.value = "";
+  updateSupabaseAuthUi(null);
+  supabaseMusicStatus.textContent = "Signed out.";
+});
+
+supabaseUploadForm.addEventListener("submit", async function (event) {
+  event.preventDefault();
+  if (!supabaseClient) return;
+
+  const file = supabaseTrackFile.files[0];
+  if (!file) {
+    supabaseMusicStatus.textContent = "Choose one audio or MP4 file first.";
+    return;
+  }
+
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  const isAudio = file.type.startsWith("audio/");
+  const isMp4 = extension === ".mp4" && file.type === "video/mp4";
+  if ((!isAudio && !isMp4) || !sharedMusicExtensions.has(extension) || file.size === 0 || file.size > maxSharedMusicBytes) {
+    supabaseMusicStatus.textContent = "Choose a non-empty supported audio/MP4 file under 25 MB.";
+    return;
+  }
+
+  const uploadButton = supabaseUploadForm.querySelector('button[type="submit"]');
+  uploadButton.disabled = true;
+  supabaseMusicStatus.textContent = "Uploading one track...";
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-120);
+  const randomPart = window.crypto && typeof window.crypto.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+  const storagePath = Date.now() + "-" + randomPart + "-" + safeName;
+
+  try {
+    const result = await supabaseClient.storage
+      .from(SHARED_MUSIC_CONFIG.bucket)
+      .upload(storagePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || (extension === ".mp4" ? "video/mp4" : "audio/mpeg")
+      });
+    if (result.error) throw result.error;
+    supabaseTrackFile.value = "";
+    await loadSharedMusic();
+    supabaseMusicStatus.textContent = "Upload complete. The track is in the shared playlist.";
+  } catch (error) {
+    supabaseMusicStatus.textContent = "Upload failed. Confirm you are signed in with the authorized account and the bucket allows this file size/type.";
+  } finally {
+    uploadButton.disabled = false;
+  }
+});
+
+if (supabaseClient) {
+  supabaseClient.auth.getSession().then(function (result) {
+    updateSupabaseAuthUi(result.data && result.data.session);
+  }).catch(function () {
+    updateSupabaseAuthUi(null);
+  });
+  supabaseClient.auth.onAuthStateChange(function (_event, session) {
+    updateSupabaseAuthUi(session);
+  });
+} else {
+  supabaseLoginForm.querySelector('button[type="submit"]').disabled = true;
+  supabaseMusicStatus.textContent = "Shared music is unavailable because its client did not load.";
+}
+
 async function loadRepositoryMusic() {
   try {
     const response = await fetch("/api/music", { cache: "no-store" });
@@ -308,3 +502,4 @@ window.addEventListener("beforeunload", function () {
 });
 
 loadRepositoryMusic();
+loadSharedMusic();
