@@ -459,6 +459,39 @@ p {
   accent-color: var(--theme-accent, #d6ff55);
 }
 
+.music-track-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.music-track-details label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+}
+
+.music-track-details input,
+.music-track-details textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #050706;
+  color: #fff;
+  font: inherit;
+}
+
+.music-track-details textarea {
+  resize: vertical;
+}
+
+.music-track-details input:focus-visible,
+.music-track-details textarea:focus-visible {
+  outline: 2px solid var(--theme-accent, #fff);
+  outline-offset: 2px;
+}
+
 .music-current {
   margin: 10px 0 0;
   color: var(--theme-accent, #fff);
@@ -482,6 +515,11 @@ p {
   min-width: 0;
 }
 
+.music-track-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .music-track {
   flex: 1 1 auto;
   min-width: 0;
@@ -494,6 +532,13 @@ p {
 .music-track[aria-current="true"] {
   border-color: var(--theme-accent, #fff);
   color: var(--theme-accent, #fff);
+}
+
+.music-track-description {
+  margin: 3px 4px 5px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .music-remove {

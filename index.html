@@ -1,4 +1,3 @@
-  <small id="admin-repeat-status" role="status" aria-live="polite">Set a count, then right-click a repeatable action (up to 1,000 times).</small>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -110,6 +109,13 @@
         <input id="music-bass" type="range" min="0" max="18" step="1" value="12" aria-label="Bass boost in decibels">
         <output id="music-bass-value" for="music-bass">12 dB</output>
       </label>
+      <div class="music-track-details">
+        <label for="music-track-title">Track title</label>
+        <input id="music-track-title" type="text" maxlength="120" placeholder="Select a track">
+        <label for="music-track-notes">What's inside this track?</label>
+        <textarea id="music-track-notes" maxlength="500" rows="3" placeholder="Add a description or notes"></textarea>
+        <button type="button" id="music-save-details">Save track details</button>
+      </div>
       <p id="music-current" class="music-current" aria-live="polite">Choose a track to begin.</p>
       <ol id="music-playlist" class="music-playlist" aria-label="Playlist"></ol>
     </section>
@@ -169,6 +175,9 @@
         <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
         <button type="button" data-admin="life">Add life</button>
         <button type="button" data-admin="level">Next level</button>
+        <button type="button" id="admin-music-add">Add music files</button>
+        <button type="button" id="admin-music-toggle" aria-pressed="false">Play music</button>
+        <button type="button" id="admin-music-clear">Clear local uploads</button>
         <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
         <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">FPS: Off</button>
         <div class="admin-visibility" aria-label="Display toggles">
