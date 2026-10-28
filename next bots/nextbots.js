@@ -176,6 +176,11 @@ function updateNextBots() {
   }
 
   for (const bot of nextBots) {
+    if (bot.frozenTimer > 0) {
+      bot.frozenTimer--;
+      continue;
+    }
+
     if (bot.mode === "walk") {
       const dx = bot.targetX - bot.x;
       const dy = bot.targetY - bot.y;
@@ -224,10 +229,10 @@ function updateNextBots() {
 
   if (nextBotCooldown > 0) return;
   const activeAttacks = nextBots.filter(function (bot) {
-    return bot.mode === "telegraph" || bot.mode === "dash";
+    return !(bot.frozenTimer > 0) && (bot.mode === "telegraph" || bot.mode === "dash");
   }).length;
   const queuedBot = nextBots.filter(function (bot) {
-    return bot.mode === "walk" && bot.attackQueued;
+    return !(bot.frozenTimer > 0) && bot.mode === "walk" && bot.attackQueued;
   }).sort(function (first, second) {
     if (first.name === "PANDEMONIUM") return -1;
     if (second.name === "PANDEMONIUM") return 1;
@@ -257,6 +262,7 @@ function startNextBotAttack(bot) {
 }
 
 function segmentHitsPaddle(startX, startY, endX, endY) {
+  if (shieldTimer > 0) return false;
   const padding = 15;
   const left = paddle.x - padding;
   const right = paddle.x + paddle.width + padding;
@@ -403,7 +409,7 @@ function finishNextBotBattle(won) {
     timer: 110
   };
   for (const bot of nextBots) {
-    if (bot.mode === "telegraph" || bot.mode === "dash") {
+    if (!(bot.frozenTimer > 0) && (bot.mode === "telegraph" || bot.mode === "dash")) {
       bot.mode = "walk";
       bot.attackQueued = true;
     }
@@ -444,7 +450,9 @@ function drawNextBots() {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(bot.angle);
-    ctx.fillStyle = bot.color;
+    ctx.fillStyle = bot.frozenTimer > 0 ? "#8be9ff" : bot.color;
+    ctx.shadowColor = bot.frozenTimer > 0 ? "#8be9ff" : "transparent";
+    ctx.shadowBlur = bot.frozenTimer > 0 ? 14 : 0;
     ctx.fillRect(-11, -14, 22, 28);
     ctx.fillStyle = "#080808";
     ctx.fillRect(-7, -7, 4, 4);
@@ -457,7 +465,11 @@ function drawNextBots() {
     ctx.textAlign = "center";
     ctx.font = "10px Courier New";
     ctx.fillText(bot.name, centerX, centerY - 20);
-    if (bot.mode === "telegraph") {
+    if (bot.frozenTimer > 0) {
+      ctx.fillStyle = "#8be9ff";
+      ctx.font = "bold 9px Courier New";
+      ctx.fillText("FROZEN " + Math.ceil(bot.frozenTimer / 60) + "s", centerX, centerY - 33);
+    } else if (bot.mode === "telegraph") {
       ctx.fillStyle = bot.accent;
       ctx.font = "bold 10px Courier New";
       ctx.fillText("ATTACK IN " + (bot.phaseTimer / 60).toFixed(1) + "s", centerX, centerY - 33);
@@ -468,7 +480,7 @@ function drawNextBots() {
     }
   }
 
-  const queuedCount = nextBots.filter(function (bot) { return bot.attackQueued; }).length;
+  const queuedCount = nextBots.filter(function (bot) { return bot.attackQueued && !(bot.frozenTimer > 0); }).length;
   if (queuedCount > 0) {
     ctx.fillStyle = "#ffd166";
     ctx.textAlign = "center";

@@ -43,6 +43,10 @@ const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 const LEVEL_COUNT = 50;
 const MULTIBALL_HIT_STREAK = 5;
+const SHIELD_DURATION_FRAMES = 300;
+const FREEZE_DURATION_FRAMES = 180;
+const FREEZE_RADIUS = 190;
+const DASH_DISTANCE = 120;
 const SKINS = [
   { label: "Classic", paddle: "#ffffff", ball: "#ffffff", accent: "#ffffff", background: "#000000" },
   { label: "Neon Pink", paddle: "#ff4fd8", ball: "#ff9af3", accent: "#ffd5f5", background: "#140712" },
@@ -75,11 +79,14 @@ let widePaddleTimer = 0;
 let slowBallTimer = 0;
 let fastBallTimer = 0;
 let shieldCharges = 0;
+let shieldTimer = 0;
+let paddleFacingDirection = 1;
 let magnetTimer = 0;
 let magnetPlayerId = null;
 let powerUpNotice = null;
 let levelNotice = null;
 let lasers = [];
+let rockets = [];
 let autoAdvanceLevel = true;
 let fpsEnabled = false;
 let fpsFrameCount = 0;
@@ -1250,7 +1257,25 @@ document.addEventListener("keydown", function (event) {
   }
 
   if (gameStarted && !paused) {
+    if (key === CONTROL_KEYS.left) paddleFacingDirection = -1;
+    if (key === CONTROL_KEYS.right) paddleFacingDirection = 1;
     keys[key] = true;
+    if (key === "t" && !event.repeat && !gameOver && !gameWon) {
+      rokets();
+      event.preventDefault();
+    }
+    if (!event.repeat && !gameOver && !gameWon) {
+      if (key === "g") {
+        shield();
+        event.preventDefault();
+      } else if (key === "f") {
+        dash();
+        event.preventDefault();
+      } else if (key === "b") {
+        freeze();
+        event.preventDefault();
+      }
+    }
     if (key === " " && ball.stuck) {
       launchStuckBall();
       event.preventDefault();
@@ -1363,6 +1388,7 @@ function update() {
 
   simulationFrame++;
   if (updateHitEffects()) return;
+  if (shieldTimer > 0) shieldTimer--;
 
   if (isNextBotBattleActive()) {
     updateNextBotBattle();
@@ -1375,6 +1401,7 @@ function update() {
   if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
   updateNextBots();
+  updateRockets();
   updateTemporaryPowerUps();
   updatePowerUps();
   updateSpecialBricks();
@@ -1473,9 +1500,11 @@ function movePaddle() {
   }
 
   if (!autoPlay && keys[CONTROL_KEYS.left]) {
+    paddleFacingDirection = -1;
     paddle.x = paddle.x - paddle.speed;
   }
   if (!autoPlay && keys[CONTROL_KEYS.right]) {
+    paddleFacingDirection = 1;
     paddle.x = paddle.x + paddle.speed;
   }
 
@@ -1785,6 +1814,98 @@ function updateLasers() {
   return false;
 }
 
+function rokets() {
+  if (!nextBots.length) return;
+  const rocket = {
+    x: paddle.x + paddle.width / 2,
+    y: paddle.y,
+    target: null,
+    speed: 6
+  };
+  rocket.target = nextBots.reduce(function (nearest, bot) {
+    const distanceToBot = Math.hypot(bot.x - rocket.x, bot.y - rocket.y);
+    const distanceToNearest = Math.hypot(nearest.x - rocket.x, nearest.y - rocket.y);
+    return distanceToBot < distanceToNearest ? bot : nearest;
+  });
+  rockets.push(rocket);
+}
+
+function shield() {
+  shieldTimer = SHIELD_DURATION_FRAMES;
+  if (nextBotBattle) {
+    const attacker = nextBotBattle.bot;
+    nextBotBattle = null;
+    attacker.mode = "walk";
+    attacker.phaseTimer = 0;
+    attacker.attackQueued = false;
+    attacker.thinkTimer = 90;
+  }
+  powerUpNotice = { text: "SHIELD ACTIVE", timer: 100, color: "#7be7ff" };
+}
+
+function dash() {
+  const destinationX = paddle.x + paddleFacingDirection * DASH_DISTANCE;
+  paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, destinationX));
+  powerUpNotice = { text: "DASH", timer: 35, color: "#ffd166" };
+}
+
+function freeze() {
+  const playerCenterX = paddle.x + paddle.width / 2;
+  const playerCenterY = paddle.y + paddle.height / 2;
+  let frozenCount = 0;
+  for (const bot of nextBots) {
+    if (Math.hypot(bot.x - playerCenterX, bot.y - playerCenterY) <= FREEZE_RADIUS) {
+      bot.frozenTimer = FREEZE_DURATION_FRAMES;
+      frozenCount++;
+    }
+  }
+  powerUpNotice = {
+    text: frozenCount ? "ENEMIES FROZEN: " + frozenCount : "NO ENEMIES NEARBY",
+    timer: 100,
+    color: "#8be9ff"
+  };
+}
+
+function updateRockets() {
+  for (let rocketIndex = rockets.length - 1; rocketIndex >= 0; rocketIndex--) {
+    const rocket = rockets[rocketIndex];
+    if (!nextBots.includes(rocket.target)) {
+      rockets.splice(rocketIndex, 1);
+      continue;
+    }
+
+    const horizontalDistance = rocket.target.x - rocket.x;
+    const verticalDistance = rocket.target.y - rocket.y;
+    const distanceToTarget = Math.hypot(horizontalDistance, verticalDistance);
+    if (distanceToTarget <= rocket.speed + 14) {
+      nextBots = nextBots.filter(function (bot) { return bot !== rocket.target; });
+      if (nextBotBattle && nextBotBattle.bot === rocket.target) {
+        nextBotBattle = null;
+        nextBotBanner = { text: "ROCKET DESTROYED THE NEXTBOT", timer: 110 };
+      }
+      rockets.splice(rocketIndex, 1);
+      continue;
+    }
+
+    rocket.x += horizontalDistance / distanceToTarget * rocket.speed;
+    rocket.y += verticalDistance / distanceToTarget * rocket.speed;
+  }
+}
+
+function drawRockets() {
+  for (const rocket of rockets) {
+    ctx.save();
+    ctx.translate(rocket.x, rocket.y);
+    ctx.rotate(Math.atan2(rocket.target.y - rocket.y, rocket.target.x - rocket.x));
+    ctx.fillStyle = "#ffca3a";
+    ctx.shadowColor = "#ff6b35";
+    ctx.shadowBlur = 12;
+    ctx.fillRect(-10, -3, 20, 6);
+    ctx.restore();
+  }
+  ctx.shadowBlur = 0;
+}
+
 function drawPowerUps() {
   for (const powerUp of powerUps) {
     ctx.save();
@@ -1991,7 +2112,7 @@ function draw() {
   ctx.font = "13px Courier New";
   ctx.fillText("BRICK STREAK " + brickHitStreak + "/" + MULTIBALL_HIT_STREAK, 16, 46);
   ctx.fillText("MOLA " + mola, 16, 64);
-  if (widePaddleTimer > 0 || slowBallTimer > 0 || magnetTimer > 0 || fastBallTimer > 0 || shieldCharges > 0) {
+  if (widePaddleTimer > 0 || slowBallTimer > 0 || magnetTimer > 0 || fastBallTimer > 0 || shieldCharges > 0 || shieldTimer > 0) {
     ctx.textAlign = "center";
     ctx.font = "10px Courier New";
     const active = [];
@@ -2000,6 +2121,7 @@ function draw() {
     if (magnetTimer > 0) active.push("MAGNET " + Math.ceil(magnetTimer / 60) + "s");
     if (fastBallTimer > 0) active.push("FAST " + Math.ceil(fastBallTimer / 60) + "s");
     if (shieldCharges > 0) active.push("SHIELD x" + shieldCharges);
+    if (shieldTimer > 0) active.push("SHIELD " + Math.ceil(shieldTimer / 60) + "s");
     ctx.fillText(active.join("  "), WIDTH / 2, 44);
   }
   ctx.textAlign = "right";
@@ -2033,6 +2155,18 @@ function draw() {
   ctx.fillStyle = paddle.color || skin.paddle;
   ctx.fillRect(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height);
   ctx.restore();
+  if (shieldTimer > 0) {
+    ctx.save();
+    ctx.strokeStyle = "#7be7ff";
+    ctx.globalAlpha = 0.55 + Math.sin(Date.now() / 90) * 0.2;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#7be7ff";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.ellipse(paddle.x + paddle.width / 2, paddle.y + paddle.height / 2, paddle.width * 0.62, 28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (multiplayerActive) {
     for (const player of multiplayerPlayers) {
       if (player.id === multiplayerPlayerId || player.ai) continue;
@@ -2100,6 +2234,7 @@ function draw() {
   }
   if (adminVisibility.lasers) drawLasers();
   if (adminVisibility.nextbots) drawNextBots();
+  if (adminVisibility.extras) drawRockets();
   if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
     ctx.textAlign = "center";
@@ -2225,6 +2360,8 @@ function restartGame() {
   slowBallTimer = 0;
   fastBallTimer = 0;
   shieldCharges = 0;
+  shieldTimer = 0;
+  paddleFacingDirection = 1;
   magnetTimer = 0;
   magnetPlayerId = null;
   powerUpNotice = null;
