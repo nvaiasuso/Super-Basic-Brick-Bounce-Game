@@ -34,6 +34,7 @@
             <label>Player name
               <input id="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="Player">
             </label>
+            <label class="lobby-mode-toggle"><input id="admin-battle-mode" type="checkbox"> Admin Battle</label>
             <button type="button" id="lobby-create">Make a Lobby</button>
             <label>Lobby code
               <input id="lobby-code-input" type="text" maxlength="6" autocomplete="off" placeholder="ABC123">
@@ -64,6 +65,12 @@
       </div>
     </section>
     <canvas id="game" width="800" height="600" aria-label="Block Breaker game" hidden></canvas>
+    <output id="website-fps-display" class="website-fps" hidden>WEB 0 FPS</output>
+    <button type="button" id="admin-battle-toggle" aria-pressed="false" hidden>Admin Panel</button>
+    <div id="idle-meme" class="idle-meme" role="status" aria-live="assertive" hidden>
+      <img id="idle-meme-image" src="absolute-shit.jpg" alt="Absolute Shit meme">
+      <p class="idle-meme-fallback">ABSOLUTE<br><strong>SHIT</strong></p>
+    </div>
     <div id="touch-controls" class="touch-controls" aria-label="Touch controls" hidden>
       <button type="button" class="touch-control" data-touch="left" aria-label="Move left">◀</button>
       <button type="button" class="touch-control" data-touch="tiltLeft" aria-label="Tilt left">↺</button>
@@ -123,8 +130,8 @@
         </select>
       </div>
       <label class="bass-control" for="music-bass"><span>Bass boost</span>
-        <input id="music-bass" type="range" min="0" max="18" step="1" value="12" aria-label="Bass boost in decibels">
-        <output id="music-bass-value" for="music-bass">12 dB</output>
+        <input id="music-bass" type="range" min="0" max="30" step="1" value="0" aria-label="Bass boost in decibels">
+        <output id="music-bass-value" for="music-bass">0 dB</output>
       </label>
       <div class="music-track-details">
         <label for="music-track-title">Track title</label>
@@ -166,10 +173,14 @@
           <option value="7">Ice</option>
           <option value="8">Arena</option>
           <option value="9">Candy</option>
+          <option value="10">Boss Rush</option>
+          <option value="11">Endless</option>
+          <option value="12">Swarm</option>
         </select>
       </label>
       <button type="button" id="mobile-controls-toggle" aria-pressed="true" data-hotkey-action="toggle-mobile-controls">Mobile Controls: On</button>
       <button type="button" id="autoplay" aria-pressed="false" data-hotkey-action="toggle-autoplay">Auto-play: Off</button>
+      <button type="button" id="website-fps-toggle" aria-pressed="false">Website FPS: Off</button>
       <button type="button" id="fullscreen-toggle" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
       <button type="button" id="resume">Resume</button>
       <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
@@ -177,30 +188,96 @@
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
       <h2>Admin Tools</h2>
       <div class="admin-actions">
-        <button type="button" data-admin="ball">Add ball</button>
-        <button type="button" data-admin="spawn-brick">Spawn block</button>
-        <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
-        <button type="button" data-admin="spawn-laser">Spawn laser</button>
-        <button type="button" data-admin="break">Break block</button>
-        <button type="button" data-admin="ai">Spawn AI paddle</button>
-        <button type="button" data-admin="kill-ai">Kill AI paddle</button>
-        <button type="button" data-admin="test">Test mode</button>
-        <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
-        <button type="button" id="nextbot-ai-toggle" data-admin="nextbot-ai" aria-pressed="false">Nextbot AI: Off</button>
-        <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
-        <button type="button" data-admin="spawn-all">Spawn everything</button>
-        <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
-        <button type="button" data-admin="clear-balls">Clear extra balls</button>
-        <button type="button" data-admin="clear-powerups">Clear power-ups</button>
-        <button type="button" data-admin="clear-lasers">Clear lasers</button>
-        <button type="button" data-admin="clear-ai">Clear AI paddles</button>
-        <button type="button" data-admin="life">Add life</button>
-        <button type="button" data-admin="level">Next level</button>
-        <button type="button" id="admin-music-add">Add music files</button>
-        <button type="button" id="admin-music-toggle" aria-pressed="false">Play music</button>
-        <button type="button" id="admin-music-clear">Clear local uploads</button>
-        <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
-        <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">FPS: Off</button>
+        <section class="admin-group" aria-label="Spawn objects">
+          <h3>Spawn</h3>
+          <button type="button" data-admin="ball">Add ball</button>
+          <label>Block type
+            <select id="admin-brick-select" aria-label="Block type to spawn">
+              <option value="normal">Normal</option>
+              <option value="armored">Armored</option>
+              <option value="explosive">Explosive</option>
+              <option value="moving">Moving</option>
+              <option value="regenerating">Regenerating</option>
+              <option value="sweeper">Sweeper</option>
+              <option value="kill">Kill block</option>
+            </select>
+          </label>
+          <button type="button" data-admin="spawn-brick">Spawn block</button>
+          <label>Power-up
+            <select id="admin-powerup-select" aria-label="Power-up type">
+              <option value="random">Random</option>
+              <option value="wide">Wide paddle</option>
+              <option value="slow">Slow ball</option>
+              <option value="magnet">Magnet</option>
+              <option value="multi">Multiball</option>
+              <option value="life">Extra life</option>
+              <option value="shield">Shield</option>
+              <option value="fast">Fast ball</option>
+            </select>
+          </label>
+          <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
+          <button type="button" data-admin="spawn-laser">Spawn laser</button>
+          <label>Nextbot
+            <select id="admin-nextbot-select" aria-label="Nextbot to spawn">
+              <option value="random">Random</option>
+            </select>
+          </label>
+          <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
+          <button type="button" data-admin="spawn-all">Spawn everything</button>
+        </section>
+        <section class="admin-group" aria-label="Boss spawns">
+          <h3>Bosses</h3>
+          <button type="button" data-admin="spawn-boss-0">Spawn Brood Queen</button>
+          <button type="button" data-admin="spawn-boss-1">Spawn Iron Warden</button>
+          <button type="button" data-admin="spawn-boss-2">Spawn Void Serpent</button>
+          <button type="button" data-admin="spawn-boss-3">Spawn Frost Engine</button>
+          <button type="button" data-admin="spawn-boss-4">Spawn Nexus Prime</button>
+        </section>
+        <section class="admin-group" aria-label="Game controls">
+          <h3>Controls</h3>
+          <button type="button" data-admin="break">Break block</button>
+          <button type="button" data-admin="ai">Spawn AI paddle</button>
+          <button type="button" data-admin="kill-ai">Remove AI paddle</button>
+          <button type="button" data-admin="test">Test mode</button>
+          <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
+          <button type="button" id="nextbot-ai-toggle" data-admin="nextbot-ai" aria-pressed="false">Nextbot AI: Off</button>
+          <button type="button" id="nextbot-aim-toggle" data-admin="nextbot-aim" aria-pressed="false">Nextbot aim: Paddle</button>
+          <button type="button" id="aim-laser-toggle" data-admin="aim-laser" aria-pressed="false">Aim laser: Off</button>
+          <button type="button" id="laser-damage-toggle" data-admin="laser-damage" aria-pressed="true">Laser damage: On</button>
+          <button type="button" id="powerup-drops-toggle" data-admin="powerup-drops" aria-pressed="true">Power-up drops: On</button>
+          <button type="button" id="boss-minions-toggle" data-admin="boss-minions" aria-pressed="true">Boss minions: On</button>
+          <button type="button" id="idle-meme-toggle" data-admin="idle-meme" aria-pressed="true">Idle meme: On</button>
+          <button type="button" data-admin="show-meme">Show meme now</button>
+          <button type="button" data-admin="hide-balls" aria-pressed="true">Ball visibility: On</button>
+          <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
+          <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">Game FPS: Off</button>
+          <button type="button" data-admin="website-fps" aria-pressed="false">Website FPS: Off</button>
+        </section>
+        <section class="admin-group" aria-label="Gameplay variables">
+          <h3>Gameplay Variables</h3>
+          <label>Ball speed <input id="admin-ball-speed" type="range" min="3" max="9" step="0.5" value="5"><output id="admin-ball-speed-value">5</output></label>
+          <label>Paddle speed <input id="admin-paddle-speed" type="range" min="2" max="12" step="0.5" value="6"><output id="admin-paddle-speed-value">6</output></label>
+          <label>Paddle width <input id="admin-paddle-width" type="range" min="50" max="160" step="5" value="90"><output id="admin-paddle-width-value">90</output></label>
+          <label>Lives <input id="admin-lives" type="range" min="1" max="10" step="1" value="3"><output id="admin-lives-value">3</output></label>
+          <label>Nextbot speed <input id="admin-nextbot-speed" type="range" min="0.5" max="2.5" step="0.1" value="1"><output id="admin-nextbot-speed-value">1.0x</output></label>
+        </section>
+        <section class="admin-group" aria-label="Clear objects">
+          <h3>Cleanup</h3>
+          <button type="button" data-admin="remove-nextbot">Remove nextbot</button>
+          <button type="button" data-admin="clear-balls">Clear extra balls</button>
+          <button type="button" data-admin="clear-powerups">Clear power-ups</button>
+          <button type="button" data-admin="clear-lasers">Clear lasers</button>
+          <button type="button" data-admin="clear-ai">Clear AI paddles</button>
+          <button type="button" data-admin="clear-spawned">Clear spawned objects</button>
+        </section>
+        <section class="admin-group" aria-label="Progress and music">
+          <h3>Game</h3>
+          <button type="button" data-admin="life">Add life</button>
+          <button type="button" data-admin="level">Next level</button>
+          <button type="button" id="admin-music-add">Add music files</button>
+          <button type="button" id="admin-music-toggle" aria-pressed="false">Play music</button>
+          <button type="button" id="admin-music-clear">Clear local uploads</button>
+        </section>
         <div class="admin-visibility" aria-label="Display toggles">
           <span>Display</span>
           <button type="button" data-view-toggle="blocks" aria-pressed="true">Blocks: On</button>

@@ -20,6 +20,7 @@ const chatMessages = document.getElementById("chat-messages");
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatStatus = document.getElementById("chat-status");
+const adminBattleModeInput = document.getElementById("admin-battle-mode");
 
 let lobbySocket = null;
 let lobbyActionInFlight = false;
@@ -128,6 +129,7 @@ function renderLobbyPlayers() {
   lobbyReadyButton.textContent = lobbyReady ? "Not Ready" : "Ready";
   lobbyReadyButton.setAttribute("aria-pressed", String(lobbyReady));
   lobbyStartButton.disabled = !otherPlayer || !otherPlayer.ready || lobbyStarted;
+  adminBattleModeInput.disabled = lobbyActive || !lobbyHost;
 }
 
 function showLobbyRoom(message) {
@@ -157,6 +159,7 @@ function resetLobby(message) {
   lobbyCode = "";
   lobbyPlayers = [];
   lobbySetup.hidden = false;
+  adminBattleModeInput.disabled = false;
   lobbyRoom.hidden = true;
   lobbyCodeOutput.textContent = "";
   lobbyPlayerList.replaceChildren();
@@ -175,11 +178,13 @@ function startLobbyGame(message) {
   lobbyPlayerId = message.playerId;
   lobbyPlayers = message.players || [];
   lobbyRoom.hidden = true;
-  window.beginLobbyGame(lobbyHost, lobbyPlayerId);
+  window.beginLobbyGame(lobbyHost, lobbyPlayerId, Boolean(message.adminBattle));
   window.setMultiplayerPlayers(lobbyPlayers);
   hostWindowHidden = false;
   lastSnapshotReceivedAt = performance.now();
-  setMultiplayerStatus(lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream...");
+  setMultiplayerStatus(message.adminBattle
+    ? (lobbyHost ? "Admin Battle: you are the host/admin and must survive." : "Admin Battle: survive the host's admin challenges.")
+    : (lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream..."));
   if (lobbyHost) sendHostVisibility();
   if (lobbyHost) {
     window.addLobbyAIPlayers(lobbyPlayers.filter(function (player) { return player.ai; }));
@@ -256,7 +261,7 @@ function handleLobbyMessage(message) {
 }
 
 lobbyCreateButton.addEventListener("click", function () {
-  sendLobbyAction({ type: "create", name: currentPlayerName() });
+  sendLobbyAction({ type: "create", name: currentPlayerName(), adminBattle: adminBattleModeInput.checked });
 });
 
 lobbyJoinButton.addEventListener("click", function () {

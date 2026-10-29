@@ -31,7 +31,12 @@ const NEXTBOT_ROSTER = [
   { name: "PANDEMONIUM", color: "#e11d48", accent: "#facc15", speed: 1.82, telegraphFrames: 300 },
   { name: "RUSH", color: "#f97316", accent: "#fb7185", speed: 1.92 },
   { name: "WARDEN", color: "#475569", accent: "#38bdf8", speed: 0.88 },
-  { name: "AFTERIMAGE", color: "#a855f7", accent: "#67e8f9", speed: 1.58 }
+  { name: "AFTERIMAGE", color: "#a855f7", accent: "#67e8f9", speed: 1.58 },
+  { name: "SPARK", color: "#facc15", accent: "#fef9c3", speed: 1.78, telegraphFrames: 30 },
+  { name: "JUGGERNAUT", color: "#64748b", accent: "#f87171", speed: 0.72, telegraphFrames: 82 },
+  { name: "SCREECH", color: "#a3e635", accent: "#fef08a", speed: 1.95, telegraphFrames: 24 },
+  { name: "WISP", color: "#e2e8f0", accent: "#c4b5fd", speed: 1.05, telegraphFrames: 68 },
+  { name: "CROSSHAIR", color: "#ef4444", accent: "#ffffff", speed: 1.48, telegraphFrames: 38 }
 
 
 ];
@@ -47,6 +52,7 @@ let nextBotBattle = null;
 let nextBotCooldown = 0;
 let nextBotBanner = null;
 let nextBotAI = false;
+let nextBotAimAtBall = false;
 let nextBotTeamupTimer = 0;
 
 function makeNextBot(definition, index) {
@@ -65,7 +71,15 @@ function makeNextBot(definition, index) {
   });
 }
 
-function spawnNextBot() {
+function spawnNextBot(name) {
+  if (name) {
+    const selected = NEXTBOT_ROSTER.find(function (definition) { return definition.name === name; });
+    if (selected) {
+      const bot = makeNextBot(selected, nextBots.length);
+      nextBots.push(bot);
+      return bot;
+    }
+  }
   const available = NEXTBOT_ROSTER.filter(function (definition) {
     return !nextBots.some(function (bot) { return bot.name === definition.name; });
   });
@@ -122,6 +136,7 @@ function getNextBotMultiplayerState() {
     banner: nextBotBanner ? Object.assign({}, nextBotBanner) : null,
     cooldown: nextBotCooldown,
     ai: nextBotAI,
+    aimAtBall: nextBotAimAtBall,
     teamupTimer: nextBotTeamupTimer
   };
 }
@@ -137,10 +152,12 @@ function setNextBotMultiplayerState(state) {
   nextBotCooldown = state.cooldown || 0;
   nextBotTeamupTimer = state.teamupTimer || 0;
   if (nextBotAI !== Boolean(state.ai)) setNextBotAI(Boolean(state.ai));
+  if (nextBotAimAtBall !== Boolean(state.aimAtBall)) setNextBotAimAtBall(Boolean(state.aimAtBall));
 }
 
 function setNextBotsForLevel(currentLevel) {
-  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2);
+  const modeMultiplier = typeof getCurrentMode === "function" ? getCurrentMode().nextbotMultiplier || 1 : 1;
+  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier);
   while (nextBots.length < targetCount) spawnNextBot();
   while (nextBots.length > targetCount) removeNextBot();
 }
@@ -157,6 +174,25 @@ function isNextBotAttackActive() {
 
 function isNextBotAIEnabled() {
   return nextBotAI;
+}
+
+function isNextBotAimAtBall() {
+  return nextBotAimAtBall;
+}
+
+function setNextBotAimAtBall(enabled) {
+  nextBotAimAtBall = enabled;
+  const button = document.getElementById("nextbot-aim-toggle");
+  if (button) {
+    button.setAttribute("aria-pressed", String(nextBotAimAtBall));
+    button.textContent = "Nextbot aim: " + (nextBotAimAtBall ? "Ball" : "Paddle");
+  }
+}
+
+function getNextBotAimTarget() {
+  return nextBotAimAtBall && !ball.stuck
+    ? { x: ball.x + ball.width / 2, y: ball.y + ball.height / 2 }
+    : { x: paddle.x + paddle.width / 2, y: paddle.y + paddle.height / 2 };
 }
 
 function setNextBotAI(enabled) {
@@ -182,17 +218,19 @@ function updateNextBots() {
     }
 
     if (bot.mode === "walk") {
+      const aimTarget = getNextBotAimTarget();
       const dx = bot.targetX - bot.x;
       const dy = bot.targetY - bot.y;
       const distance = Math.hypot(dx, dy);
-      if (distance > bot.speed) {
-        bot.x += dx / distance * bot.speed;
-        bot.y += dy / distance * bot.speed;
+      const moveSpeed = bot.speed * adminNextBotSpeedMultiplier;
+      if (distance > moveSpeed) {
+        bot.x += dx / distance * moveSpeed;
+        bot.y += dy / distance * moveSpeed;
       } else {
         bot.targetX = 45 + Math.random() * (WIDTH - 90);
         bot.targetY = 95 + Math.random() * 205;
       }
-      bot.angle = Math.atan2(paddle.y + paddle.height / 2 - bot.y, paddle.x + paddle.width / 2 - bot.x);
+      bot.angle = Math.atan2(aimTarget.y - bot.y, aimTarget.x - bot.x);
       bot.thinkTimer--;
       if (bot.thinkTimer <= 0) bot.attackQueued = true;
       continue;
@@ -203,8 +241,8 @@ function updateNextBots() {
       if (bot.phaseTimer <= 0) {
         bot.mode = "dash";
         bot.phaseTimer = NEXTBOT_DASH_FRAMES;
-        bot.dashVX = Math.cos(bot.angle) * NEXTBOT_DASH_SPEED;
-        bot.dashVY = Math.sin(bot.angle) * NEXTBOT_DASH_SPEED;
+        bot.dashVX = Math.cos(bot.angle) * NEXTBOT_DASH_SPEED * adminNextBotSpeedMultiplier;
+        bot.dashVY = Math.sin(bot.angle) * NEXTBOT_DASH_SPEED * adminNextBotSpeedMultiplier;
       }
       continue;
     }
@@ -255,11 +293,14 @@ function updateNextBots() {
 }
 
 function startNextBotAttack(bot) {
-  bot.angle = Math.atan2(paddle.y + paddle.height / 2 - bot.y, paddle.x + paddle.width / 2 - bot.x);
+  const aimTarget = getNextBotAimTarget();
+  bot.angle = Math.atan2(aimTarget.y - bot.y, aimTarget.x - bot.x);
   bot.mode = "telegraph";
   bot.phaseTimer = bot.telegraphFrames || NEXTBOT_TELEGRAPH_FRAMES;
   bot.attackQueued = false;
 }
+
+if (typeof populateAdminNextBotSelect === "function") populateAdminNextBotSelect();
 
 function segmentHitsPaddle(startX, startY, endX, endY) {
   if (shieldTimer > 0) return false;
