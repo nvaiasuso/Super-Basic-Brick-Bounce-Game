@@ -9,6 +9,7 @@
 - Break every normal brick to advance through all 50 levels, including five distinct moving bosses that summon nextbot minions, moving sweeper hazards, and later levels with denser laser and killbrick hazards.
 - Admin Tools can jump directly to any level. Right-click supported add/spawn actions to run them repeatedly; choose 5–100 repetitions in the Admin menu. Level announcements call out when nextbots, lasers, and bosses appear.
 - Admin Tools can jump directly to any level, spawn individual items or a full set, toggle display layers, pause automatic level advancement, and show FPS. Enter a repeat count from 1 to 1,000 and right-click supported actions to run them repeatedly. Level announcements call out when nextbots, lasers, and bosses appear.
+- The Admin Tools menu's **Open URL from text file** button reads the first URL in `admin-url.txt` and opens it in a new tab. Replace the example URL in that file; only `http://` and `https://` links are accepted.
 - Break five normal bricks in a row to spawn an extra ball. The HUD shows the current streak and number of balls.
 - Avoid striped killbricks: touching one costs a life. Missing the paddle also costs a life. You have three lives.
 - After winning or losing, press R to restart.

@@ -1342,9 +1342,67 @@ const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spa
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
+async function openAdminUrlFromFile() {
+  const status = document.getElementById("admin-url-status");
+  const newTab = window.open("about:blank", "_blank");
+  if (!newTab) {
+    status.textContent = "The new tab was blocked. Allow pop-ups and try again.";
+    return;
+  }
+  newTab.opener = null;
+  status.textContent = "Reading admin-url.txt…";
+
+  let response;
+  let contents;
+  try {
+    response = await fetch("admin-url.txt", { cache: "no-store" });
+    if (!response.ok) {
+      status.textContent = "Could not read admin-url.txt (HTTP " + response.status + ").";
+      newTab.close();
+      return;
+    }
+    contents = await response.text();
+  } catch (error) {
+    console.error("Could not read admin-url.txt", error);
+    status.textContent = "Could not read admin-url.txt. Make sure the game is served by a web server.";
+    newTab.close();
+    return;
+  }
+
+  const urlLine = contents.split(/\r?\n/).map(function (line) {
+    return line.trim();
+  }).find(function (line) {
+    return line && !line.startsWith("#");
+  });
+  if (!urlLine) {
+    status.textContent = "Add a URL to admin-url.txt first.";
+    newTab.close();
+    return;
+  }
+
+  let targetUrl;
+  try {
+    targetUrl = new URL(urlLine);
+  } catch (error) {
+    status.textContent = "The URL in admin-url.txt is invalid.";
+    newTab.close();
+    return;
+  }
+  if (targetUrl.protocol !== "https:" && targetUrl.protocol !== "http:") {
+    status.textContent = "Only http:// and https:// URLs can be opened.";
+    newTab.close();
+    return;
+  }
+
+  newTab.location.replace(targetUrl.href);
+  status.textContent = "Opened " + targetUrl.href;
+}
+
 function runAdminAction(action) {
   if (adminBattleMode && !adminBattleAdmin) return;
-  if (action === "ball") {
+  if (action === "open-url-from-file") {
+    openAdminUrlFromFile();
+  } else if (action === "ball") {
     addAdminBall();
   } else if (action === "spawn-brick") {
     spawnAdminBrick();
