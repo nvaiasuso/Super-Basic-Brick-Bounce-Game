@@ -128,6 +128,7 @@ function broadcastRoomState(room) {
     type: "room-state",
     code: room.code,
     started: room.started,
+    adminBattle: room.adminBattle,
     players: playersIn(room)
   });
 }
@@ -182,7 +183,7 @@ function createLobby(socket, message) {
   if (player.roomCode) return sendError(socket, "Leave your current lobby first.");
 
   const code = createRoomCode();
-  const room = { code: code, hostId: player.id, players: new Map(), bots: [], started: false };
+  const room = { code: code, hostId: player.id, players: new Map(), bots: [], started: false, adminBattle: Boolean(message.adminBattle) };
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[0];
@@ -303,7 +304,7 @@ function handleMessage(socket, message) {
     if (!everyoneReady) return sendError(socket, "Wait for every player to be ready.");
     room.started = true;
     for (const member of room.players.values()) {
-      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room) });
+      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room), adminBattle: room.adminBattle });
     }
     return;
   }

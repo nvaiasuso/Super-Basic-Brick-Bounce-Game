@@ -140,6 +140,7 @@ function bounceOffPaddle(activeBall, targetPaddle = paddle) {
 function breakBrickAt(index, activeBall, triggerNeighbors = true) {
   const brick = bricks[index];
   if (!brick || brick.isKill || brick.hidden) return;
+  idleBrickFrames = 0;
   triggerBrickBreak(brick);
   if (brick.type !== "boss") dropPowerUp(brick);
   brickHitStreak++;
@@ -210,6 +211,8 @@ function bounceOffBricks(activeBall) {
       });
       return false;
     }
+
+    idleBrickFrames = 0;
 
     const overlapX = Math.min(activeBall.x + activeBall.width, brick.x + brick.width) - Math.max(activeBall.x, brick.x);
     const overlapY = Math.min(activeBall.y + activeBall.height, brick.y + brick.height) - Math.max(activeBall.y, brick.y);

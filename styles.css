@@ -718,9 +718,34 @@ button:focus-visible {
 }
 
 #mobile-controls-toggle,
+#website-fps-toggle,
 #fullscreen-toggle,
 #menu-fullscreen {
   margin-bottom: 8px;
+}
+
+.admin-group input[type="range"] {
+  width: min(150px, 32vw);
+  accent-color: var(--theme-accent, #d6ff55);
+}
+
+.admin-group output {
+  min-width: 4ch;
+  color: var(--theme-accent, #d6ff55);
+  font-variant-numeric: tabular-nums;
+}
+
+.website-fps {
+  position: fixed;
+  z-index: 12;
+  top: 12px;
+  left: 12px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.82);
+  color: #7be7ff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-actions {
@@ -728,6 +753,73 @@ button:focus-visible {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  align-items: flex-start;
+}
+
+.admin-group {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.admin-group h3 {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--theme-accent, #d6ff55);
+  font-size: 13px;
+  text-align: left;
+}
+
+.admin-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.admin-group select {
+  max-width: min(48vw, 190px);
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: #090d0b;
+  color: #fff;
+  font: inherit;
+}
+
+.lobby-mode-toggle {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 8px;
+}
+
+#admin-battle-toggle {
+  position: fixed;
+  z-index: 15;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+}
+
+.admin-battle-host #admin-menu.admin-battle-dock {
+  position: fixed;
+  z-index: 14;
+  top: 58px;
+  right: 12px;
+  width: min(390px, calc(100vw - 24px));
+  max-height: calc(100vh - 70px);
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--theme-accent, #d6ff55);
+  background: rgba(0, 0, 0, 0.94);
+  text-align: center;
 }
 
 .admin-actions button {
@@ -763,6 +855,58 @@ button:focus-visible {
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.idle-meme {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.86);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 450ms ease;
+}
+
+.idle-meme[hidden] {
+  display: none;
+}
+
+.idle-meme.is-visible {
+  opacity: 1;
+}
+
+.idle-meme img {
+  display: block;
+  max-width: min(90vw, 560px);
+  max-height: 82vh;
+  object-fit: contain;
+}
+
+.idle-meme-fallback {
+  display: none;
+  margin: 0;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: clamp(30px, 8vw, 72px);
+  font-weight: 700;
+  line-height: 0.95;
+  text-align: center;
+  text-shadow: 0 3px 14px #000;
+}
+
+.idle-meme-fallback strong {
+  font-size: 1.7em;
+}
+
+.idle-meme.is-fallback .idle-meme-fallback {
+  display: block;
+}
+
+.idle-meme.is-fallback img {
+  display: none;
 }
 
 .admin-visibility span {

@@ -56,7 +56,7 @@ function setupBassBoost() {
     musicAudioContext = new AudioContextType();
     bassFilter = musicAudioContext.createBiquadFilter();
     bassFilter.type = "lowshelf";
-    bassFilter.frequency.value = 110;
+    bassFilter.frequency.value = 160;
     const mediaSource = musicAudioContext.createMediaElementSource(musicMedia);
     mediaSource.connect(bassFilter);
     bassFilter.connect(musicAudioContext.destination);
