@@ -43,6 +43,7 @@ const NEXTBOT_ROSTER = [
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
+const MAX_ACTIVE_NEXT_BOTS = 12;
 const BATTLE_DURATION = 300;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
@@ -72,6 +73,7 @@ function makeNextBot(definition, index) {
 }
 
 function spawnNextBot(name) {
+  if (nextBots.length >= MAX_ACTIVE_NEXT_BOTS) return null;
   if (name) {
     const selected = NEXTBOT_ROSTER.find(function (definition) { return definition.name === name; });
     if (selected) {

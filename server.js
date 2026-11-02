@@ -267,6 +267,7 @@ function handleMessage(socket, message) {
   if (message.type === "add-ai") {
     if (!player.host) return sendError(socket, "Only the host can add AI players.");
     if (room.started) return sendError(socket, "AI players can only be added before the game starts.");
+    if (room.bots.length >= 8) return sendError(socket, "A lobby can have up to 8 AI players.");
     const botIndex = room.bots.length;
     room.bots.push({
       id: "ai-" + crypto.randomUUID(),
@@ -300,6 +301,7 @@ function handleMessage(socket, message) {
       return member.host || member.ready;
     });
     if (!player.host) return sendError(socket, "Only the host can start the game.");
+    if (room.adminBattle && room.players.size < 2) return sendError(socket, "Admin Battle requires a second human player.");
     if (room.players.size + room.bots.length < 2) return sendError(socket, "Invite another player or add an AI player before starting.");
     if (!everyoneReady) return sendError(socket, "Wait for every player to be ready.");
     room.started = true;

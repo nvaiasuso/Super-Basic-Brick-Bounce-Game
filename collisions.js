@@ -144,7 +144,7 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
   triggerBrickBreak(brick);
   if (brick.type !== "boss") dropPowerUp(brick);
   brickHitStreak++;
-  const scoreMultiplier = activeBall.perfect ? 2 : 1;
+  const scoreMultiplier = (activeBall.perfect ? 2 : 1) * (randomEverythingEnabled ? randomRunScoreMultiplier : 1);
   activeBall.perfect = false;
   mola += 10 * brickHitStreak * scoreMultiplier;
   recordHighScore();

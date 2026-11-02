@@ -25,6 +25,7 @@ const HEIGHT = canvas.height;
 const BALL_SPEED = 5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
+const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 120, powerUps: 24, lasers: 24, aiPaddles: 8 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
   { label: "Normal", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
@@ -46,6 +47,12 @@ const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
 const LEVEL_COUNT = 50;
+let randomEverythingEnabled = false;
+let currentTurnSpeed = PADDLE_TILT_SPEED;
+let currentDashDistance = DASH_DISTANCE;
+let randomRunScoreMultiplier = 1;
+let randomRunPowerUpChance = POWERUP_DROP_CHANCE;
+let randomRunOriginalStats = null;
 let baseBallSpeed = BALL_SPEED;
 let basePaddleWidth = BASE_PADDLE_WIDTH;
 let powerUpDropsEnabled = true;
@@ -209,14 +216,17 @@ function applySkin(nextSkinIndex = currentSkin) {
 
 // Put the ball in the center and reset its speed and direction.
 function resetBall() {
-  ball.x = WIDTH / 2 - ball.width / 2;
-  ball.y = HEIGHT / 2 - ball.height / 2;
+  const survivor = adminBattleAdmin && multiplayerPlayers.find(function (player) {
+    return !player.host && !player.ai;
+  });
+  ball.x = survivor ? survivor.x + survivor.width / 2 - ball.width / 2 : WIDTH / 2 - ball.width / 2;
+  ball.y = survivor ? survivor.y - ball.height - 1 : HEIGHT / 2 - ball.height / 2;
   ball.previousX = ball.x;
   ball.previousY = ball.y;
   ball.vx = 0;
   ball.vy = 0;
   ball.stuck = true;
-  ball.stuckPlayerId = multiplayerActive && multiplayerHost ? multiplayerPlayerId : null;
+  ball.stuckPlayerId = survivor ? survivor.id : (multiplayerActive && multiplayerHost ? multiplayerPlayerId : null);
   ball.perfect = false;
   ballTrail = [];
 }
@@ -371,7 +381,8 @@ function spawnExtraBall(sourceBall) {
   extraBalls.push(extraBall);
 }
 
-function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId)) {
+function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId), playerId = null) {
+  if (adminBattleAdmin && multiplayerHost && playerId !== ball.stuckPlayerId) return;
   if (!ball.stuck) return;
   if (multiplayerActive && !multiplayerHost) {
     if (ball.stuckPlayerId === multiplayerPlayerId && typeof window.requestLobbyBallLaunch === "function") {
@@ -675,7 +686,22 @@ function openMenuControls() {
   setPaused(true);
 }
 
-function beginGame() {
+function beginGame(randomRun = false) {
+  if (randomRun && !randomEverythingEnabled) {
+    randomRunOriginalStats = {
+      ballSpeed: baseBallSpeed,
+      paddleSpeed: paddle.speed,
+      turnSpeed: currentTurnSpeed,
+      dashDistance: currentDashDistance
+    };
+  } else if (!randomRun && randomEverythingEnabled && randomRunOriginalStats) {
+    baseBallSpeed = randomRunOriginalStats.ballSpeed;
+    paddle.speed = randomRunOriginalStats.paddleSpeed;
+    currentTurnSpeed = randomRunOriginalStats.turnSpeed;
+    currentDashDistance = randomRunOriginalStats.dashDistance;
+    randomRunOriginalStats = null;
+  }
+  randomEverythingEnabled = randomRun;
   restartGame();
   gameStarted = true;
   document.body.classList.remove("menu-active");
@@ -695,6 +721,7 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
   adminBattleMode = active && isAdminBattle;
   adminBattleAdmin = adminBattleMode && isHost;
   multiplayerPlayerId = playerId;
+  if (adminBattleAdmin) paddle.y = HEIGHT + 100;
   const adminBattleToggle = document.getElementById("admin-battle-toggle");
   adminBattleToggle.hidden = !adminBattleAdmin;
   adminBattleToggle.setAttribute("aria-pressed", "false");
@@ -715,7 +742,20 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
 
 function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
-  if (!multiplayerActive || multiplayerHost) return;
+  if (!multiplayerActive) return;
+  if (multiplayerHost) {
+    if (adminBattleAdmin && ball.stuck) {
+      const survivor = multiplayerPlayers.find(function (player) { return !player.host && !player.ai; });
+      if (survivor) {
+        ball.stuckPlayerId = survivor.id;
+        ball.x = survivor.x + survivor.width / 2 - ball.width / 2;
+        ball.y = survivor.y - ball.height - 1;
+        ball.previousX = ball.x;
+        ball.previousY = ball.y;
+      }
+    }
+    return;
+  }
   const localPlayer = multiplayerPlayers.find(function (player) { return player.id === multiplayerPlayerId; });
   if (!localPlayer) return;
   if (Number.isFinite(localPlayer.y)) paddle.y = localPlayer.y;
@@ -754,7 +794,7 @@ function addLobbyAIPlayers(players) {
 
 function beginLobbyGame(isHost, playerId, isAdminBattle = false) {
   setMultiplayerSession(true, isHost, playerId, isAdminBattle);
-  beginGame();
+  beginGame(false);
 }
 
 function endLobbyGame() {
@@ -983,7 +1023,7 @@ window.getGameDebugState = function () {
 };
 window.launchLobbyBall = function (playerId) {
   if (multiplayerActive && multiplayerHost && ball.stuck && ball.stuckPlayerId === playerId) {
-    launchStuckBall(getPaddleForPlayer(playerId));
+    launchStuckBall(getPaddleForPlayer(playerId), playerId);
   }
 };
 
@@ -1038,7 +1078,8 @@ resumeButton.addEventListener("click", function () {
   }
 });
 
-startGameButton.addEventListener("click", beginGame);
+startGameButton.addEventListener("click", function () { beginGame(false); });
+document.getElementById("random-game").addEventListener("click", function () { beginGame(true); });
 menuControlsButton.addEventListener("click", openMenuControls);
 menuAdminButton.addEventListener("click", function () {
   toggleAdminMenu();
@@ -1054,10 +1095,12 @@ function refreshInvincibilityButton() {
 }
 
 function addAdminBall() {
+  if (extraBalls.length >= ADMIN_SPAWN_LIMITS.balls) return;
   spawnExtraBall(ball);
 }
 
 function spawnAdminAiPaddle() {
+  if (aiPaddles.length >= ADMIN_SPAWN_LIMITS.aiPaddles) return;
   aiPaddles.push({
     x: 80 + (aiPaddles.length * 60) % (WIDTH - 200),
     y: HEIGHT - 45,
@@ -1088,6 +1131,7 @@ function breakNearestBrick() {
 }
 
 function spawnAdminBrick() {
+  if (bricks.filter(function (brick) { return brick.adminSpawned; }).length >= ADMIN_SPAWN_LIMITS.bricks) return;
   const brickTypeSelect = document.getElementById("admin-brick-select");
   const type = brickTypeSelect ? brickTypeSelect.value : "normal";
   const colors = {
@@ -1126,6 +1170,7 @@ function spawnAdminBrick() {
 }
 
 function spawnAdminPowerUp() {
+  if (powerUps.length >= ADMIN_SPAWN_LIMITS.powerUps) return;
   const kinds = [
     { type: "wide", label: "W", color: "#4fe6ff" },
     { type: "slow", label: "S", color: "#ffd166" },
@@ -1152,6 +1197,7 @@ function spawnAdminPowerUp() {
 }
 
 function spawnAdminBoss(selectedBoss = 0) {
+  if (bricks.filter(function (brick) { return brick.adminSpawned; }).length >= ADMIN_SPAWN_LIMITS.bricks) return;
   const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
   const bossLevel = bossLevels[Math.max(0, Math.min(bossLevels.length - 1, selectedBoss))];
   const boss = makeBricks(bossLevel)[0];
@@ -1160,6 +1206,7 @@ function spawnAdminBoss(selectedBoss = 0) {
 }
 
 function spawnAdminLaser() {
+  if (lasers.length >= ADMIN_SPAWN_LIMITS.lasers) return;
   lasers.push({
     x: 40 + Math.random() * (WIDTH - 80),
     mode: "warning",
@@ -1330,7 +1377,7 @@ function assignAiBallTargets() {
 
 function testAdminTools() {
   for (let i = 0; i < 3; i++) {
-    spawnExtraBall(ball);
+    addAdminBall();
   }
   for (let i = 0; i < 2; i++) {
     spawnAdminAiPaddle();
@@ -1520,7 +1567,7 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
     const action = adminButton.dataset.admin;
     if (!repeatAdminActions.has(action)) return;
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
-    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(1000, requestedCount)) : 25;
+    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 25;
     if (adminRepeatCount) adminRepeatCount.value = String(count);
     for (let index = 0; index < count; index++) runAdminAction(action);
     if (adminRepeatStatus) {
@@ -1777,11 +1824,13 @@ function update() {
     updateNextBotBattle();
   }
 
-  paddle.previousX = paddle.x;
-  paddle.previousY = paddle.y;
-  paddle.previousAngle = paddle.angle;
-  movePaddle();
-  if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
+  if (!adminBattleAdmin) {
+    paddle.previousX = paddle.x;
+    paddle.previousY = paddle.y;
+    paddle.previousAngle = paddle.angle;
+    movePaddle();
+    if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
+  }
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
   updateNextBots();
   updateRockets();
@@ -1860,10 +1909,10 @@ function update() {
 function movePaddle() {
   const startingAngle = paddle.angle;
   if (keys[CONTROL_KEYS.tiltRight]) {
-    paddle.angle = Math.min(MAX_PADDLE_TILT, paddle.angle + PADDLE_TILT_SPEED);
+    paddle.angle = Math.min(MAX_PADDLE_TILT, paddle.angle + currentTurnSpeed);
   }
   if (keys[CONTROL_KEYS.tiltLeft]) {
-    paddle.angle = Math.max(-MAX_PADDLE_TILT, paddle.angle - PADDLE_TILT_SPEED);
+    paddle.angle = Math.max(-MAX_PADDLE_TILT, paddle.angle - currentTurnSpeed);
   }
   if (paddle.angle !== startingAngle) {
     lastTiltFrame = simulationFrame;
@@ -1915,7 +1964,8 @@ function moveBall(activeBall) {
 }
 
 function dropPowerUp(brick) {
-  if (!powerUpDropsEnabled || Math.random() > getCurrentMode().powerUpDropChance) return;
+  const dropChance = randomEverythingEnabled ? randomRunPowerUpChance : getCurrentMode().powerUpDropChance;
+  if (!powerUpDropsEnabled || Math.random() > dropChance) return;
   const kinds = [
     { type: "wide", label: "W", color: "#4fe6ff" },
     { type: "slow", label: "S", color: "#ffd166" },
@@ -1972,7 +2022,7 @@ function updateSpecialBricks() {
         const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
         if (minionCount < brick.minionLimit) {
           const minion = spawnNextBot();
-          minion.bossMinion = true;
+          if (minion) minion.bossMinion = true;
         }
         brick.minionTimer = brick.minionInterval;
       }
@@ -2227,7 +2277,7 @@ function shield() {
 }
 
 function dash() {
-  const destinationX = paddle.x + paddleFacingDirection * DASH_DISTANCE;
+  const destinationX = paddle.x + paddleFacingDirection * currentDashDistance;
   paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, destinationX));
   powerUpNotice = { text: "DASH", timer: 35, color: "#ffd166" };
 }
@@ -2441,7 +2491,7 @@ function bounceOffAiPaddles(activeBall) {
 
 function bounceOffMultiplayerPaddles(activeBall) {
   for (const player of multiplayerPlayers) {
-    if (player.id === multiplayerPlayerId || player.ai) continue;
+    if (player.id === multiplayerPlayerId || player.ai || (adminBattleMode && player.host)) continue;
     const remotePaddle = {
       x: player.x,
       y: Number.isFinite(player.y) ? player.y : paddle.y - 30,
@@ -2552,7 +2602,7 @@ function draw() {
   }
   if (multiplayerActive) {
     for (const player of multiplayerPlayers) {
-      if (player.id === multiplayerPlayerId || player.ai) continue;
+      if (player.id === multiplayerPlayerId || player.ai || (adminBattleMode && player.host)) continue;
       const playerY = Number.isFinite(player.y) ? player.y : paddle.y - 30;
       const playerWidth = Number.isFinite(player.width) ? player.width : BASE_PADDLE_WIDTH;
       ctx.save();
@@ -2718,7 +2768,7 @@ function loseLife() {
 
 function advanceLevel() {
   if (level + 1 >= LEVEL_COUNT) {
-    if (getCurrentMode().endless) {
+    if (randomEverythingEnabled || getCurrentMode().endless) {
       startLevel(0);
       return;
     }
@@ -2728,17 +2778,101 @@ function advanceLevel() {
   startLevel(level + 1);
 }
 
+function randomInteger(minimum, maximum) {
+  return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
+}
+
+function makeRandomRunBricks() {
+  const columns = BRICK_COLUMNS;
+  const rows = randomInteger(3, 7);
+  const totalWidth = columns * BRICK_WIDTH + (columns - 1) * BRICK_GAP;
+  const left = (WIDTH - totalWidth) / 2;
+  const generated = [];
+
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      if (Math.random() > 0.72) continue;
+      const roll = Math.random();
+      const type = roll < 0.05 ? "kill"
+        : roll < 0.10 ? "sweeper"
+          : roll < 0.20 ? "armored"
+            : roll < 0.27 ? "explosive"
+              : roll < 0.34 ? "moving"
+                : roll < 0.40 ? "regenerating" : "normal";
+      const brick = {
+        x: left + column * (BRICK_WIDTH + BRICK_GAP),
+        y: BRICKS_TOP + row * (BRICK_HEIGHT + BRICK_GAP),
+        width: BRICK_WIDTH,
+        height: BRICK_HEIGHT,
+        type: type,
+        isKill: type === "kill" || type === "sweeper",
+        color: type === "kill" || type === "sweeper" ? "#ffffff" : BRICK_ROW_COLORS[row % BRICK_ROW_COLORS.length]
+      };
+      if (type === "armored") {
+        brick.hp = randomInteger(2, 5);
+        brick.maxHp = brick.hp;
+        brick.color = "#9292a0";
+      } else if (type === "regenerating") {
+        brick.hp = 1;
+        brick.maxHp = 1;
+        brick.color = "#a986ef";
+      } else if (type === "explosive") {
+        brick.color = "#ff8b45";
+      } else if (type === "moving" || type === "sweeper") {
+        brick.originX = brick.x;
+        brick.moveAmplitude = randomInteger(14, 54);
+        brick.movePhase = Math.random() * Math.PI * 2;
+      }
+      generated.push(brick);
+    }
+  }
+
+  if (generated.length === 0) {
+    generated.push({ x: left, y: BRICKS_TOP, width: BRICK_WIDTH, height: BRICK_HEIGHT, type: "normal", isKill: false, color: BRICK_ROW_COLORS[0] });
+  }
+  if (Math.random() < 0.28) {
+    const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
+    const boss = makeBricks(bossLevels[randomInteger(0, bossLevels.length - 1)])[0];
+    boss.hp = randomInteger(16, 90);
+    boss.maxHp = boss.hp;
+    boss.minionLimit = randomInteger(1, 3);
+    boss.minionInterval = randomInteger(120, 330);
+    boss.minionTimer = boss.minionInterval;
+    generated.push(boss);
+  }
+  return generated;
+}
+
+function randomizeRunStats() {
+  baseBallSpeed = randomInteger(3, 9);
+  paddle.speed = randomInteger(3, 11);
+  currentTurnSpeed = randomInteger(1, 5);
+  currentDashDistance = randomInteger(60, 240);
+  randomRunScoreMultiplier = randomInteger(1, 5);
+  randomRunPowerUpChance = randomInteger(8, 40) / 100;
+}
+
 function startLevel(nextLevel) {
   level = nextLevel;
   const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
-  bricks = getCurrentMode().bossRush
-    ? makeBricks(bossLevels[level % bossLevels.length])
-    : makeBricks(level);
-  clearBossMinions();
-  setNextBotsForLevel(level);
-  lasers = createLevelLasers(level);
+  if (randomEverythingEnabled) {
+    randomizeRunStats();
+    bricks = makeRandomRunBricks();
+    selectNextBots();
+    const enemyCount = randomInteger(0, 5);
+    for (let index = 0; index < enemyCount; index++) spawnNextBot();
+    lasers = createLevelLasers(randomInteger(0, 14));
+  } else {
+    bricks = getCurrentMode().bossRush
+      ? makeBricks(bossLevels[level % bossLevels.length])
+      : makeBricks(level);
+    clearBossMinions();
+    setNextBotsForLevel(level);
+    lasers = createLevelLasers(level);
+  }
   powerUps = [];
   const features = [];
+  if (randomEverythingEnabled) features.push("SPD " + baseBallSpeed + " TURN " + currentTurnSpeed + " DASH " + currentDashDistance + " MOLA x" + randomRunScoreMultiplier);
   if (level >= 2) features.push(level === 2 ? "NEXTBOTS START" : "NEXTBOTS ACTIVE");
   if (level === 2) features.push("LASERS START");
   else if (level > 2) features.push(lasers.length + " LASERS ACTIVE");
@@ -2752,7 +2886,7 @@ function startLevel(nextLevel) {
 
 function restartGame() {
   level = 0;
-  lives = startingLives;
+  lives = randomEverythingEnabled ? randomInteger(2, 6) : startingLives;
   mola = 0;
   newBest = false;
   aiPaddles = [];

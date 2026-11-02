@@ -22,6 +22,7 @@
           <p class="menu-tagline">Fifty levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
             <button type="button" id="start-game" class="primary-action" data-hotkey-action="start-game">Start Game</button>
+            <button type="button" id="random-game">Random Everything</button>
             <button type="button" id="menu-controls" data-hotkey-action="menu-controls">Settings</button>
             <button type="button" id="menu-admin" data-hotkey-action="toggle-admin">Admin Tools</button>
             <button type="button" id="menu-fullscreen" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
@@ -291,7 +292,7 @@
           <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
         </div>
         <label for="admin-repeat-count">Right-click repeats</label>
-        <input id="admin-repeat-count" type="number" min="1" max="1000" step="1" value="25" aria-label="Number of times to repeat an admin action">
+        <input id="admin-repeat-count" type="number" min="1" max="100" step="1" value="25" aria-label="Number of times to repeat an admin action">
         <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">

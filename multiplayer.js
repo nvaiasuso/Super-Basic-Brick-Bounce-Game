@@ -183,7 +183,7 @@ function startLobbyGame(message) {
   hostWindowHidden = false;
   lastSnapshotReceivedAt = performance.now();
   setMultiplayerStatus(message.adminBattle
-    ? (lobbyHost ? "Admin Battle: you are the host/admin and must survive." : "Admin Battle: survive the host's admin challenges.")
+    ? (lobbyHost ? "Admin Battle: you are the admin. The other player must survive." : "Admin Battle: survive the host's admin challenges.")
     : (lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream..."));
   if (lobbyHost) sendHostVisibility();
   if (lobbyHost) {
