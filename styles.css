@@ -54,6 +54,45 @@ canvas {
   box-shadow: 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
+.object-inspector {
+  width: min(100%, 800px);
+  margin: 10px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(123, 231, 255, 0.7);
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  text-align: left;
+}
+
+.object-inspector[hidden] {
+  display: none;
+}
+
+.inspector-heading,
+.inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector-heading strong {
+  color: #7be7ff;
+}
+
+#inspector-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 4px 12px;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+#inspector-details div {
+  overflow-wrap: anywhere;
+}
+
 .touch-controls {
   display: flex;
   justify-content: center;
@@ -844,6 +883,10 @@ button:focus-visible {
   margin: 0;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.admin-actions button:active {
+  transform: translateY(1px);
 }
 
 .admin-actions small {

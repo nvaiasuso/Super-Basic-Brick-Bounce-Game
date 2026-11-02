@@ -67,6 +67,17 @@
       </div>
     </section>
     <canvas id="game" width="800" height="600" aria-label="Block Breaker game" hidden></canvas>
+    <aside id="object-inspector" class="object-inspector" aria-live="polite" hidden>
+      <div class="inspector-heading">
+        <strong id="inspector-title">Object inspector</strong>
+        <button type="button" id="inspector-close" aria-label="Close object inspector">Close</button>
+      </div>
+      <dl id="inspector-details"></dl>
+      <div class="inspector-actions">
+        <button type="button" id="inspector-freeze" disabled>Freeze selected</button>
+        <button type="button" id="inspector-laser">Laser at paddle</button>
+      </div>
+    </aside>
     <output id="website-fps-display" class="website-fps" hidden>WEB 0 FPS</output>
     <button type="button" id="admin-battle-toggle" aria-pressed="false" hidden>Admin Panel</button>
     <div id="local-test-controls" class="local-test-controls" aria-label="Local multiplayer test controls" hidden>
@@ -226,6 +237,8 @@
           </label>
           <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
           <button type="button" data-admin="spawn-laser">Spawn laser</button>
+          <button type="button" data-admin="laser-paddle">Laser at paddle</button>
+          <button type="button" data-admin="spawn-missile">Launch mouse-guided missile</button>
           <label>Nextbot
             <select id="admin-nextbot-select" aria-label="Nextbot to spawn">
               <option value="random">Random</option>
@@ -250,7 +263,10 @@
           <button type="button" data-admin="test">Test mode</button>
           <button type="button" id="invincibility-toggle" data-admin="invincibility" aria-pressed="false">Invincibility: Off</button>
           <button type="button" id="nextbot-ai-toggle" data-admin="nextbot-ai" aria-pressed="false">Nextbot AI: Off</button>
+          <button type="button" id="nextbot-wait-toggle" data-admin="nextbot-waits" aria-pressed="false">Nextbot attacks: On</button>
+          <button type="button" id="nextbot-laser-toggle" data-admin="nextbot-lasers" aria-pressed="true">Lasers hit nextbots: On</button>
           <button type="button" id="nextbot-aim-toggle" data-admin="nextbot-aim" aria-pressed="false">Nextbot aim: Paddle</button>
+          <button type="button" id="object-inspect-toggle" data-admin="inspect" aria-pressed="false">Object inspection: Off</button>
           <button type="button" id="aim-laser-toggle" data-admin="aim-laser" aria-pressed="false">Aim laser: Off</button>
           <button type="button" id="laser-damage-toggle" data-admin="laser-damage" aria-pressed="true">Laser damage: On</button>
           <button type="button" id="powerup-drops-toggle" data-admin="powerup-drops" aria-pressed="true">Power-up drops: On</button>

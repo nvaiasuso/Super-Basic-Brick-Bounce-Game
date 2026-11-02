@@ -54,6 +54,7 @@ let nextBotCooldown = 0;
 let nextBotBanner = null;
 let nextBotAI = false;
 let nextBotAimAtBall = false;
+let nextBotAttacksPaused = false;
 let nextBotTeamupTimer = 0;
 
 function makeNextBot(definition, index) {
@@ -65,6 +66,8 @@ function makeNextBot(definition, index) {
     mode: "walk",
     thinkTimer: definition.name === "PANDEMONIUM" ? 1 : 110 + Math.random() * 150,
     attackQueued: false,
+    health: 1,
+    maxHealth: 1,
     phaseTimer: 0,
     angle: 0,
     dashVX: 0,
@@ -140,6 +143,7 @@ function getNextBotMultiplayerState() {
     cooldown: nextBotCooldown,
     ai: nextBotAI,
     aimAtBall: nextBotAimAtBall,
+    attacksPaused: nextBotAttacksPaused,
     teamupTimer: nextBotTeamupTimer
   };
 }
@@ -156,6 +160,7 @@ function setNextBotMultiplayerState(state) {
   nextBotTeamupTimer = state.teamupTimer || 0;
   if (nextBotAI !== Boolean(state.ai)) setNextBotAI(Boolean(state.ai));
   if (nextBotAimAtBall !== Boolean(state.aimAtBall)) setNextBotAimAtBall(Boolean(state.aimAtBall));
+  if (nextBotAttacksPaused !== Boolean(state.attacksPaused)) setNextBotAttacksPaused(Boolean(state.attacksPaused));
 }
 
 function setNextBotsForLevel(currentLevel) {
@@ -189,6 +194,22 @@ function setNextBotAimAtBall(enabled) {
   if (button) {
     button.setAttribute("aria-pressed", String(nextBotAimAtBall));
     button.textContent = "Nextbot aim: " + (nextBotAimAtBall ? "Ball" : "Paddle");
+  }
+}
+
+function setNextBotAttacksPaused(paused) {
+  nextBotAttacksPaused = paused;
+  if (paused) {
+    for (const bot of nextBots) {
+      bot.mode = "walk";
+      bot.phaseTimer = 0;
+      bot.attackQueued = false;
+    }
+  }
+  const button = document.getElementById("nextbot-wait-toggle");
+  if (button) {
+    button.setAttribute("aria-pressed", String(nextBotAttacksPaused));
+    button.textContent = "Nextbot attacks: " + (nextBotAttacksPaused ? "Paused" : "On");
   }
 }
 
@@ -234,8 +255,10 @@ function updateNextBots() {
         bot.targetY = 95 + Math.random() * 205;
       }
       bot.angle = Math.atan2(aimTarget.y - bot.y, aimTarget.x - bot.x);
-      bot.thinkTimer--;
-      if (bot.thinkTimer <= 0) bot.attackQueued = true;
+      if (!nextBotAttacksPaused) {
+        bot.thinkTimer--;
+        if (bot.thinkTimer <= 0) bot.attackQueued = true;
+      }
       continue;
     }
 
@@ -268,7 +291,7 @@ function updateNextBots() {
     }
   }
 
-  if (nextBotCooldown > 0) return;
+  if (nextBotAttacksPaused || nextBotCooldown > 0) return;
   const activeAttacks = nextBots.filter(function (bot) {
     return !(bot.frozenTimer > 0) && (bot.mode === "telegraph" || bot.mode === "dash");
   }).length;
