@@ -206,7 +206,7 @@
       <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
     </section>
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
-      <h2>Admin Tools</h2>
+      <h2>Admin Tools <button type="button" id="admin-close">Close</button></h2>
       <div class="admin-actions">
         <section class="admin-group" aria-label="Spawn objects">
           <h3>Spawn</h3>
@@ -287,6 +287,7 @@
           <label>Paddle width <input id="admin-paddle-width" type="range" min="50" max="160" step="5" value="90"><output id="admin-paddle-width-value">90</output></label>
           <label>Lives <input id="admin-lives" type="range" min="1" max="10" step="1" value="3"><output id="admin-lives-value">3</output></label>
           <label>Nextbot speed <input id="admin-nextbot-speed" type="range" min="0.5" max="2.5" step="0.1" value="1"><output id="admin-nextbot-speed-value">1.0x</output></label>
+          <label>Nextbot limit <input id="admin-nextbot-limit" type="range" min="12" max="64" step="1" value="64"><output id="admin-nextbot-limit-value">64</output></label>
         </section>
         <section class="admin-group" aria-label="Clear objects">
           <h3>Cleanup</h3>
@@ -315,6 +316,7 @@
           <button type="button" data-view-toggle="nextbots" aria-pressed="true">Nextbots: On</button>
           <button type="button" data-view-toggle="balls" aria-pressed="true">Balls: On</button>
           <button type="button" data-view-toggle="extras" aria-pressed="true">Extras: On</button>
+          <button type="button" data-view-toggle="hitboxes" aria-pressed="false">Hitboxes: Off</button>
           <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
         </div>
         <label for="admin-repeat-count">Right-click repeats</label>

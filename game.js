@@ -630,7 +630,7 @@ function refreshAdminVisibilityButtons() {
 
 for (const button of document.querySelectorAll("[data-view-toggle]")) {
   const view = button.dataset.viewToggle;
-  if (view !== "all") button.dataset.viewLabel = button.textContent.replace(/: On$/, "");
+  if (view !== "all") button.dataset.viewLabel = button.textContent.replace(/: (On|Off)$/, "");
   button.addEventListener("click", function () {
     if (view === "all") {
       const showAll = !Object.values(adminVisibility).every(Boolean);
@@ -1122,6 +1122,12 @@ function toggleAdminMenu() {
   if (button && adminBattleAdmin) button.setAttribute("aria-pressed", String(!adminMenu.hidden));
 }
 
+document.getElementById("admin-close").addEventListener("click", function () {
+  adminMenu.hidden = true;
+  const button = document.getElementById("admin-battle-toggle");
+  if (button && adminBattleAdmin) button.setAttribute("aria-pressed", "false");
+});
+
 function toggleFullscreen() {
   try {
     if (!document.fullscreenElement) {
@@ -1459,11 +1465,24 @@ function describeInspectedObject() {
     size = entity.width + " x " + entity.height;
     intent = entity.stuck ? "Waiting to launch" : "Moving at " + Math.hypot(entity.vx, entity.vy).toFixed(1) + " px/frame";
     thinking = entity.stuck ? "Attached to paddle" : "Bouncing off walls, paddle, and bricks";
+  } else if (selection.type === "AI paddle") {
+    size = Math.round(entity.width) + " x " + Math.round(entity.height);
+    health = "N/A";
+    intent = entity.aiIntent || "Track an assigned ball";
+    thinking = entity.aiCalculation || "Choosing the closest active ball";
   } else {
     size = Math.round(entity.width) + " x " + Math.round(entity.height);
-    health = selection.type === "paddle" ? "Player lives: " + lives : "N/A";
-    intent = selection.type === "paddle" ? "Catch and return the ball" : "Track assigned ball";
-    thinking = selection.type === "paddle" ? "Controlled by player input" : "Moving to intercept";
+    health = "Player lives: " + lives;
+    if (autoPlay) {
+      intent = "Autoplay: intercept the ball and avoid hazards";
+      thinking = "Target X " + Math.round(paddle.autoTargetX || paddle.x + paddle.width / 2) + "; predicted angle " + Math.round(autoAimAngle) + " degrees";
+    } else if (localTestMode && localTestCpu[0]) {
+      intent = "CPU tracking the main ball";
+      thinking = "Move toward ball center X " + Math.round(ball.x + ball.width / 2);
+    } else {
+      intent = "Catch and return the main ball";
+      thinking = "Controlled by player input";
+    }
   }
   return { title: title, health: health, size: size, intent: intent, thinking: thinking, canFreeze: canFreeze };
 }
@@ -1507,6 +1526,35 @@ function drawInspectorHighlight() {
   ctx.lineWidth = 2;
   ctx.setLineDash([5, 3]);
   ctx.strokeRect(x - 3, y - 3, width + 6, height + 6);
+  ctx.restore();
+}
+
+function drawAdminHitboxes() {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 80, 110, 0.9)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  ctx.save();
+  ctx.translate(paddle.x + paddle.width / 2, paddle.y + paddle.height / 2);
+  ctx.rotate(paddle.angle * Math.PI / 180);
+  ctx.strokeRect(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height);
+  ctx.restore();
+  for (const activeBall of [ball].concat(extraBalls)) {
+    ctx.strokeRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
+  }
+  for (const brick of bricks) {
+    if (!brick.hidden) ctx.strokeRect(brick.x, brick.y, brick.width, brick.height);
+  }
+  for (const bot of aiPaddles) {
+    ctx.save();
+    ctx.translate(bot.x + bot.width / 2, bot.y + bot.height / 2);
+    ctx.rotate((bot.angle || 0) * Math.PI / 180);
+    ctx.strokeRect(-bot.width / 2, -bot.height / 2, bot.width, bot.height);
+    ctx.restore();
+  }
+  for (const bot of nextBots) {
+    ctx.strokeRect(bot.x - 12, bot.y - 14, 24, 28);
+  }
   ctx.restore();
 }
 
@@ -1659,6 +1707,11 @@ function setupAdminVariableControls() {
   nextBotSpeed.addEventListener("input", function () {
     adminNextBotSpeedMultiplier = Number(nextBotSpeed.value);
     refreshAdminVariableControls();
+  });
+  const nextBotLimit = document.getElementById("admin-nextbot-limit");
+  nextBotLimit.addEventListener("input", function () {
+    maxActiveNextBots = Math.max(12, Math.min(64, Number(nextBotLimit.value) || 64));
+    document.getElementById("admin-nextbot-limit-value").value = String(maxActiveNextBots);
   });
   refreshAdminVariableControls();
 }
@@ -1851,7 +1904,9 @@ function runAdminAction(action) {
   } else if (action === "website-fps") {
     setWebsiteFpsEnabled(!websiteFpsEnabled);
   } else if (action === "spawn-nextbot") {
-    spawnNextBot();
+    if (!spawnNextBot() && adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
+    }
   } else if (action === "remove-nextbot") {
     removeNextBot();
   } else if (action === "clear-balls") {
@@ -1905,10 +1960,12 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
     if (!repeatAdminActions.has(action)) return;
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
     const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 25;
+    const startingBotCount = nextBots.length;
     if (adminRepeatCount) adminRepeatCount.value = String(count);
     for (let index = 0; index < count; index++) runAdminAction(action);
     if (adminRepeatStatus) {
-      adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times.";
+      const botCount = action === "spawn-nextbot" ? "; spawned " + (nextBots.length - startingBotCount) + " (" + nextBots.length + "/" + maxActiveNextBots + ")" : "";
+      adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times" + botCount + ".";
     }
   });
   adminButton.addEventListener("contextmenu", function (event) {
@@ -2897,11 +2954,25 @@ function updateAiPaddles() {
         if (framesToCatch <= 0 || framesToCatch >= targetFrames - 8 ||
             Math.abs(powerUpX - paddleCenter) > bot.speed * framesToCatch + bot.width / 2) continue;
         if (!catchablePowerUp || framesToCatch < catchablePowerUp.frames) {
-          catchablePowerUp = { x: powerUpX, frames: framesToCatch };
+          catchablePowerUp = { x: powerUpX, frames: framesToCatch, label: powerUp.label, type: powerUp.type };
         }
       }
       if (catchablePowerUp) targetX = catchablePowerUp.x;
+      const assignedBallName = assignedLanding && assignedLanding.ball !== ball
+        ? "extra ball " + (extraBalls.indexOf(assignedLanding.ball) + 1)
+        : "main ball";
+      bot.aiIntent = catchablePowerUp
+        ? "Catch power-up " + (catchablePowerUp.label || catchablePowerUp.type)
+        : greenIsSafeToCatch ? "Catch an extra ball while the main ball is safe" : "Intercept the " + assignedBallName;
+      bot.aiCalculation = assignedLanding
+        ? "Predicted " + assignedBallName + " landing at X " + Math.round(assignedLanding.landingX) + " in " + Math.ceil(assignedLanding.frames) + " frames; " + (whiteNeedsSaving ? "main ball needs saving" : "main ball is reachable")
+        : "No predicted ball landing; repositioning";
+      if (catchablePowerUp) bot.aiCalculation += "; power-up is reachable in " + Math.ceil(catchablePowerUp.frames) + " frames";
       const laserSafeTarget = dodgeLaserTarget(targetX, bot);
+      if (Math.abs(laserSafeTarget - targetX) > 1) {
+        bot.aiIntent = "Avoid laser lane, then intercept";
+        bot.aiCalculation += "; laser-safe target X " + Math.round(laserSafeTarget);
+      }
       if (Number.isFinite(targetFrames)) {
         const currentCenter = bot.x + bot.width / 2;
         const maximumTravel = bot.speed * Math.max(0, targetFrames - 3);
@@ -2914,6 +2985,7 @@ function updateAiPaddles() {
         targetX = laserSafeTarget;
       }
       targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
+      bot.aiCalculation += "; reachable move target X " + Math.round(targetX) + " at " + bot.speed + " px/frame";
       bot.previousX = bot.x;
       bot.previousY = bot.y;
       const dx = targetX - (bot.x + bot.width / 2);
@@ -2929,6 +3001,9 @@ function updateAiPaddles() {
     if (ball && ball.y >= 0 && mainBallDistance <= nearestDistance + 12) {
       target = ball;
     }
+
+    bot.aiIntent = target === ball ? "Intercept the main ball" : "Intercept an extra ball";
+    bot.aiCalculation = "Target center X " + Math.round(target.x + target.width / 2) + "; speed " + (bot.speed || paddle.speed) + " px/frame";
 
     bot.previousX = bot.x;
     bot.previousY = bot.y;
@@ -3151,6 +3226,7 @@ function draw() {
   if (adminVisibility.extras) drawRockets();
   if (adminVisibility.extras) drawAdminMissile();
     drawInspectorHighlight();
+  if (adminVisibility.hitboxes) drawAdminHitboxes();
   if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
     ctx.textAlign = "center";
@@ -3295,8 +3371,7 @@ function makeRandomRunBricks() {
     generated.push({ x: left, y: BRICKS_TOP, width: BRICK_WIDTH, height: BRICK_HEIGHT, type: "normal", isKill: false, color: BRICK_ROW_COLORS[0] });
   }
   if (Math.random() < 0.28) {
-    const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
-    const boss = makeBricks(bossLevels[randomInteger(0, bossLevels.length - 1)])[0];
+    const boss = makeBricks(BOSS_LEVELS[randomInteger(0, BOSS_LEVELS.length - 1)])[0];
     boss.hp = randomInteger(16, 90);
     boss.maxHp = boss.hp;
     boss.minionLimit = randomInteger(1, 3);
@@ -3318,7 +3393,6 @@ function randomizeRunStats() {
 
 function startLevel(nextLevel) {
   level = nextLevel;
-  const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
   if (randomEverythingEnabled) {
     randomizeRunStats();
     bricks = makeRandomRunBricks();
@@ -3328,7 +3402,7 @@ function startLevel(nextLevel) {
     lasers = createLevelLasers(randomInteger(0, 14));
   } else {
     bricks = getCurrentMode().bossRush
-      ? makeBricks(bossLevels[level % bossLevels.length])
+      ? makeBricks(BOSS_LEVELS[level % BOSS_LEVELS.length])
       : makeBricks(level);
     clearBossMinions();
     setNextBotsForLevel(level);
