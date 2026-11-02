@@ -43,6 +43,11 @@ const GAME_MODES = [
   { label: "Swarm", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, nextbotMultiplier: 2 }
 ];
 const PADDLE_TILT_SPEED = 2;
+const DASH_DISTANCE = 120;
+const MAX_ENEMY_SHOTS = 24;
+const PADDLE_JUMP_HEIGHT = 72;
+const PADDLE_JUMP_FRAMES = 28;
+const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
@@ -63,7 +68,6 @@ const MULTIBALL_HIT_STREAK = 5;
 const SHIELD_DURATION_FRAMES = 300;
 const FREEZE_DURATION_FRAMES = 180;
 const FREEZE_RADIUS = 190;
-const DASH_DISTANCE = 120;
 const SKINS = [
   { label: "Classic", paddle: "#ffffff", ball: "#ffffff", accent: "#ffffff", background: "#000000" },
   { label: "Neon Pink", paddle: "#ff4fd8", ball: "#ff9af3", accent: "#ffd5f5", background: "#140712" },
@@ -73,6 +77,7 @@ const SKINS = [
 const CONTROL_KEYS = {
   left: "arrowleft",
   right: "arrowright",
+  jump: "j",
   tiltLeft: "arrowdown",
   tiltRight: "arrowup"
 };
@@ -81,6 +86,7 @@ const CONTROL_LABELS = {
   right: "Move right",
   tiltLeft: "Tilt left",
   tiltRight: "Tilt right"
+  jump: "Jump"
 };
 let currentSkin = 0;
 let currentMode = 0;
@@ -112,6 +118,7 @@ let powerUpNotice = null;
 let levelNotice = null;
 let lasers = [];
 let rockets = [];
+let enemyShots = [];
 let autoAdvanceLevel = true;
 let fpsEnabled = false;
 let websiteFpsEnabled = false;
@@ -454,6 +461,10 @@ const paddle = {
   angle: 0,
   color: getCurrentSkin().paddle,
   accent: getCurrentSkin().accent
+  jumpBaseY: HEIGHT - 30,
+  jumpFrames: 0,
+  jumpCooldown: 0,
+  jumpKeyWasDown: false
 };
 
 
@@ -824,6 +835,7 @@ function getLobbyGameSnapshot() {
     brickHitStreak: brickHitStreak,
     ball: Object.assign({}, ball),
     extraBalls: extraBalls.map(function (activeBall) { return Object.assign({}, activeBall); }),
+      enemyShots: enemyShots.map(function (shot) { return Object.assign({}, shot); }),
     bricks: bricks.map(function (brick) { return Object.assign({}, brick); }),
     aiPaddles: aiPaddles.map(function (bot) {
       return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color, lobbyAI: bot.lobbyAI, lobbyName: bot.lobbyName };
@@ -975,6 +987,7 @@ function applyInterpolatedLobbySnapshot(now = performance.now()) {
 
   if (latestState.players) setMultiplayerPlayers(arrayFromLobbySnapshot(latestState.players));
   extraBalls = interpolateLobbyList(oldState.extraBalls, newState.extraBalls, latestState.extraBalls, ["x", "y"], amount);
+    enemyShots = interpolateLobbyList(oldState.enemyShots || [], newState.enemyShots || [], latestState.enemyShots || [], ["x", "y"], amount);
   bricks = interpolateLobbyBricks(oldState.bricks, newState.bricks, latestState.bricks, amount);
   aiPaddles = interpolateLobbyList(oldState.aiPaddles, newState.aiPaddles, latestState.aiPaddles, ["x", "y"], amount)
     .map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
@@ -1830,8 +1843,11 @@ function update() {
     paddle.previousAngle = paddle.angle;
     movePaddle();
     if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
+    if (randomEverythingEnabled) updatePaddleJump(paddle, CONTROL_KEYS.jump);
   }
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
+    if (randomEverythingEnabled) updateNextBotShots();
+    if (updateEnemyShots()) return;
   updateNextBots();
   updateRockets();
   updateTemporaryPowerUps();
@@ -1947,6 +1963,96 @@ function movePaddle() {
   if (paddle.x + paddle.width > WIDTH) {
     paddle.x = WIDTH - paddle.width;
   }
+}
+
+function updatePaddleJump(targetPaddle, jumpKey) {
+  if (targetPaddle.jumpCooldown > 0) targetPaddle.jumpCooldown--;
+  if (keys[jumpKey] && !targetPaddle.jumpKeyWasDown && targetPaddle.jumpCooldown === 0) {
+    targetPaddle.jumpFrames = PADDLE_JUMP_FRAMES;
+    targetPaddle.jumpCooldown = PADDLE_JUMP_COOLDOWN;
+  }
+  targetPaddle.jumpKeyWasDown = Boolean(keys[jumpKey]);
+  targetPaddle.previousY = targetPaddle.y;
+  if (targetPaddle.jumpFrames > 0) {
+    const progress = 1 - targetPaddle.jumpFrames / PADDLE_JUMP_FRAMES;
+    targetPaddle.y = targetPaddle.jumpBaseY - Math.sin(progress * Math.PI) * PADDLE_JUMP_HEIGHT;
+    targetPaddle.jumpFrames--;
+  } else {
+    targetPaddle.y = targetPaddle.jumpBaseY;
+  }
+}
+
+function getEnemyShotTargets() {
+  const targets = [];
+  if (!adminBattleAdmin) targets.push(paddle);
+  for (const player of multiplayerPlayers) {
+    if (player.id === multiplayerPlayerId || player.ai || (adminBattleMode && player.host)) continue;
+    targets.push({
+      x: player.x,
+      y: Number.isFinite(player.y) ? player.y : HEIGHT - 30,
+      width: Number.isFinite(player.width) ? player.width : BASE_PADDLE_WIDTH,
+      height: paddle.height
+    });
+  }
+  return targets;
+}
+
+function updateNextBotShots() {
+  if (enemyShots.length >= MAX_ENEMY_SHOTS) return;
+  const targets = getEnemyShotTargets();
+  if (targets.length === 0) return;
+  for (const bot of nextBots) {
+    if (bot.frozenTimer > 0) continue;
+    if (!Number.isFinite(bot.gunCooldown)) bot.gunCooldown = randomInteger(45, 110);
+    if (--bot.gunCooldown > 0) continue;
+    bot.gunCooldown = randomInteger(75, 135);
+    const target = targets.reduce(function (nearest, candidate) {
+      return Math.abs(candidate.x + candidate.width / 2 - bot.x) < Math.abs(nearest.x + nearest.width / 2 - bot.x)
+        ? candidate
+        : nearest;
+    });
+    const dx = target.x + target.width / 2 - bot.x;
+    const dy = target.y - bot.y;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const speed = randomInteger(4, 6);
+    enemyShots.push({ x: bot.x, y: bot.y, vx: dx / distance * speed, vy: dy / distance * speed, radius: 5 });
+    if (enemyShots.length >= MAX_ENEMY_SHOTS) return;
+  }
+}
+
+function updateEnemyShots() {
+  for (let index = enemyShots.length - 1; index >= 0; index--) {
+    const shot = enemyShots[index];
+    shot.x += shot.vx;
+    shot.y += shot.vy;
+    if (shot.x < -12 || shot.x > WIDTH + 12 || shot.y < -12 || shot.y > HEIGHT + 12) {
+      enemyShots.splice(index, 1);
+      continue;
+    }
+    const hit = getEnemyShotTargets().some(function (target) {
+      return shot.x + shot.radius > target.x && shot.x - shot.radius < target.x + target.width &&
+        shot.y + shot.radius > target.y && shot.y - shot.radius < target.y + target.height;
+    });
+    if (hit) {
+      enemyShots.splice(index, 1);
+      loseLife();
+      return true;
+    }
+  }
+  return false;
+}
+
+function drawEnemyShots() {
+  ctx.save();
+  ctx.fillStyle = "#ff4057";
+  ctx.shadowColor = "#ff4057";
+  ctx.shadowBlur = 12;
+  for (const shot of enemyShots) {
+    ctx.beginPath();
+    ctx.arc(shot.x, shot.y, shot.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function moveBall(activeBall) {
@@ -2686,6 +2792,7 @@ function draw() {
   }
   if (adminVisibility.lasers) drawLasers();
   if (adminVisibility.nextbots) drawNextBots();
+  if (adminVisibility.enemies) drawEnemyShots();
   if (adminVisibility.extras) drawRockets();
   if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
@@ -2870,6 +2977,7 @@ function startLevel(nextLevel) {
     setNextBotsForLevel(level);
     lasers = createLevelLasers(level);
   }
+  enemyShots = [];
   powerUps = [];
   const features = [];
   if (randomEverythingEnabled) features.push("SPD " + baseBallSpeed + " TURN " + currentTurnSpeed + " DASH " + currentDashDistance + " MOLA x" + randomRunScoreMultiplier);

@@ -68,7 +68,8 @@ function makeNextBot(definition, index) {
     phaseTimer: 0,
     angle: 0,
     dashVX: 0,
-    dashVY: 0
+    dashVY: 0,
+    gunCooldown: 60 + Math.random() * 90
   });
 }
 
@@ -502,6 +503,8 @@ function drawNextBots() {
     ctx.fillRect(3, -7, 4, 4);
     ctx.fillStyle = bot.accent;
     ctx.fillRect(-7, 4, 14, 3);
+    ctx.fillStyle = "#242424";
+    ctx.fillRect(7, -2, 13, 4);
     ctx.restore();
 
     ctx.fillStyle = "white";
