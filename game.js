@@ -770,7 +770,7 @@ function startLocalMultiplayerTest() {
   beginGame(true);
   document.getElementById("local-test-controls").hidden = false;
   document.getElementById("multiplayer-status").hidden = false;
-  document.getElementById("multiplayer-status").textContent = "Local test: P1 uses arrows, P2 uses A/D, P2 jumps with W.";
+  document.getElementById("multiplayer-status").textContent = "Local test: P1 uses arrows and J; P2 moves with A/D, tilts with Q/E, and jumps with W.";
   refreshLocalTestCpuButtons();
 }
 
@@ -786,6 +786,12 @@ function stopLocalMultiplayerTest() {
   document.getElementById("local-test-controls").hidden = true;
   document.getElementById("multiplayer-status").hidden = true;
   showMainMenu();
+}
+
+function toggleLocalTestCpu(playerIndex) {
+  if (!localTestMode) return;
+  localTestCpu[playerIndex] = !localTestCpu[playerIndex];
+  refreshLocalTestCpuButtons();
 }
 
 function setMultiplayerSession(active, isHost = false, playerId = null, isAdminBattle = false) {
@@ -1155,6 +1161,10 @@ resumeButton.addEventListener("click", function () {
 
 startGameButton.addEventListener("click", function () { beginGame(false); });
 document.getElementById("random-game").addEventListener("click", function () { beginGame(true); });
+document.getElementById("local-multiplayer-test").addEventListener("click", startLocalMultiplayerTest);
+document.getElementById("test-p1-cpu").addEventListener("click", function () { toggleLocalTestCpu(0); });
+document.getElementById("test-p2-cpu").addEventListener("click", function () { toggleLocalTestCpu(1); });
+document.getElementById("exit-local-test").addEventListener("click", stopLocalMultiplayerTest);
 menuControlsButton.addEventListener("click", openMenuControls);
 menuAdminButton.addEventListener("click", function () {
   toggleAdminMenu();
@@ -1625,7 +1635,9 @@ function runAdminAction(action) {
   } else if (action === "restart") {
     restartGame();
   } else if (action === "menu") {
-    if (multiplayerActive && typeof window.leaveLobbySession === "function") {
+    if (localTestMode) {
+      stopLocalMultiplayerTest();
+    } else if (multiplayerActive && typeof window.leaveLobbySession === "function") {
       window.leaveLobbySession();
     } else {
       showMainMenu();
@@ -1903,14 +1915,16 @@ function update() {
     paddle.previousX = paddle.x;
     paddle.previousY = paddle.y;
     paddle.previousAngle = paddle.angle;
-    movePaddle();
+    if (localTestMode && localTestCpu[0]) moveTestCpuPaddle(paddle);
+    else movePaddle();
     if (multiplayerActive && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
     if (randomEverythingEnabled) updatePaddleJump(paddle, CONTROL_KEYS.jump);
   }
+  if (localTestMode) updateLocalTestPaddle();
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
-    if (randomEverythingEnabled) updateNextBotShots();
-    if (updateEnemyShots()) return;
   updateNextBots();
+  if (randomEverythingEnabled) updateNextBotShots();
+  if (updateEnemyShots()) return;
   updateRockets();
   updateTemporaryPowerUps();
   updatePowerUps();
@@ -2025,6 +2039,30 @@ function movePaddle() {
   if (paddle.x + paddle.width > WIDTH) {
     paddle.x = WIDTH - paddle.width;
   }
+}
+
+function moveTestCpuPaddle(targetPaddle) {
+  const targetX = Math.max(0, Math.min(WIDTH - targetPaddle.width, ball.x + ball.width / 2 - targetPaddle.width / 2));
+  const distance = targetX - targetPaddle.x;
+  targetPaddle.x += Math.sign(distance) * Math.min(targetPaddle.speed || paddle.speed, Math.abs(distance));
+}
+
+function updateLocalTestPaddle() {
+  const player = multiplayerPlayers.find(function (entry) { return entry.id === "local-test-player-2"; });
+  if (!player) return;
+  player.previousX = player.x;
+  player.previousY = player.y;
+  player.previousAngle = player.angle;
+  if (localTestCpu[1]) {
+    moveTestCpuPaddle(player);
+  } else {
+    if (keys.a) player.x -= player.speed;
+    if (keys.d) player.x += player.speed;
+    if (keys.q) player.angle = Math.max(-MAX_PADDLE_TILT, player.angle - currentTurnSpeed);
+    if (keys.e) player.angle = Math.min(MAX_PADDLE_TILT, player.angle + currentTurnSpeed);
+    player.x = Math.max(0, Math.min(WIDTH - player.width, player.x));
+  }
+  updatePaddleJump(player, "w");
 }
 
 function updatePaddleJump(targetPaddle, jumpKey) {
