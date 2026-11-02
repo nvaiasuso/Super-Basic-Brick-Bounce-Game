@@ -51,7 +51,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 50;
+const LEVEL_COUNT = 60;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -1289,8 +1289,7 @@ function spawnAdminPowerUp() {
 
 function spawnAdminBoss(selectedBoss = 0) {
   if (bricks.filter(function (brick) { return brick.adminSpawned; }).length >= ADMIN_SPAWN_LIMITS.bricks) return;
-  const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
-  const bossLevel = bossLevels[Math.max(0, Math.min(bossLevels.length - 1, selectedBoss))];
+  const bossLevel = BOSS_LEVELS[Math.max(0, Math.min(BOSS_LEVELS.length - 1, selectedBoss))];
   const boss = makeBricks(bossLevel)[0];
   boss.adminSpawned = true;
   bricks.push(boss);
@@ -1709,7 +1708,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 

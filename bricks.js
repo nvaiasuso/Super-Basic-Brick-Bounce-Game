@@ -12,8 +12,11 @@ const BOSS_VARIANTS = [
   { name: "IRON WARDEN", palette: ["#94a3b8", "#475569", "#111827"], damagedPalette: ["#facc15", "#dc2626", "#450a0a"], glow: "#38bdf8", eyes: "#a7f3d0", damagedEyes: "#fff176", minionInterval: 300, minionLimit: 1 },
   { name: "VOID SERPENT", palette: ["#2dd4bf", "#0e7490", "#082f49"], damagedPalette: ["#fb7185", "#7c3aed", "#2e1065"], glow: "#5eead4", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 210, minionLimit: 2 },
   { name: "FROST ENGINE", palette: ["#bae6fd", "#2563eb", "#172554"], damagedPalette: ["#f97316", "#dc2626", "#431407"], glow: "#60a5fa", eyes: "#ffffff", damagedEyes: "#fff176", minionInterval: 270, minionLimit: 2 },
-  { name: "NEXUS PRIME", palette: ["#f0abfc", "#db2777", "#500724"], damagedPalette: ["#fde047", "#ea580c", "#431407"], glow: "#f472b6", eyes: "#86efac", damagedEyes: "#fff176", minionInterval: 180, minionLimit: 2 }
+  { name: "NEXUS PRIME", palette: ["#f0abfc", "#db2777", "#500724"], damagedPalette: ["#fde047", "#ea580c", "#431407"], glow: "#f472b6", eyes: "#86efac", damagedEyes: "#fff176", minionInterval: 180, minionLimit: 2 },
+  { name: "TEMPEST CORE", palette: ["#67e8f9", "#2563eb", "#172554"], damagedPalette: ["#facc15", "#ea580c", "#431407"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 165, minionLimit: 3 },
+  { name: "EMBER TITAN", palette: ["#fdba74", "#ea580c", "#431407"], damagedPalette: ["#fef08a", "#dc2626", "#450a0a"], glow: "#fb923c", eyes: "#fef3c7", damagedEyes: "#fff176", minionInterval: 150, minionLimit: 3 }
 ];
+const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, LEVEL_COUNT - 1];
 
 const LEVEL_LAYOUTS = [
   [
@@ -339,9 +342,8 @@ const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff",
 // # bricks are breakable; X bricks are lethal; H bricks are moving hazards; . is empty.
 function makeBricks(level) {
   const list = [];
-  if (level === 9 || level === 15 || level === 21 || level === 27 || level === LEVEL_COUNT - 1) {
-    const bossLevels = [9, 15, 21, 27, LEVEL_COUNT - 1];
-    const variant = BOSS_VARIANTS[bossLevels.indexOf(level)];
+  if (BOSS_LEVELS.includes(level)) {
+    const variant = BOSS_VARIANTS[BOSS_LEVELS.indexOf(level)];
     const bossHealth = 40 + Math.max(0, level - 9) * 5;
     const bossWidth = 320;
     const bossHeight = 140;

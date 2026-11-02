@@ -164,6 +164,22 @@ p {
   display: none;
 }
 
+#admin-menu:not([hidden]):not(.admin-battle-dock) {
+  position: fixed;
+  z-index: 20;
+  top: 12px;
+  left: 50%;
+  width: min(960px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform: translateX(-50%);
+  padding: 14px;
+  border: 1px solid var(--theme-accent, #d6ff55);
+  background: rgba(0, 0, 0, 0.96);
+}
+
 .controls h2 {
   margin: 0 0 12px;
   font-size: 16px;
