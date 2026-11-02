@@ -807,6 +807,24 @@ button:focus-visible {
   margin: 0;
 }
 
+.local-test-controls {
+  position: fixed;
+  z-index: 15;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border: 1px solid rgba(85, 217, 255, 0.8);
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.local-test-controls[hidden] {
+  display: none;
+}
+
 .admin-battle-host #admin-menu.admin-battle-dock {
   position: fixed;
   z-index: 14;

@@ -85,7 +85,7 @@ const CONTROL_LABELS = {
   left: "Move left",
   right: "Move right",
   tiltLeft: "Tilt left",
-  tiltRight: "Tilt right"
+  tiltRight: "Tilt right",
   jump: "Jump"
 };
 let currentSkin = 0;
@@ -437,6 +437,9 @@ let invincible = false;
 let gameStarted = false;
 let multiplayerActive = false;
 let multiplayerHost = false;
+let localTestMode = false;
+let localTestCpu = [false, false];
+let localTestPreviousAutoPlay = false;
 let adminBattleMode = false;
 let adminBattleAdmin = false;
 let multiplayerPlayerId = null;
@@ -460,7 +463,7 @@ const paddle = {
   speed: 6,
   angle: 0,
   color: getCurrentSkin().paddle,
-  accent: getCurrentSkin().accent
+  accent: getCurrentSkin().accent,
   jumpBaseY: HEIGHT - 30,
   jumpFrames: 0,
   jumpCooldown: 0,
@@ -724,6 +727,65 @@ function beginGame(randomRun = false) {
   gameInfo.hidden = false;
   refreshTouchControls();
   lastTime = performance.now();
+}
+
+function refreshLocalTestCpuButtons() {
+  for (let index = 0; index < localTestCpu.length; index++) {
+    const button = document.getElementById(index === 0 ? "test-p1-cpu" : "test-p2-cpu");
+    button.setAttribute("aria-pressed", String(localTestCpu[index]));
+    button.textContent = "P" + (index + 1) + " CPU: " + (localTestCpu[index] ? "On" : "Off");
+  }
+}
+
+function startLocalMultiplayerTest() {
+  localTestMode = true;
+  localTestCpu = [false, false];
+  localTestPreviousAutoPlay = autoPlay;
+  autoPlay = false;
+  autoPlayButton.setAttribute("aria-pressed", "false");
+  autoPlayButton.textContent = "Auto-play: Off";
+  setMultiplayerSession(true, true, "local-test-player-1", false);
+  paddle.x = WIDTH / 2 - 115;
+  paddle.y = HEIGHT - 30;
+  multiplayerPlayers = [{
+    id: "local-test-player-2",
+    name: "PLAYER 2",
+    host: false,
+    ai: false,
+    x: WIDTH / 2 + 25,
+    previousX: WIDTH / 2 + 25,
+    y: HEIGHT - 30,
+    previousY: HEIGHT - 30,
+    width: 90,
+    angle: 0,
+    previousAngle: 0,
+    speed: 6,
+    height: paddle.height,
+    color: "#55d9ff",
+    jumpBaseY: HEIGHT - 30,
+    jumpFrames: 0,
+    jumpCooldown: 0,
+    jumpKeyWasDown: false
+  }];
+  beginGame(true);
+  document.getElementById("local-test-controls").hidden = false;
+  document.getElementById("multiplayer-status").hidden = false;
+  document.getElementById("multiplayer-status").textContent = "Local test: P1 uses arrows, P2 uses A/D, P2 jumps with W.";
+  refreshLocalTestCpuButtons();
+}
+
+function stopLocalMultiplayerTest() {
+  if (!localTestMode) return;
+  localTestMode = false;
+  localTestCpu = [false, false];
+  setMultiplayerSession(false);
+  multiplayerPlayers = [];
+  autoPlay = localTestPreviousAutoPlay;
+  autoPlayButton.setAttribute("aria-pressed", String(autoPlay));
+  autoPlayButton.textContent = autoPlay ? "Auto-play: On" : "Auto-play: Off";
+  document.getElementById("local-test-controls").hidden = true;
+  document.getElementById("multiplayer-status").hidden = true;
+  showMainMenu();
 }
 
 function setMultiplayerSession(active, isHost = false, playerId = null, isAdminBattle = false) {
