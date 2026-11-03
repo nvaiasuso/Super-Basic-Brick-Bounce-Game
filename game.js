@@ -123,6 +123,7 @@ let adminMissileArmed = false;
 let adminExplosion = null;
 let adminMousePosition = { x: WIDTH / 2, y: HEIGHT / 2 };
 let adminInspectEnabled = false;
+let adminDebugEnabled = false;
 let inspectedObject = null;
 let nextBotLasersEnabled = true;
 let enemyShots = [];
@@ -1134,6 +1135,7 @@ window.getLobbyInterpolationDebugState = function () {
   };
 };
 window.getGameDebugState = function () {
+  const activeBoss = bricks.find(function (brick) { return brick.type === "boss" && !brick.hidden; });
   return {
     ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy },
     gameOver: gameOver,
@@ -1142,9 +1144,34 @@ window.getGameDebugState = function () {
     hitStopFrames: hitStopFrames,
     level: level,
     lives: lives,
-    bricks: bricks.length
+    simulationFrame: simulationFrame,
+    simulationSpeed: simulationSpeed,
+    entities: {
+      bricks: bricks.length,
+      balls: 1 + extraBalls.length,
+      nextbots: nextBots.length,
+      powerUps: powerUps.length,
+      lasers: lasers.length,
+      enemyShots: enemyShots.length
+    },
+    boss: activeBoss ? {
+      name: activeBoss.bossName,
+      hp: activeBoss.hp,
+      maxHp: activeBoss.maxHp,
+      phase: activeBoss.isFinalBoss ? FINAL_BOSS_PHASES[(activeBoss.phase || 1) - 1] : null
+    } : null
   };
 };
+
+function refreshAdminDebugReadout() {
+  const output = document.getElementById("admin-debug-readout");
+  if (!output || !adminDebugEnabled) return;
+  const state = window.getGameDebugState();
+  const entityCounts = state.entities;
+  const bossStatus = state.boss ? state.boss.name + " " + state.boss.hp + "/" + state.boss.maxHp + (state.boss.phase ? " [" + state.boss.phase + "]" : "") : "none";
+  const text = "LV " + (state.level + 1) + " | FRAME " + state.simulationFrame + " | BALLS " + entityCounts.balls + " | BLOCKS " + entityCounts.bricks + " | NEXTBOTS " + entityCounts.nextbots + " | POWERUPS " + entityCounts.powerUps + " | LASERS " + entityCounts.lasers + " | SHOTS " + entityCounts.enemyShots + " | BOSS " + bossStatus;
+  if (output.textContent !== text) output.textContent = text;
+}
 window.launchLobbyBall = function (playerId) {
   if (multiplayerActive && multiplayerHost && ball.stuck && ball.stuckPlayerId === playerId) {
     launchStuckBall(getPaddleForPlayer(playerId), playerId);
@@ -1295,6 +1322,7 @@ function spawnAdminBrick() {
   const type = brickTypeSelect ? brickTypeSelect.value : "normal";
   const colors = {
     normal: "#54c8ff",
+    command: "#50664c",
     armored: "#9292a0",
     explosive: "#ff8b45",
     moving: "#69d8c4",
@@ -1315,6 +1343,10 @@ function spawnAdminBrick() {
   if (type === "armored") {
     brick.hp = 3;
     brick.maxHp = 3;
+  }
+  if (type === "command") {
+    brick.hp = 5;
+    brick.maxHp = 5;
   }
   if (type === "regenerating") {
     brick.hp = 1;
@@ -1361,6 +1393,31 @@ function spawnAdminBoss(selectedBoss = 0) {
   const boss = makeBricks(bossLevel)[0];
   boss.adminSpawned = true;
   bricks.push(boss);
+}
+
+function spawnAdminFinalBoss() {
+  gameOver = false;
+  gameWon = false;
+  level = LEVEL_COUNT - 1;
+  bricks = makeBricks(level);
+  clearBossMinions();
+  enemyShots = [];
+  powerUps = [];
+  lasers = [];
+  levelNotice = { text: "FINAL ENCOUNTER // COMMAND WRAITH", timer: 180 };
+  resetBall();
+}
+
+function advanceAdminBossPhase() {
+  let boss = bricks.find(function (brick) { return brick.isFinalBoss; });
+  if (!boss) {
+    spawnAdminFinalBoss();
+    boss = bricks.find(function (brick) { return brick.isFinalBoss; });
+  }
+  boss.phase = boss.phase >= 3 ? 1 : boss.phase + 1;
+  boss.hp = boss.phase === 1 ? boss.maxHp : boss.phase === 2 ? Math.floor(boss.maxHp * 0.65) : Math.floor(boss.maxHp / 3);
+  boss.phaseTimer = 90;
+  levelNotice = { text: "COMMAND WRAITH // " + FINAL_BOSS_PHASES[boss.phase - 1], timer: 150 };
 }
 
 function spawnAdminLaser() {
@@ -2033,6 +2090,18 @@ function runAdminAction(action) {
     armAdminMissile();
   } else if (action.startsWith("spawn-boss-")) {
     spawnAdminBoss(Number(action.slice("spawn-boss-".length)));
+  } else if (action === "spawn-final-boss") {
+    spawnAdminFinalBoss();
+  } else if (action === "boss-phase") {
+    advanceAdminBossPhase();
+  } else if (action === "debug") {
+    adminDebugEnabled = !adminDebugEnabled;
+    const debugOutput = document.getElementById("admin-debug-readout");
+    const debugButton = document.getElementById("admin-debug-toggle");
+    debugOutput.hidden = !adminDebugEnabled;
+    debugButton.setAttribute("aria-pressed", String(adminDebugEnabled));
+    debugButton.textContent = "Debug readout: " + (adminDebugEnabled ? "On" : "Off");
+    refreshAdminDebugReadout();
   } else if (action === "spawn-all") {
     spawnAdminEverything();
   } else if (action === "break") {
@@ -2819,7 +2888,18 @@ function updateSpecialBricks() {
     if (brick.type === "boss") {
       brick.x = brick.originX + Math.sin(simulationFrame * 0.022 + brick.movePhase) * brick.moveAmplitude;
       brick.y = brick.originY + Math.sin(simulationFrame * 0.037 + brick.movePhase) * 7;
-      if (bossMinionsEnabled && brick.hp <= brick.maxHp * 0.8 && --brick.minionTimer <= 0) {
+      const finalBoss = brick.isFinalBoss;
+      if (finalBoss) {
+        brick.phase = finalBossPhaseForHealth(brick);
+        brick.minionInterval = brick.phase === 1 ? 210 : brick.phase === 2 ? 150 : 105;
+        brick.minionLimit = brick.phase === 1 ? 2 : brick.phase === 2 ? 4 : 5;
+        if (brick.phase > 1 && --brick.phaseTimer <= 0) {
+          dropBossKillbrick(brick);
+          if (brick.phase === 3) dropBossKillbrick(brick);
+          brick.phaseTimer = brick.phase === 2 ? 150 : 90;
+        }
+      }
+      if (bossMinionsEnabled && (finalBoss || brick.hp <= brick.maxHp * 0.8) && --brick.minionTimer <= 0) {
         const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
         if (minionCount < brick.minionLimit) {
           const minion = spawnNextBot();
@@ -3620,10 +3700,6 @@ function loseLife() {
 
 function advanceLevel() {
   if (level + 1 >= LEVEL_COUNT) {
-    if (randomEverythingEnabled || getCurrentMode().endless) {
-      startLevel(0);
-      return;
-    }
     gameWon = true;
     return;
   }
@@ -3705,7 +3781,12 @@ function randomizeRunStats() {
 
 function startLevel(nextLevel) {
   level = nextLevel;
-  if (randomEverythingEnabled) {
+  if (level === LEVEL_COUNT - 1) {
+    bricks = makeBricks(level);
+    clearBossMinions();
+    setNextBotsForLevel(level);
+    lasers = createLevelLasers(level);
+  } else if (randomEverythingEnabled) {
     randomizeRunStats();
     bricks = makeRandomRunBricks();
     selectNextBots();
@@ -3818,6 +3899,7 @@ function frame(now) {
     if (gameStarted && !paused) gameFpsFrameCount++;
     leftover = leftover - STEP;
   }
+  refreshAdminDebugReadout();
 
   if (gameFpsSampleStart === 0) gameFpsSampleStart = now;
   const gameElapsed = now - gameFpsSampleStart;

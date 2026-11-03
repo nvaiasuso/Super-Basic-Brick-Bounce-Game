@@ -944,6 +944,23 @@ button:focus-visible {
   flex-basis: 100%;
 }
 
+.admin-debug-readout {
+  display: block;
+  flex: 1 1 100%;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 8px;
+  border: 1px solid rgba(135, 239, 178, 0.55);
+  background: rgba(15, 30, 22, 0.9);
+  color: #b6ffc9;
+  font: 11px/1.5 monospace;
+  text-align: left;
+}
+
+.admin-debug-readout[hidden] {
+  display: none;
+}
+
 .admin-actions input[type="number"] {
   width: 96px;
   min-height: 36px;

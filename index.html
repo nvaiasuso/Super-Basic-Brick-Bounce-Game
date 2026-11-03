@@ -215,6 +215,7 @@
           <label>Block type
             <select id="admin-brick-select" aria-label="Block type to spawn">
               <option value="normal">Normal</option>
+              <option value="command">Command block</option>
               <option value="armored">Armored</option>
               <option value="explosive">Explosive</option>
               <option value="moving">Moving</option>
@@ -263,6 +264,8 @@
           <button type="button" data-admin="spawn-boss-8">Spawn Machine Heart</button>
           <button type="button" data-admin="spawn-boss-9">Spawn Star Forge</button>
           <button type="button" data-admin="spawn-boss-10">Spawn Deep Current</button>
+          <button type="button" data-admin="spawn-final-boss">Spawn Command Wraith</button>
+          <button type="button" data-admin="boss-phase">Advance Wraith phase</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>
@@ -286,6 +289,7 @@
           <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
           <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">Game FPS: Off</button>
           <button type="button" data-admin="website-fps" aria-pressed="false">Website FPS: Off</button>
+          <button type="button" id="admin-debug-toggle" data-admin="debug" aria-pressed="false">Debug readout: Off</button>
         </section>
         <section class="admin-group" aria-label="Gameplay variables">
           <h3>Gameplay Variables</h3>
@@ -339,6 +343,7 @@
         <label for="admin-repeat-count">Right-click repeats</label>
         <input id="admin-repeat-count" type="number" min="1" max="100" step="1" value="25" aria-label="Number of times to repeat an admin action">
         <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
+        <output id="admin-debug-readout" class="admin-debug-readout" aria-live="polite" hidden></output>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">
           <option value="1">Level 1</option>

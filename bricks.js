@@ -20,7 +20,7 @@ const BOSS_VARIANTS = [
   { name: "STAR FORGE", palette: ["#f0abfc", "#7c3aed", "#2e1065"], damagedPalette: ["#fde68a", "#f43f5e", "#7f1d1d"], glow: "#c084fc", eyes: "#67e8f9", damagedEyes: "#fff176", minionInterval: 125, minionLimit: 4 },
   { name: "DEEP CURRENT", palette: ["#5eead4", "#0369a1", "#082f49"], damagedPalette: ["#fb7185", "#c026d3", "#4a044e"], glow: "#2dd4bf", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 115, minionLimit: 4 }
 ];
-const FINAL_BOSS_PHASES = ["INCUBATION", "TENTACLED TITAN", "PLAGUE SPLIT"];
+const FINAL_BOSS_PHASES = ["INCUBATION / CONSUMPTION", "TENTACLED TITAN / EVOLUTION", "SPLIT / INCURABLE PLAGUE"];
 const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, LEVEL_COUNT - 1];
 
 function finalBossPhaseForHealth(boss) {
