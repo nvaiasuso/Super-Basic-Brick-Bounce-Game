@@ -159,7 +159,16 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
 
   if (brick.type === "boss") {
     brick.hp--;
-    if (brick.hp > 0 && brick.hp % 3 === 0) dropBossKillbrick(brick);
+    if (brick.isFinalBoss) {
+      const nextPhase = finalBossPhaseForHealth(brick);
+      if (nextPhase !== brick.phase) {
+        brick.phase = nextPhase;
+        brick.phaseTimer = nextPhase === 2 ? 150 : 90;
+        const phaseText = FINAL_BOSS_PHASES[nextPhase - 1];
+        levelNotice = { text: "COMMAND WRAITH // " + phaseText, timer: 150 };
+      }
+    }
+    if (brick.hp > 0 && (brick.hp % 3 === 0 || (brick.isFinalBoss && brick.phase === 3 && brick.hp % 2 === 0))) dropBossKillbrick(brick);
     if (brick.hp > 0) return;
     dropPowerUp(brick);
   }
@@ -233,7 +242,7 @@ function bounceOffBricks(activeBall) {
       }
     }
 
-    if (brick.type === "armored" && brick.hp > 1) {
+    if ((brick.type === "armored" || brick.type === "command") && brick.hp > 1) {
       brick.hp--;
       brick.damaged = true;
       break;
@@ -310,7 +319,7 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y, options
         projectedBall.vy = -projectedBall.vy;
         projectedBall.y = projectedBall.y < brick.y ? brick.y - projectedBall.height : brick.y + brick.height;
       }
-      if ((brick.type === "boss" || brick.type === "armored") && (brick.hp || 1) > 1) {
+      if ((brick.type === "boss" || brick.type === "armored" || brick.type === "command") && (brick.hp || 1) > 1) {
         brick.hp--;
       } else {
         projectedBricks.splice(i, 1);
