@@ -30,6 +30,7 @@ const SHARED_MUSIC_CONFIG = {
 const supabaseClient = window.supabase && typeof window.supabase.createClient === "function"
   ? window.supabase.createClient(SHARED_MUSIC_CONFIG.supabaseUrl, SHARED_MUSIC_CONFIG.anonKey)
   : null;
+window.sharedSupabaseClient = supabaseClient;
 const musicDetailsStorageKey = "blockBreakerMusicDetails";
 let savedMusicDetails = {};
 

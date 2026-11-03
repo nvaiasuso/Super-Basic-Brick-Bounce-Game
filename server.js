@@ -33,7 +33,16 @@ async function findMusicFiles(directory, files) {
 }
 
 function musicApiMiddleware(request, response) {
-  const pathname = new URL(request.url, "http://localhost").pathname;
+  const requestUrl = typeof request.url === "string" && request.url ? request.url : "/";
+  const safeRequestUrl = requestUrl.startsWith("//")
+    ? "/" + requestUrl.replace(/^\/+/, "")
+    : requestUrl;
+  let pathname;
+  try {
+    pathname = new URL(safeRequestUrl, "http://localhost").pathname;
+  } catch (error) {
+    pathname = "/";
+  }
   if (pathname !== "/api/music") return response.emit("next");
   if (request.method !== "GET") {
     response.statusCode = 405;

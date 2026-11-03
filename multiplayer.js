@@ -71,9 +71,379 @@ function getLobbySocketUrl() {
   return protocol + "//" + window.location.host + "/lobby";
 }
 
+const staticLobbyCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function createRealtimeLobbySocket(initialAction) {
+  const client = window.sharedSupabaseClient;
+  if (!client) return null;
+
+  const playerId = window.crypto && typeof window.crypto.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : String(Date.now()) + Math.random().toString(36).slice(2);
+  const isHost = initialAction.type === "create";
+  const lobbyCode = isHost
+    ? Array.from({ length: 6 }, function () { return staticLobbyCodeCharacters[Math.floor(Math.random() * staticLobbyCodeCharacters.length)]; }).join("")
+    : initialAction.code;
+  const listeners = new Map();
+  const roomPlayers = [];
+  const roomBots = [];
+  let roomStarted = false;
+  let roomAdminBattle = Boolean(initialAction.adminBattle);
+  let hostPlayerId = isHost ? playerId : null;
+  let channel;
+  let closed = false;
+
+  const socket = {
+    readyState: WebSocket.CONNECTING,
+    bufferedAmount: 0,
+    isRealtime: true,
+    addEventListener: function (type, callback, options) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push({ callback: callback, once: Boolean(options && options.once) });
+    },
+    dispatch: function (type, event) {
+      const entries = listeners.get(type) || [];
+      for (const entry of entries.slice()) {
+        entry.callback(event || {});
+        if (entry.once) listeners.set(type, (listeners.get(type) || []).filter(function (item) { return item !== entry; }));
+      }
+    },
+    send: function (data) {
+      let message;
+      try {
+        message = JSON.parse(data);
+      } catch (error) {
+        return;
+      }
+      if (message.type === "create" && isHost && roomPlayers.length === 0) {
+        const hostPlayer = {
+          id: playerId,
+          name: cleanLobbyName(message.name),
+          color: "#d6ff55",
+          x: 355,
+          previousX: 355,
+          y: 570,
+          previousY: 570,
+          width: 90,
+          angle: 0,
+          previousAngle: 0,
+          ready: true,
+          host: true
+        };
+        roomAdminBattle = Boolean(message.adminBattle);
+        roomPlayers.push(hostPlayer);
+        sendServerMessage({ type: "created", code: lobbyCode, playerId: playerId, host: true }, playerId);
+        broadcastRoomState();
+        return;
+      }
+      if (message.type === "join" && !isHost) {
+        publish({ message: { type: "join", name: cleanLobbyName(message.name) } });
+        return;
+      }
+      if (isHost) {
+        handleHostMessage(message, playerId);
+      } else {
+        publish({ message: message });
+      }
+    },
+    close: function () {
+      if (closed) return;
+      closed = true;
+      socket.readyState = WebSocket.CLOSED;
+      if (channel) channel.unsubscribe();
+      socket.dispatch("close");
+    }
+  };
+
+  function fail() {
+    if (closed) return;
+    socket.dispatch("error");
+    socket.close();
+  }
+
+  function cleanLobbyName(value) {
+    const name = typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 16) : "";
+    return name || "Player";
+  }
+
+  function emitMessage(message) {
+    socket.dispatch("message", { data: JSON.stringify(message) });
+  }
+
+  function publish(packet) {
+    if (closed || !channel) return;
+    channel.send({ type: "broadcast", event: "lobby-message", payload: Object.assign({ senderId: playerId }, packet) }).then(function (status) {
+      if (status === "error") fail();
+    }).catch(function () {
+      fail();
+    });
+  }
+
+  function sendServerMessage(message, recipientId, excludeId) {
+    if (recipientId === playerId || (!recipientId && excludeId !== playerId)) emitMessage(message);
+    if (recipientId === playerId) return;
+    publish({ server: true, recipientId: recipientId || null, excludeId: excludeId || null, message: message });
+  }
+
+  function broadcastRoomState() {
+    sendServerMessage({
+      type: "room-state",
+      code: lobbyCode,
+      started: roomStarted,
+      adminBattle: roomAdminBattle,
+      players: roomPlayers.concat(roomBots)
+    });
+  }
+
+  function sendError(message, recipientId) {
+    sendServerMessage({ type: "error", message: message }, recipientId);
+  }
+
+  function handleHostMessage(message, senderId) {
+    if (message.type === "join") {
+      if (roomStarted) return sendError("That game has already started.", senderId);
+      if (roomPlayers.length >= 2) return sendError("That lobby is full.", senderId);
+      const joinedPlayer = {
+        id: senderId,
+        name: cleanLobbyName(message.name),
+        color: "#55d9ff",
+        x: 355,
+        previousX: 355,
+        y: 570,
+        previousY: 570,
+        width: 90,
+        angle: 0,
+        previousAngle: 0,
+        ready: false,
+        host: false
+      };
+      roomPlayers.push(joinedPlayer);
+      sendServerMessage({ type: "joined", code: lobbyCode, playerId: senderId, host: false }, senderId);
+      broadcastRoomState();
+      return;
+    }
+
+    const player = roomPlayers.find(function (item) { return item.id === senderId; });
+    if (!player) return;
+
+    if (message.type === "leave") {
+      if (player.host) {
+        sendServerMessage({ type: "room-closed", message: "The host left the lobby." });
+        window.setTimeout(function () { socket.close(); }, 150);
+      } else {
+        roomPlayers.splice(roomPlayers.indexOf(player), 1);
+        roomStarted = false;
+        sendServerMessage({ type: "left" }, senderId);
+        broadcastRoomState();
+      }
+      return;
+    }
+
+    if (message.type === "ready") {
+      if (player.host) return sendError("The host starts the game when everyone is ready.", senderId);
+      player.ready = Boolean(message.ready);
+      broadcastRoomState();
+      return;
+    }
+
+    if (message.type === "chat") {
+      const text = typeof message.text === "string" ? message.text.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 300) : "";
+      if (text) sendServerMessage({ type: "chat", id: senderId, name: player.name, text: text, sentAt: Date.now() });
+      return;
+    }
+
+    if (message.type === "add-ai") {
+      if (!player.host) return sendError("Only the host can add AI players.", senderId);
+      if (roomStarted) return sendError("AI players can only be added before the game starts.", senderId);
+      if (roomBots.length >= 8) return sendError("A lobby can have up to 8 AI players.", senderId);
+      const botIndex = roomBots.length;
+      roomBots.push({
+        id: "ai-" + playerId + "-" + botIndex,
+        name: cleanLobbyName(message.name) === "Player" ? "CPU " + (botIndex + 1) : cleanLobbyName(message.name),
+        color: ["#d6ff55", "#55d9ff", "#ff78bd", "#ffad55"][botIndex % 4],
+        x: 36 + (botIndex % 6) * 96,
+        ready: true,
+        host: false,
+        ai: true
+      });
+      broadcastRoomState();
+      return;
+    }
+
+    if (message.type === "start") {
+      const everyoneReady = roomPlayers.every(function (item) { return item.host || item.ready; });
+      if (!player.host) return sendError("Only the host can start the game.", senderId);
+      if (roomAdminBattle && roomPlayers.length < 2) return sendError("Admin Battle requires a second human player.", senderId);
+      if (roomPlayers.length + roomBots.length < 2) return sendError("Invite another player or add an AI player before starting.", senderId);
+      if (!everyoneReady) return sendError("Wait for every player to be ready.", senderId);
+      roomStarted = true;
+      for (const member of roomPlayers) {
+        sendServerMessage({ type: "started", playerId: member.id, host: member.host, players: roomPlayers.concat(roomBots), adminBattle: roomAdminBattle }, member.id);
+      }
+      return;
+    }
+
+    if (message.type === "launch") {
+      if (!player.host && roomStarted) window.launchLobbyBall(senderId);
+      return;
+    }
+
+    if (message.type === "host-visibility") {
+      if (player.host && roomStarted) publish({ server: true, message: { type: "host-visibility", hidden: Boolean(message.hidden) } });
+      return;
+    }
+
+    if (message.type === "paddle") {
+      if (!roomStarted || !Number.isFinite(message.x)) return;
+      const width = Number.isFinite(message.width) ? Math.max(40, Math.min(145, message.width)) : player.width;
+      const angle = Number.isFinite(message.angle) ? Math.max(-35, Math.min(35, message.angle)) : player.angle;
+      player.previousX = player.x;
+      player.previousY = player.y;
+      player.previousAngle = player.angle;
+      player.left = Boolean(message.left);
+      player.right = Boolean(message.right);
+      player.width = width;
+      player.angle = angle;
+      player.x = Math.max(0, Math.min(800 - width, message.x));
+      const paddleMessage = {
+        type: "paddle",
+        id: player.id,
+        x: player.x,
+        previousX: player.previousX,
+        y: player.y,
+        previousY: player.previousY,
+        width: player.width,
+        angle: player.angle,
+        previousAngle: player.previousAngle,
+        left: player.left,
+        right: player.right
+      };
+      sendServerMessage(paddleMessage, null, senderId);
+      return;
+    }
+
+    if (message.type === "snapshot") {
+      if (player.host && roomStarted && message.state && typeof message.state === "object") {
+        publish({ server: true, message: { type: "snapshot", state: message.state } });
+      }
+    }
+  }
+
+  function handlePacket(packet) {
+    if (!packet || packet.senderId === playerId) return;
+    if (packet.recipientId && packet.recipientId !== playerId) return;
+    if (packet.excludeId && packet.excludeId === playerId) return;
+    if (isHost) {
+      if (!packet.server && packet.message) handleHostMessage(packet.message, packet.senderId);
+    } else if (packet.server && packet.senderId === hostPlayerId && packet.message) {
+      emitMessage(packet.message);
+    }
+  }
+
+  channel = client.channel("block-breaker-lobby-" + lobbyCode, {
+    config: { broadcast: { self: false }, presence: { key: playerId } }
+  });
+  channel.on("broadcast", { event: "lobby-message" }, function (event) {
+    handlePacket(event.payload);
+  });
+  channel.on("presence", { event: "leave" }, function (event) {
+    if (isHost) {
+      const leavingPlayer = roomPlayers.find(function (item) { return item.id === event.key; });
+      if (leavingPlayer && !leavingPlayer.host) {
+        roomPlayers.splice(roomPlayers.indexOf(leavingPlayer), 1);
+        roomStarted = false;
+        broadcastRoomState();
+      }
+    } else if (event.key === hostPlayerId && !closed) {
+      emitMessage({ type: "room-closed", message: "The host left the lobby." });
+      window.setTimeout(function () { socket.close(); }, 150);
+    }
+  });
+  channel.subscribe(async function (status) {
+    if (status === "SUBSCRIBED") {
+      if (isHost) {
+        const occupied = Object.values(channel.presenceState()).some(function (members) { return members.length > 0; });
+        if (occupied) {
+          socket.dispatch("error");
+          socket.close();
+          return;
+        }
+        await channel.track({ id: playerId, name: cleanLobbyName(initialAction.name), host: true });
+      } else {
+        const hostPresence = Object.values(channel.presenceState()).flat().find(function (presence) { return presence.host; });
+        if (!hostPresence) {
+          emitMessage({ type: "error", message: "That lobby code was not found. The host may be offline." });
+          socket.close();
+          return;
+        }
+        hostPlayerId = hostPresence.id;
+        await channel.track({ id: playerId, name: cleanLobbyName(initialAction.name), host: false });
+      }
+      socket.readyState = WebSocket.OPEN;
+      socket.dispatch("open");
+    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+      fail();
+    }
+  });
+
+  return socket;
+}
+
+function attachLobbySocket(socket, action, realtimeFallback) {
+  socket.addEventListener("open", function () {
+    socket.send(JSON.stringify(action));
+  }, { once: true });
+  socket.addEventListener("message", function (event) {
+    try {
+      handleLobbyMessage(JSON.parse(event.data));
+    } catch (error) {
+      setLobbyStatus("Received an invalid lobby message.");
+    }
+  });
+  socket.addEventListener("error", function () {
+    if (!realtimeFallback && socket === lobbySocket) {
+      startRealtimeLobbyFallback(action);
+      return;
+    }
+    if (socket === lobbySocket) {
+      setLobbyActionInFlight(false);
+      setLobbyStatus("Could not connect to multiplayer. Check that Supabase Realtime is enabled.");
+    }
+  });
+  socket.addEventListener("close", function () {
+    if (socket !== lobbySocket) return;
+    if (lobbyActive) {
+      const wasStarted = lobbyStarted;
+      resetLobby("Lobby connection lost.");
+      if (wasStarted && typeof window.endLobbyGame === "function") window.endLobbyGame();
+    }
+  });
+}
+
+function startRealtimeLobbyFallback(action) {
+  if (!window.sharedSupabaseClient) {
+    setLobbyActionInFlight(false);
+    setLobbyStatus("Static multiplayer needs the configured Supabase Realtime service.");
+    return;
+  }
+  const socket = createRealtimeLobbySocket(action);
+  if (!socket) {
+    setLobbyActionInFlight(false);
+    setLobbyStatus("Could not start static multiplayer.");
+    return;
+  }
+  lobbySocket = socket;
+  setLobbyStatus("Connecting through the static-host lobby relay...");
+  attachLobbySocket(socket, action, true);
+}
+
 function sendLobbyAction(action) {
   setLobbyActionInFlight(true);
   setLobbyStatus("Connecting to lobby...");
+  if (lobbySocket && lobbySocket.isRealtime && !lobbyActive) {
+    lobbySocket.close();
+    lobbySocket = null;
+  }
   if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
     lobbySocket.send(JSON.stringify(action));
     return;
@@ -86,24 +456,15 @@ function sendLobbyAction(action) {
     return;
   }
 
-  lobbySocket = new WebSocket(getLobbySocketUrl());
-  lobbySocket.addEventListener("open", function () {
-    lobbySocket.send(JSON.stringify(action));
-  }, { once: true });
-  lobbySocket.addEventListener("message", function (event) {
-    handleLobbyMessage(JSON.parse(event.data));
-  });
-  lobbySocket.addEventListener("error", function () {
-    setLobbyActionInFlight(false);
-    setLobbyStatus("Could not reach the lobby server. Start the game with npm start.");
-  });
-  lobbySocket.addEventListener("close", function () {
-    if (lobbyActive) {
-      const wasStarted = lobbyStarted;
-      resetLobby("Lobby connection lost.");
-      if (wasStarted && typeof window.endLobbyGame === "function") window.endLobbyGame();
-    }
-  });
+  let socket;
+  try {
+    socket = new WebSocket(getLobbySocketUrl());
+  } catch (error) {
+    startRealtimeLobbyFallback(action);
+    return;
+  }
+  lobbySocket = socket;
+  attachLobbySocket(socket, action, false);
 }
 
 function currentPlayerName() {
@@ -246,12 +607,20 @@ function handleLobbyMessage(message) {
     const wasStarted = lobbyStarted;
     resetLobby("You left the lobby.");
     if (wasStarted) window.endLobbyGame();
+    if (lobbySocket && lobbySocket.isRealtime) {
+      const socket = lobbySocket;
+      window.setTimeout(function () { socket.close(); }, 100);
+    }
     return;
   }
   if (message.type === "room-closed") {
     const wasStarted = lobbyStarted;
     resetLobby(message.message || "The lobby was closed.");
     if (wasStarted) window.endLobbyGame();
+    if (lobbySocket && lobbySocket.isRealtime) {
+      const socket = lobbySocket;
+      window.setTimeout(function () { socket.close(); }, 100);
+    }
     return;
   }
   if (message.type === "error") {

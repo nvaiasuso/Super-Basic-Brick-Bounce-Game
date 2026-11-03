@@ -158,7 +158,8 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
   }
 
   if (brick.type === "boss") {
-    brick.hp--;
+    const damageMultiplier = (piercingTimer > 0 ? 3 : 1) * (fastBallTimer > 0 ? 2 : 1);
+    brick.hp = Math.max(0, brick.hp - damageMultiplier);
     if (brick.isFinalBoss) {
       const nextPhase = finalBossPhaseForHealth(brick);
       if (nextPhase !== brick.phase) {
@@ -166,6 +167,17 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
         brick.phaseTimer = nextPhase === 2 ? 150 : 90;
         const phaseText = FINAL_BOSS_PHASES[nextPhase - 1];
         levelNotice = { text: "COMMAND WRAITH // " + phaseText, timer: 150 };
+        screenShakeFrames = 18;
+        powerUps.push({
+          x: Math.max(0, Math.min(WIDTH - 22, brick.x + brick.width / 2 - 11)),
+          y: brick.y + brick.height / 2,
+          width: 22,
+          height: 22,
+          speed: 2.4,
+          type: "pierce",
+          label: "P",
+          color: "#ffd166"
+        });
       }
     }
     if (brick.hp > 0 && (brick.hp % 3 === 0 || (brick.isFinalBoss && brick.phase === 3 && brick.hp % 2 === 0))) dropBossKillbrick(brick);

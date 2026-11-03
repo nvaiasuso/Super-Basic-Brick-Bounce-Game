@@ -109,6 +109,7 @@ let powerUps = [];
 let widePaddleTimer = 0;
 let slowBallTimer = 0;
 let fastBallTimer = 0;
+let piercingTimer = 0;
 let shieldCharges = 0;
 let shieldTimer = 0;
 let paddleFacingDirection = 1;
@@ -348,12 +349,13 @@ if (idleMemeImage) {
 }
 
 function triggerBrickBreak(brick) {
+  const bossHit = brick.type === "boss";
   const color = brick.color || "#ffffff";
   brickFlashes.push({ x: brick.x, y: brick.y, width: brick.width, height: brick.height, timer: 2 });
-  const count = 6 + Math.floor(Math.random() * 5);
+  const count = (bossHit ? 18 : 6) + Math.floor(Math.random() * (bossHit ? 12 : 5));
   for (let index = 0; index < count; index++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 2.5;
+    const speed = (bossHit ? 2 : 1) + Math.random() * (bossHit ? 5 : 2.5);
     particles.push({
       x: brick.x + brick.width / 2,
       y: brick.y + brick.height / 2,
@@ -365,8 +367,8 @@ function triggerBrickBreak(brick) {
       maxLife: 24
     });
   }
-  hitStopFrames = 2;
-  screenShakeFrames = 4;
+  hitStopFrames = bossHit ? 0 : 2;
+  screenShakeFrames = bossHit ? 12 : 4;
 }
 
 function updateHitEffects() {
@@ -525,6 +527,7 @@ let autoPlanCooldown = 0;
 const controlMenu = document.getElementById("control-menu");
 const resumeButton = document.getElementById("resume");
 const customKeybinds = {};
+const customKeybindShift = {};
 let pendingKeybindAction = null;
 
 function normalizeHotkeyName(key) {
@@ -553,14 +556,16 @@ function formatHotkeyName(key) {
   return normalized ? normalized.toUpperCase() : "";
 }
 
-function setCustomHotkey(action, key) {
+function setCustomHotkey(action, key, shiftKey = false) {
   customKeybinds[action] = normalizeHotkeyName(key);
+  customKeybindShift[action] = Boolean(shiftKey);
   const actionButton = document.querySelector('[data-hotkey-action="' + action + '"]');
   if (actionButton) {
     const hotkey = customKeybinds[action];
     const label = actionButton.dataset.hotkeyLabel || actionButton.textContent.replace(/\s*\([A-Za-z0-9←→↑↓\s]+\)$/, "");
     actionButton.dataset.hotkeyLabel = label;
-    actionButton.textContent = hotkey ? label + " (" + formatHotkeyName(hotkey) + ")" : label;
+    const modifier = customKeybindShift[action] ? "Shift+" : "";
+    actionButton.textContent = hotkey ? label + " (" + modifier + formatHotkeyName(hotkey) + ")" : label;
   }
 }
 
@@ -577,7 +582,7 @@ function assignRightClickHotkey(button) {
 for (const hotkeyButton of document.querySelectorAll("[data-hotkey-action]")) {
   const action = hotkeyButton.dataset.hotkeyAction;
   const defaultKey = action === "toggle-fullscreen" ? "f" : action === "lobby-add-ai" ? "a" : action === "lobby-start" ? "enter" : action === "start-game" ? "s" : null;
-  if (defaultKey) setCustomHotkey(action, defaultKey);
+  if (defaultKey) setCustomHotkey(action, defaultKey, action === "toggle-fullscreen");
   assignRightClickHotkey(hotkeyButton);
 }
 
@@ -1369,7 +1374,8 @@ function spawnAdminPowerUp() {
     { type: "multi", label: "+", color: EXTRA_BALL_COLOR },
     { type: "life", label: "1UP", color: "#ff6b6b" },
     { type: "shield", label: "SH", color: "#7be7ff" },
-    { type: "fast", label: "F", color: "#ff9f43" }
+    { type: "fast", label: "F", color: "#ff9f43" },
+    { type: "pierce", label: "P", color: "#ffd166" }
   ];
   const selectedKind = document.getElementById("admin-powerup-select").value;
   const kind = selectedKind === "random"
@@ -1884,7 +1890,7 @@ function populateAdminNextBotSelect() {
 }
 
 function applyAdminBallSpeed(value) {
-  const nextSpeed = Math.max(3, Math.min(9, Number(value) || BALL_SPEED));
+  const nextSpeed = Math.max(3, Math.min(20, Number(value) || BALL_SPEED));
   const speedScale = nextSpeed / baseBallSpeed;
   baseBallSpeed = nextSpeed;
   for (const activeBall of [ball].concat(extraBalls)) {
@@ -2264,7 +2270,7 @@ document.addEventListener("keydown", function (event) {
     const capturedAction = pendingKeybindAction;
     event.preventDefault();
     pendingKeybindAction = null;
-    setCustomHotkey(capturedAction, key || "");
+    setCustomHotkey(capturedAction, key || "", event.shiftKey);
     return;
   }
 
@@ -2283,19 +2289,19 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
-  if (customKeybinds["toggle-fullscreen"] && key === customKeybinds["toggle-fullscreen"]) {
+  if (customKeybinds["toggle-fullscreen"] && key === customKeybinds["toggle-fullscreen"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["toggle-fullscreen"])) {
     event.preventDefault();
     toggleFullscreen();
     return;
   }
 
-  if (customKeybinds["start-game"] && key === customKeybinds["start-game"] && !gameStarted) {
+  if (customKeybinds["start-game"] && key === customKeybinds["start-game"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["start-game"]) && !gameStarted) {
     event.preventDefault();
     beginGame();
     return;
   }
 
-  if (customKeybinds["lobby-start"] && key === customKeybinds["lobby-start"] && lobbyHost && lobbyActive && !lobbyStarted) {
+  if (customKeybinds["lobby-start"] && key === customKeybinds["lobby-start"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["lobby-start"]) && lobbyHost && lobbyActive && !lobbyStarted) {
     event.preventDefault();
     if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
       lobbySocket.send(JSON.stringify({ type: "start" }));
@@ -2303,7 +2309,7 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
-  if (customKeybinds["lobby-add-ai"] && key === customKeybinds["lobby-add-ai"] && lobbyHost && lobbyActive) {
+  if (customKeybinds["lobby-add-ai"] && key === customKeybinds["lobby-add-ai"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["lobby-add-ai"]) && lobbyHost && lobbyActive) {
     event.preventDefault();
     if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
       lobbySocket.send(JSON.stringify({ type: "add-ai", name: (lobbyAINameInput && lobbyAINameInput.value.trim()) || "CPU" }));
@@ -2312,13 +2318,13 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
-  if (customKeybinds["toggle-admin"] && key === customKeybinds["toggle-admin"]) {
+  if (customKeybinds["toggle-admin"] && key === customKeybinds["toggle-admin"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["toggle-admin"])) {
     event.preventDefault();
     toggleAdminMenu();
     return;
   }
 
-  if (customKeybinds["toggle-autoplay"] && key === customKeybinds["toggle-autoplay"]) {
+  if (customKeybinds["toggle-autoplay"] && key === customKeybinds["toggle-autoplay"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["toggle-autoplay"])) {
     event.preventDefault();
     autoPlay = !autoPlay;
     autoPlayButton.setAttribute("aria-pressed", String(autoPlay));
@@ -2326,7 +2332,7 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
-  if (customKeybinds["toggle-mobile-controls"] && key === customKeybinds["toggle-mobile-controls"]) {
+  if (customKeybinds["toggle-mobile-controls"] && key === customKeybinds["toggle-mobile-controls"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["toggle-mobile-controls"])) {
     event.preventDefault();
     mobileControlsEnabled = !mobileControlsEnabled;
     try {
@@ -2843,7 +2849,8 @@ function dropPowerUp(brick) {
     { type: "multi", label: "+", color: EXTRA_BALL_COLOR },
     { type: "life", label: "1UP", color: "#ff6b6b" },
     { type: "shield", label: "SH", color: "#7be7ff" },
-    { type: "fast", label: "F", color: "#ff9f43" }
+    { type: "fast", label: "F", color: "#ff9f43" },
+    { type: "pierce", label: "P", color: "#ffd166" }
   ];
   const kind = kinds[Math.floor(Math.random() * kinds.length)];
   powerUps.push({
@@ -2945,6 +2952,9 @@ function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
   } else if (powerUp.type === "fast") {
     fastBallTimer = 300;
     powerUpNotice = { text: "SPEED BOOST", timer: 100, color: powerUp.color };
+  } else if (powerUp.type === "pierce") {
+    piercingTimer = 300;
+    powerUpNotice = { text: "PIERCING CHARGE // 3X BOSS DAMAGE", timer: 120, color: powerUp.color };
   }
 }
 
@@ -3019,7 +3029,8 @@ function updateTemporaryPowerUps() {
     }
   }
   if (slowBallTimer > 0) slowBallTimer--;
-    if (fastBallTimer > 0) fastBallTimer--;
+  if (fastBallTimer > 0) fastBallTimer--;
+  if (piercingTimer > 0) piercingTimer--;
   if (magnetTimer > 0 && --magnetTimer === 0) {
     if (ball.stuck) launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
     magnetPlayerId = null;
@@ -3834,6 +3845,7 @@ function restartGame() {
   widePaddleTimer = 0;
   slowBallTimer = 0;
   fastBallTimer = 0;
+  piercingTimer = 0;
   shieldCharges = 0;
   shieldTimer = 0;
   paddleFacingDirection = 1;
