@@ -51,7 +51,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 60;
+const LEVEL_COUNT = 70;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -119,6 +119,7 @@ let levelNotice = null;
 let lasers = [];
 let rockets = [];
 let adminMissile = null;
+let adminMissileArmed = false;
 let adminExplosion = null;
 let adminMousePosition = { x: WIDTH / 2, y: HEIGHT / 2 };
 let adminInspectEnabled = false;
@@ -134,13 +135,18 @@ let websiteFps = 0;
 let gameFpsFrameCount = 0;
 let gameFpsSampleStart = 0;
 let gameFps = 0;
+let simulationSpeed = 1;
 const adminVisibility = {
   blocks: true,
   enemies: true,
   lasers: true,
   nextbots: true,
   balls: true,
-  extras: true
+  extras: true,
+  hitboxes: false,
+  trajectory: false,
+  paddlePlan: false,
+  timers: false,
 };
 let hitStopFrames = 0;
 let screenShakeFrames = 0;
@@ -298,7 +304,7 @@ function playVineBoom() {
 }
 
 function showIdleMeme() {
-  if (!idleMeme) return;
+  if (!idleMeme || isBossFightActive()) return;
   window.clearTimeout(idleMemeHideTimer);
   window.clearTimeout(idleMemeFadeTimer);
   idleMeme.hidden = false;
@@ -313,6 +319,22 @@ function showIdleMeme() {
       idleMeme.hidden = true;
     }, 450);
   }, 1000);
+}
+
+function hideIdleMeme() {
+  if (!idleMeme) return;
+  window.clearTimeout(idleMemeHideTimer);
+  window.clearTimeout(idleMemeFadeTimer);
+  idleMeme.hidden = true;
+  idleMeme.classList.remove("is-visible");
+}
+
+function isBossFightActive() {
+  const bossBrickActive = Array.isArray(bricks) && bricks.some(function (brick) {
+    return brick.type === "boss" && !brick.hidden;
+  });
+  const nextBotArenaActive = typeof isNextBotBattleActive === "function" && isNextBotBattleActive();
+  return bossBrickActive || nextBotArenaActive;
 }
 
 if (idleMemeImage) {
@@ -474,6 +496,12 @@ const paddle = {
   jumpFrames: 0,
   jumpCooldown: 0,
   jumpKeyWasDown: false
+};
+paddle.knownStuff = {
+  balls: [], powerUps: [], lasers: [], nextBots: [],
+  targetX: paddle.x + paddle.width / 2,
+  summary: "Waiting for the first prediction update.",
+  calculation: "Projects at 60 simulation steps per second and checks walls and brick collisions."
 };
 
 
@@ -642,6 +670,15 @@ for (const button of document.querySelectorAll("[data-view-toggle]")) {
   });
 }
 refreshAdminVisibilityButtons();
+
+for (const button of document.querySelectorAll("[data-speed-toggle]")) {
+  button.addEventListener("click", function () {
+    simulationSpeed = Number(button.dataset.speedToggle);
+    for (const speedButton of document.querySelectorAll("[data-speed-toggle]")) {
+      speedButton.setAttribute("aria-pressed", String(Number(speedButton.dataset.speedToggle) === simulationSpeed));
+    }
+  });
+}
 
 function readMobileSetting() {
   try {
@@ -1128,6 +1165,31 @@ document.getElementById("admin-close").addEventListener("click", function () {
   if (button && adminBattleAdmin) button.setAttribute("aria-pressed", "false");
 });
 
+const adminTitlebar = document.getElementById("admin-titlebar");
+let adminPanelDrag = null;
+adminTitlebar.addEventListener("pointerdown", function (event) {
+  if (event.target.closest("button")) return;
+  const bounds = adminMenu.getBoundingClientRect();
+  adminPanelDrag = { pointerId: event.pointerId, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top };
+  adminMenu.style.left = bounds.left + "px";
+  adminMenu.style.top = bounds.top + "px";
+  adminMenu.style.right = "auto";
+  adminMenu.style.transform = "none";
+  adminTitlebar.setPointerCapture(event.pointerId);
+});
+adminTitlebar.addEventListener("pointermove", function (event) {
+  if (!adminPanelDrag || adminPanelDrag.pointerId !== event.pointerId) return;
+  const bounds = adminMenu.getBoundingClientRect();
+  const left = Math.max(0, Math.min(window.innerWidth - bounds.width, event.clientX - adminPanelDrag.offsetX));
+  const top = Math.max(0, Math.min(window.innerHeight - Math.min(bounds.height, 48), event.clientY - adminPanelDrag.offsetY));
+  adminMenu.style.left = left + "px";
+  adminMenu.style.top = top + "px";
+});
+adminTitlebar.addEventListener("pointerup", function (event) {
+  if (adminPanelDrag && adminPanelDrag.pointerId === event.pointerId) adminPanelDrag = null;
+});
+adminTitlebar.addEventListener("pointercancel", function () { adminPanelDrag = null; });
+
 function toggleFullscreen() {
   try {
     if (!document.fullscreenElement) {
@@ -1316,6 +1378,7 @@ function spawnAdminLaserAt(x) {
 }
 
 function launchAdminMissile() {
+  adminMissileArmed = false;
   adminMissile = {
     x: paddle.x + paddle.width / 2,
     y: paddle.y,
@@ -1324,6 +1387,19 @@ function launchAdminMissile() {
     timer: 300,
     speed: 8
   };
+  const status = document.getElementById("missile-status");
+  status.textContent = "Missile launched. Keep moving the pointer to guide it.";
+  status.hidden = false;
+}
+
+function armAdminMissile() {
+  adminMissileArmed = true;
+  adminMenu.hidden = true;
+  const adminButton = document.getElementById("admin-battle-toggle");
+  if (adminButton && adminBattleAdmin) adminButton.setAttribute("aria-pressed", "false");
+  const status = document.getElementById("missile-status");
+  status.textContent = "Move your pointer over the game to launch the missile.";
+  status.hidden = false;
 }
 
 function explodeAdminMissile(x, y) {
@@ -1351,11 +1427,16 @@ function explodeAdminMissile(x, y) {
   enemyShots = enemyShots.filter(function (shot) { return !within(shot.x, shot.y); });
   adminExplosion = { x: x, y: y, radius: radius, timer: 24 };
   adminMissile = null;
+  const status = document.getElementById("missile-status");
+  status.textContent = "Missile exploded.";
   assignAiBallTargets();
 }
 
 function updateAdminMissile() {
-  if (adminExplosion && --adminExplosion.timer <= 0) adminExplosion = null;
+  if (adminExplosion && --adminExplosion.timer <= 0) {
+    adminExplosion = null;
+    if (!adminMissileArmed) document.getElementById("missile-status").hidden = true;
+  }
   if (!adminMissile) return;
   adminMissile.targetX = adminMousePosition.x;
   adminMissile.targetY = adminMousePosition.y;
@@ -1443,6 +1524,7 @@ function describeInspectedObject() {
   let size = "N/A";
   let intent = "No active action";
   let thinking = "Idle";
+  let calculation = "Uses the object's current game state.";
   let canFreeze = false;
   if (selection.type === "nextbot") {
     title = entity.name;
@@ -1470,6 +1552,7 @@ function describeInspectedObject() {
     health = "N/A";
     intent = entity.aiIntent || "Track an assigned ball";
     thinking = entity.aiCalculation || "Choosing the closest active ball";
+    calculation = entity.knownStuff ? entity.knownStuff.calculation : thinking;
   } else {
     size = Math.round(entity.width) + " x " + Math.round(entity.height);
     health = "Player lives: " + lives;
@@ -1483,8 +1566,12 @@ function describeInspectedObject() {
       intent = "Catch and return the main ball";
       thinking = "Controlled by player input";
     }
+    if (paddle.knownStuff) {
+      thinking += "; " + paddle.knownStuff.summary;
+      calculation = paddle.knownStuff.calculation;
+    }
   }
-  return { title: title, health: health, size: size, intent: intent, thinking: thinking, canFreeze: canFreeze };
+  return { title: title, health: health, size: size, intent: intent, thinking: thinking, calculation: calculation, canFreeze: canFreeze };
 }
 
 function refreshObjectInspector() {
@@ -1499,7 +1586,7 @@ function refreshObjectInspector() {
   document.getElementById("inspector-title").textContent = details.title;
   const list = document.getElementById("inspector-details");
   list.replaceChildren();
-  for (const [label, value] of [["Health", details.health], ["Size", details.size], ["Attacking / intended for", details.intent], ["Thinking / doing", details.thinking]]) {
+  for (const [label, value] of [["Health", details.health], ["Size", details.size], ["Attacking / intended for", details.intent], ["Thinking / doing", details.thinking], ["Calculation", details.calculation]]) {
     const row = document.createElement("div");
     row.textContent = label + ": " + value;
     list.append(row);
@@ -1555,15 +1642,122 @@ function drawAdminHitboxes() {
   for (const bot of nextBots) {
     ctx.strokeRect(bot.x - 12, bot.y - 14, 24, 28);
   }
+  for (const powerUp of powerUps) ctx.strokeRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height);
+  for (const shot of enemyShots) {
+    ctx.beginPath();
+    ctx.arc(shot.x, shot.y, shot.radius || 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  for (const laser of lasers) ctx.strokeRect(laser.x - 7, 0, 14, HEIGHT);
+  for (const rocket of rockets) ctx.strokeRect(rocket.x - 10, rocket.y - 3, 20, 6);
+  if (adminMissile) ctx.strokeRect(adminMissile.x - 10, adminMissile.y - 4, 20, 8);
   ctx.restore();
 }
 
-canvas.addEventListener("pointermove", function (event) {
+  function drawKnownTrajectories() {
+    const knownStuff = paddle.knownStuff;
+    if (!knownStuff) return;
+    for (const prediction of knownStuff.balls) {
+      if (prediction.path.length < 2) continue;
+      ctx.save();
+      ctx.strokeStyle = prediction.hazard ? "#ff5b67" : prediction.label === "Main ball" ? "#7be7ff" : "#55ff78";
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(prediction.path[0].x, prediction.path[0].y);
+      for (let index = 1; index < prediction.path.length; index++) {
+        ctx.lineTo(prediction.path[index].x, prediction.path[index].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(prediction.landingX, paddle.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "10px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(Math.ceil(prediction.framesToLanding / 60) + "s", prediction.landingX, paddle.y - 10);
+      ctx.restore();
+    }
+  }
+
+  for (const bot of aiPaddles) {
+    if (!bot.knownStuff) continue;
+    for (const prediction of bot.knownStuff.balls) {
+      if (prediction.path.length < 2) continue;
+      ctx.save();
+      ctx.strokeStyle = prediction.hazard ? "#ff5b67" : "#55d9ff";
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(prediction.path[0].x, prediction.path[0].y);
+      for (let index = 1; index < prediction.path.length; index++) {
+        ctx.lineTo(prediction.path[index].x, prediction.path[index].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawPaddlePlan() {
+    const targetX = paddle.knownStuff && paddle.knownStuff.targetX;
+    if (!Number.isFinite(targetX)) return;
+    ctx.save();
+    ctx.strokeStyle = "#ffd166";
+    ctx.fillStyle = "#ffd166";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    ctx.moveTo(paddle.x + paddle.width / 2, paddle.y - 4);
+    ctx.lineTo(targetX, paddle.y - 4);
+    ctx.lineTo(targetX, 76);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(targetX, paddle.y - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = "10px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText("TARGET X " + Math.round(targetX), targetX, paddle.y - 17);
+    for (const bot of aiPaddles) {
+      if (!bot.knownStuff || !Number.isFinite(bot.knownStuff.targetX)) continue;
+      ctx.strokeStyle = "#55d9ff";
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(bot.x + bot.width / 2, bot.y - 4);
+      ctx.lineTo(bot.knownStuff.targetX, bot.y - 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawThreatTimers() {
+    const knownStuff = paddle.knownStuff;
+    if (!knownStuff) return;
+    ctx.save();
+    ctx.font = "bold 9px Courier New";
+    ctx.textAlign = "center";
+    for (const laser of knownStuff.lasers) {
+      ctx.fillStyle = laser.phase === "firing" ? "#ff6b6b" : "#ffd166";
+      ctx.fillText(laser.nextPhase.toUpperCase() + " IN " + laser.secondsToChange.toFixed(1) + "s", Math.max(50, Math.min(WIDTH - 50, laser.x)), HEIGHT - 18);
+    }
+    for (const bot of knownStuff.nextBots) {
+      ctx.fillStyle = bot.mode === "frozen" ? "#7be7ff" : "#ffd166";
+      const text = bot.mode === "frozen" ? "FROZEN" : bot.mode === "paused" ? "ATTACK PAUSED" : bot.mode === "dash" ? "ATTACKING" : "ATTACK " + bot.secondsUntilAttack.toFixed(1) + "s";
+      ctx.fillText(text, bot.x, bot.y - 44);
+    }
+    ctx.restore();
+  }
+
+  canvas.addEventListener("pointermove", function (event) {
   const rect = canvas.getBoundingClientRect();
   adminMousePosition = {
     x: Math.max(0, Math.min(WIDTH, (event.clientX - rect.left) * WIDTH / rect.width)),
     y: Math.max(0, Math.min(HEIGHT, (event.clientY - rect.top) * HEIGHT / rect.height))
   };
+  if (adminMissileArmed) launchAdminMissile();
 });
 
 canvas.addEventListener("click", function () {
@@ -1761,7 +1955,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -1836,7 +2030,7 @@ function runAdminAction(action) {
   } else if (action === "laser-paddle") {
     spawnAdminLaserAt(paddle.x + paddle.width / 2);
   } else if (action === "spawn-missile") {
-    launchAdminMissile();
+    armAdminMissile();
   } else if (action.startsWith("spawn-boss-")) {
     spawnAdminBoss(Number(action.slice("spawn-boss-".length)));
   } else if (action === "spawn-all") {
@@ -1907,6 +2101,15 @@ function runAdminAction(action) {
     if (!spawnNextBot() && adminRepeatStatus) {
       adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
     }
+  } else if (action === "nextbot-wave") {
+    let spawned = 0;
+    for (let index = 0; index < 8 && nextBots.length < maxActiveNextBots; index++) {
+      if (spawnNextBot()) spawned++;
+    }
+    if (adminRepeatStatus) adminRepeatStatus.textContent = "Spawned " + spawned + " nextbots (" + nextBots.length + "/" + maxActiveNextBots + ").";
+  } else if (action === "nextbot-attack") {
+    const started = triggerNextBotAttack();
+    if (adminRepeatStatus) adminRepeatStatus.textContent = started ? "Nextbot attack queued." : "No available nextbot, or attacks are paused.";
   } else if (action === "remove-nextbot") {
     removeNextBot();
   } else if (action === "clear-balls") {
@@ -2211,7 +2414,11 @@ function update() {
   if (gameOver || gameWon) return;
 
   simulationFrame++;
-  if (idleMemeEnabled && ++idleBrickFrames >= IDLE_MEME_DELAY_FRAMES) {
+  if (simulationFrame % 6 === 0) updatePaddleKnownStuff();
+  if (isBossFightActive()) {
+    idleBrickFrames = 0;
+    if (idleMeme && !idleMeme.hidden) hideIdleMeme();
+  } else if (idleMemeEnabled && ++idleBrickFrames >= IDLE_MEME_DELAY_FRAMES) {
     idleBrickFrames = 0;
     showIdleMeme();
   }
@@ -2308,6 +2515,80 @@ function update() {
   if (autoAdvanceLevel && !bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
     advanceLevel();
   }
+}
+
+function updatePaddleKnownStuff() {
+  const activeBalls = [ball].concat(extraBalls);
+  const balls = activeBalls.map(function (activeBall, index) {
+    const prediction = activeBall.stuck || Math.hypot(activeBall.vx, activeBall.vy) < 0.01
+      ? { x: activeBall.x + activeBall.width / 2, steps: 0, hazard: false, path: [] }
+      : projectToPaddle(activeBall, bricks, paddle.y, { includePath: adminVisibility.trajectory });
+    return {
+      label: index === 0 ? "Main ball" : "Extra ball " + index,
+      x: activeBall.x + activeBall.width / 2,
+      y: activeBall.y + activeBall.height / 2,
+      vx: activeBall.vx,
+      vy: activeBall.vy,
+      landingX: prediction.x,
+      framesToLanding: prediction.steps,
+      hazard: prediction.hazard,
+      path: prediction.path || []
+    };
+  });
+  const powerUpsKnown = powerUps.map(function (powerUp) {
+    return {
+      label: powerUp.label || powerUp.type,
+      x: powerUp.x + powerUp.width / 2,
+      y: powerUp.y + powerUp.height / 2,
+      framesToPaddle: Math.max(0, Math.ceil((paddle.y - powerUp.y - powerUp.height) / powerUp.speed))
+    };
+  });
+  const lasersKnown = lasers.map(function (laser) {
+    const nextPhase = laser.mode === "idle" ? "warning" : laser.mode === "warning" ? "firing" : "idle";
+    return {
+      x: laser.x,
+      phase: laser.mode,
+      nextPhase: nextPhase,
+      framesToChange: Math.max(0, laser.timer),
+      secondsToChange: Math.max(0, laser.timer / 60)
+    };
+  });
+  const nextBotsKnown = nextBots.map(function (bot) {
+    const isPaused = nextBotAttacksPaused && bot.frozenTimer <= 0;
+    const remainingAttackFrames = bot.mode === "telegraph" ? bot.phaseTimer : bot.mode === "dash" ? 0 : bot.thinkTimer;
+    const framesUntilAttack = isPaused ? null : bot.frozenTimer > 0
+      ? bot.frozenTimer + remainingAttackFrames
+      : bot.mode === "telegraph" ? bot.phaseTimer
+        : bot.mode === "dash" ? 0
+          : bot.attackQueued ? Math.max(nextBotCooldown, nextBotTeamupTimer) : bot.thinkTimer + nextBotCooldown;
+    return {
+      name: bot.name,
+      x: bot.x,
+      y: bot.y,
+      mode: bot.frozenTimer > 0 ? "frozen" : isPaused ? "paused" : bot.mode,
+      framesUntilAttack: framesUntilAttack,
+      secondsUntilAttack: Number.isFinite(framesUntilAttack) ? framesUntilAttack / 60 : null
+    };
+  });
+  const mainBall = balls[0];
+  const targetX = autoPlay && Number.isFinite(paddle.autoTargetX) ? paddle.autoTargetX : mainBall && mainBall.landingX;
+  const nearestThreat = nextBotsKnown.filter(function (bot) { return bot.mode !== "frozen" && bot.mode !== "paused"; })
+    .sort(function (first, second) { return first.framesUntilAttack - second.framesUntilAttack; })[0];
+  paddle.knownStuff = {
+    frame: simulationFrame,
+    balls: balls,
+    powerUps: powerUpsKnown,
+    lasers: lasersKnown,
+    nextBots: nextBotsKnown,
+    targetX: Number.isFinite(targetX) ? targetX : paddle.x + paddle.width / 2,
+    targetReason: autoPlay ? "autoplay interception plan" : "predicted main-ball landing",
+    predictedAngle: autoPlay ? autoAimAngle : paddle.angle,
+    calculation: "Projects at 60 simulation steps per second; checks wall reflections and brick collisions each step, then estimates landing time and reachability from paddle speed.",
+    summary: "Main ball lands near X " + Math.round(mainBall ? mainBall.landingX : paddle.x + paddle.width / 2) +
+      " in " + Math.ceil(mainBall ? mainBall.framesToLanding / 60 : 0) + "s; " +
+      lasersKnown.length + " laser timers, " + nextBotsKnown.length + " nextbot timers" +
+      (nearestThreat ? "; next attack in " + nearestThreat.secondsUntilAttack.toFixed(1) + "s" : nextBotAttacksPaused ? "; nextbot attacks paused" : "")
+  };
 }
 
 function movePaddle() {
@@ -2474,7 +2755,9 @@ function moveBall(activeBall) {
     ballTrail.push({ x: activeBall.x + activeBall.width / 2, y: activeBall.y + activeBall.height / 2 });
     if (ballTrail.length > 8) ballTrail.shift();
   }
-  const attackScale = isNextBotBattleActive() ? 0.45 : (isNextBotAttackActive() ? 0.68 : 1);
+  const attackScale = activeBall === ball
+    ? isNextBotBattleActive() ? 0.45 : (isNextBotAttackActive() ? 0.68 : 1)
+    : 1;
   const powerUpScale = slowBallTimer > 0 ? 0.7 : 1;
   const speedBoostScale = fastBallTimer > 0 ? 1.25 : 1;
   activeBall.x += activeBall.vx * attackScale * powerUpScale * speedBoostScale;
@@ -2923,12 +3206,13 @@ function updateAiPaddles() {
     if (bot.lobbyAI) {
       bot.y = paddle.y;
       const landings = activeBalls.map(function (activeBall) {
-        const projection = projectToPaddle(activeBall, bricks, bot.y);
+        const projection = projectToPaddle(activeBall, bricks, bot.y, { includePath: adminVisibility.trajectory });
         return {
           ball: activeBall,
           frames: projection.steps,
           landingX: projection.x,
-          hazard: projection.hazard
+          hazard: projection.hazard,
+          path: projection.path
         };
       }).sort(function (first, second) { return first.frames - second.frames; });
       const whiteLanding = landings.find(function (entry) { return entry.ball === ball; });
@@ -2986,6 +3270,20 @@ function updateAiPaddles() {
       }
       targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
       bot.aiCalculation += "; reachable move target X " + Math.round(targetX) + " at " + bot.speed + " px/frame";
+      bot.knownStuff = {
+        balls: landings.map(function (entry, index) {
+          return {
+            label: entry.ball === ball ? "Main ball" : "Extra ball " + index,
+            path: entry.path || [],
+            landingX: entry.landingX,
+            framesToLanding: entry.frames,
+            hazard: entry.hazard
+          };
+        }),
+        targetX: targetX,
+        summary: bot.aiIntent,
+        calculation: "Projects each ball against walls/bricks, checks the main-ball safety margin, pickup arrival time, laser lanes, and reachable travel distance. " + bot.aiCalculation
+      };
       bot.previousX = bot.x;
       bot.previousY = bot.y;
       const dx = targetX - (bot.x + bot.width / 2);
@@ -3004,6 +3302,12 @@ function updateAiPaddles() {
 
     bot.aiIntent = target === ball ? "Intercept the main ball" : "Intercept an extra ball";
     bot.aiCalculation = "Target center X " + Math.round(target.x + target.width / 2) + "; speed " + (bot.speed || paddle.speed) + " px/frame";
+    bot.knownStuff = {
+      balls: [],
+      targetX: target.x + target.width / 2,
+      summary: bot.aiIntent,
+      calculation: bot.aiCalculation
+    };
 
     bot.previousX = bot.x;
     bot.previousY = bot.y;
@@ -3081,6 +3385,11 @@ function draw() {
   ctx.font = "13px Courier New";
   ctx.fillText("BRICK STREAK " + brickHitStreak + "/" + MULTIBALL_HIT_STREAK, 16, 46);
   ctx.fillText("MOLA " + mola, 16, 64);
+  if (simulationSpeed !== 1) {
+    ctx.fillStyle = "#ffd166";
+    ctx.textAlign = "center";
+    ctx.fillText("SIMULATION " + simulationSpeed + "x", WIDTH / 2, 64);
+  }
   if (widePaddleTimer > 0 || slowBallTimer > 0 || magnetTimer > 0 || fastBallTimer > 0 || shieldCharges > 0 || shieldTimer > 0) {
     ctx.textAlign = "center";
     ctx.font = "10px Courier New";
@@ -3227,6 +3536,9 @@ function draw() {
   if (adminVisibility.extras) drawAdminMissile();
     drawInspectorHighlight();
   if (adminVisibility.hitboxes) drawAdminHitboxes();
+  if (adminVisibility.trajectory) drawKnownTrajectories();
+  if (adminVisibility.paddlePlan) drawPaddlePlan();
+  if (adminVisibility.timers) drawThreatTimers();
   if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
     ctx.textAlign = "center";
@@ -3492,12 +3804,13 @@ function frame(now) {
     const websiteFpsDisplay = document.getElementById("website-fps-display");
     if (websiteFpsDisplay) websiteFpsDisplay.textContent = "WEB " + websiteFps + " FPS";
   }
-  leftover = leftover + (now - lastTime);
+  leftover = leftover + Math.min(Math.max(0, now - lastTime), 250) * simulationSpeed;
   lastTime = now;
 
   // If the tab was hidden for a while, don't try to catch up.
-  if (leftover > 250) {
-    leftover = 250;
+  const maxAccumulatedTime = 250 * simulationSpeed;
+  if (leftover > maxAccumulatedTime) {
+    leftover = maxAccumulatedTime;
   }
 
   while (leftover >= STEP) {

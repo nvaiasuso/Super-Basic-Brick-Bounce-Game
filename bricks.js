@@ -14,9 +14,13 @@ const BOSS_VARIANTS = [
   { name: "FROST ENGINE", palette: ["#bae6fd", "#2563eb", "#172554"], damagedPalette: ["#f97316", "#dc2626", "#431407"], glow: "#60a5fa", eyes: "#ffffff", damagedEyes: "#fff176", minionInterval: 270, minionLimit: 2 },
   { name: "NEXUS PRIME", palette: ["#f0abfc", "#db2777", "#500724"], damagedPalette: ["#fde047", "#ea580c", "#431407"], glow: "#f472b6", eyes: "#86efac", damagedEyes: "#fff176", minionInterval: 180, minionLimit: 2 },
   { name: "TEMPEST CORE", palette: ["#67e8f9", "#2563eb", "#172554"], damagedPalette: ["#facc15", "#ea580c", "#431407"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 165, minionLimit: 3 },
-  { name: "EMBER TITAN", palette: ["#fdba74", "#ea580c", "#431407"], damagedPalette: ["#fef08a", "#dc2626", "#450a0a"], glow: "#fb923c", eyes: "#fef3c7", damagedEyes: "#fff176", minionInterval: 150, minionLimit: 3 }
+  { name: "EMBER TITAN", palette: ["#fdba74", "#ea580c", "#431407"], damagedPalette: ["#fef08a", "#dc2626", "#450a0a"], glow: "#fb923c", eyes: "#fef3c7", damagedEyes: "#fff176", minionInterval: 150, minionLimit: 3 },
+  { name: "AURORA WRAITH", palette: ["#a5f3fc", "#6366f1", "#312e81"], damagedPalette: ["#fef08a", "#ec4899", "#500724"], glow: "#67e8f9", eyes: "#f8fafc", damagedEyes: "#fef08a", minionInterval: 145, minionLimit: 3 },
+  { name: "MACHINE HEART", palette: ["#a3e635", "#15803d", "#052e16"], damagedPalette: ["#fde047", "#ea580c", "#431407"], glow: "#84cc16", eyes: "#bae6fd", damagedEyes: "#fff176", minionInterval: 135, minionLimit: 3 },
+  { name: "STAR FORGE", palette: ["#f0abfc", "#7c3aed", "#2e1065"], damagedPalette: ["#fde68a", "#f43f5e", "#7f1d1d"], glow: "#c084fc", eyes: "#67e8f9", damagedEyes: "#fff176", minionInterval: 125, minionLimit: 4 },
+  { name: "DEEP CURRENT", palette: ["#5eead4", "#0369a1", "#082f49"], damagedPalette: ["#fb7185", "#c026d3", "#4a044e"], glow: "#2dd4bf", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 115, minionLimit: 4 }
 ];
-const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, LEVEL_COUNT - 1];
+const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, LEVEL_COUNT - 1];
 
 const LEVEL_LAYOUTS = [
   [

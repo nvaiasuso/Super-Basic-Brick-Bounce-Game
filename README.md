@@ -6,7 +6,7 @@
 - Start each run with the ball on your paddle; press Space to launch.
 - Toggle auto-play with the button under the game or Shift+Q. Auto-play predicts landings for all balls, catches reachable power-ups when there is time, chooses a paddle tilt to break bricks, and avoids shots that would hit killbricks instead of dodging nextbots.
 - Press Escape to pause and open the control-rebinding menu. Press Escape again or select Resume to continue.
-- Break every normal brick to advance through all 60 levels, including seven distinct moving bosses that summon nextbot minions, moving sweeper hazards, and later levels with denser laser and killbrick hazards.
+- Break every normal brick to advance through all 70 levels, including eleven distinct moving bosses that summon nextbot minions, moving sweeper hazards, and later levels with denser laser and killbrick hazards.
 - Admin Tools can jump directly to any level, spawn individual items or a full set, toggle display layers and hitboxes, pause automatic level advancement, and show FPS. Right-click supported actions to repeat them up to 100 times; the nextbot limit is adjustable up to 64.
 - The Admin Tools menu's **Open URL from text file** button reads the first URL in `admin-url.txt` and opens it in a new tab. Replace the example URL in that file; only `http://` and `https://` links are accepted.
 - Break five normal bricks in a row to spawn an extra ball. The HUD shows the current streak and number of balls.

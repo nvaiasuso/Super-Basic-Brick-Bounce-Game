@@ -172,12 +172,40 @@ p {
   width: min(960px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   max-height: calc(100dvh - 24px);
+  min-width: min(280px, calc(100vw - 24px));
+  min-height: 220px;
+  max-width: calc(100vw - 24px);
+  resize: both;
   overflow-y: auto;
   overscroll-behavior: contain;
   transform: translateX(-50%);
   padding: 14px;
   border: 1px solid var(--theme-accent, #d6ff55);
   background: rgba(0, 0, 0, 0.96);
+}
+
+#admin-titlebar {
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+#admin-titlebar button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.missile-status {
+  position: fixed;
+  z-index: 19;
+  right: 12px;
+  bottom: 12px;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border: 1px solid #ffd166;
+  background: rgba(0, 0, 0, 0.92);
+  color: #ffd166;
+  font-size: 12px;
 }
 
 .controls h2 {
@@ -889,6 +917,10 @@ button:focus-visible {
   width: min(390px, calc(100vw - 24px));
   max-height: calc(100vh - 70px);
   max-height: calc(100dvh - 70px);
+  min-width: min(280px, calc(100vw - 24px));
+  min-height: 220px;
+  max-width: calc(100vw - 24px);
+  resize: both;
   overflow: auto;
   transform: none;
   margin: 0;
@@ -935,6 +967,23 @@ button:focus-visible {
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.speed-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.speed-controls span {
+  color: var(--theme-accent, #d6ff55);
+  font-size: 12px;
+}
+
+.speed-controls button[aria-pressed="true"] {
+  outline: 2px solid var(--theme-accent, #d6ff55);
+  outline-offset: 1px;
 }
 
 .idle-meme {

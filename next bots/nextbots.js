@@ -36,7 +36,13 @@ const NEXTBOT_ROSTER = [
   { name: "JUGGERNAUT", color: "#64748b", accent: "#f87171", speed: 0.72, telegraphFrames: 82 },
   { name: "SCREECH", color: "#a3e635", accent: "#fef08a", speed: 1.95, telegraphFrames: 24 },
   { name: "WISP", color: "#e2e8f0", accent: "#c4b5fd", speed: 1.05, telegraphFrames: 68 },
-  { name: "CROSSHAIR", color: "#ef4444", accent: "#ffffff", speed: 1.48, telegraphFrames: 38 }
+  { name: "CROSSHAIR", color: "#ef4444", accent: "#ffffff", speed: 1.48, telegraphFrames: 38 },
+  { name: "RIPTIDE", color: "#06b6d4", accent: "#a5f3fc", speed: 1.62, telegraphFrames: 42 },
+  { name: "CINDER", color: "#f97316", accent: "#fde68a", speed: 1.36, telegraphFrames: 56 },
+  { name: "LATTICE", color: "#84cc16", accent: "#ecfccb", speed: 1.18, telegraphFrames: 72 },
+  { name: "ECHO", color: "#a78bfa", accent: "#f5d0fe", speed: 1.74, telegraphFrames: 28 },
+  { name: "BULWARK", color: "#64748b", accent: "#fda4af", speed: 0.82, telegraphFrames: 96 },
+  { name: "COMET", color: "#facc15", accent: "#bae6fd", speed: 1.88, telegraphFrames: 22 }
 
 
 ];
@@ -324,6 +330,18 @@ function startNextBotAttack(bot) {
   bot.mode = "telegraph";
   bot.phaseTimer = bot.telegraphFrames || NEXTBOT_TELEGRAPH_FRAMES;
   bot.attackQueued = false;
+}
+
+function triggerNextBotAttack() {
+  if (nextBotAttacksPaused) return false;
+  const bot = nextBots.find(function (candidate) {
+    return candidate.mode === "walk" && !(candidate.frozenTimer > 0) && !candidate.attackQueued;
+  });
+  if (!bot) return false;
+  bot.thinkTimer = 0;
+  bot.attackQueued = true;
+  nextBotCooldown = 0;
+  return true;
 }
 
 if (typeof populateAdminNextBotSelect === "function") populateAdminNextBotSelect();

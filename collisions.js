@@ -243,7 +243,7 @@ function bounceOffBricks(activeBall) {
   }
 }
 
-function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
+function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y, options = {}) {
   const projectedBall = {
     x: source.x,
     y: source.y,
@@ -255,6 +255,10 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
   const projectedBricks = sourceBricks.map(function (brick) {
     return Object.assign({}, brick);
   });
+  const path = options.includePath ? [{ x: projectedBall.x + projectedBall.width / 2, y: projectedBall.y + projectedBall.height / 2 }] : null;
+  const recordPoint = function () {
+    if (path) path.push({ x: projectedBall.x + projectedBall.width / 2, y: projectedBall.y + projectedBall.height / 2 });
+  };
 
   for (let step = 0; step < 500; step++) {
     projectedBall.x += projectedBall.vx;
@@ -286,12 +290,14 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
       if (brick.hidden) continue;
       if (!boxesTouch(projectedBall, brick)) continue;
       if (brick.isKill) {
+        recordPoint();
         return {
           x: WIDTH / 2,
           vx: BALL_SPEED,
           vy: BALL_SPEED,
           hazard: true,
-          steps: step + 1
+          steps: step + 1,
+          path: path
         };
       }
 
@@ -313,19 +319,25 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y) {
       break;
     }
 
-    if (hit) continue;
+    if (hit) {
+      recordPoint();
+      continue;
+    }
     if (projectedBall.vy > 0 && projectedBall.y + projectedBall.height >= targetPaddleY) {
+      recordPoint();
       return {
         x: projectedBall.x + projectedBall.width / 2,
         vx: projectedBall.vx,
         vy: projectedBall.vy,
         hazard: false,
-        steps: step + 1
+        steps: step + 1,
+        path: path
       };
     }
+    recordPoint();
   }
 
-  return { x: WIDTH / 2, vx: source.vx, vy: source.vy, hazard: false, steps: 500 };
+  return { x: WIDTH / 2, vx: source.vx, vy: source.vy, hazard: false, steps: 500, path: path };
 }
 
 function scoreAutoShot(startX, angle, incomingVX, incomingVY) {

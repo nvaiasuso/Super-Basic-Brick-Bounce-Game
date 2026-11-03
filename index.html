@@ -67,6 +67,7 @@
       </div>
     </section>
     <canvas id="game" width="800" height="600" aria-label="Block Breaker game" hidden></canvas>
+    <output id="missile-status" class="missile-status" role="status" aria-live="polite" hidden></output>
     <aside id="object-inspector" class="object-inspector" aria-live="polite" hidden>
       <div class="inspector-heading">
         <strong id="inspector-title">Object inspector</strong>
@@ -97,7 +98,7 @@
       <button type="button" id="touch-launch" class="touch-control touch-launch" aria-label="Launch ball" disabled>Launch</button>
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 60 levels. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 70 levels. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
       <div class="chat-heading">
         <h2>Lobby Chat</h2>
@@ -206,7 +207,7 @@
       <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
     </section>
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
-      <h2>Admin Tools <button type="button" id="admin-close">Close</button></h2>
+      <h2 id="admin-titlebar">Admin Tools <button type="button" id="admin-close">Close</button></h2>
       <div class="admin-actions">
         <section class="admin-group" aria-label="Spawn objects">
           <h3>Spawn</h3>
@@ -238,13 +239,15 @@
           <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
           <button type="button" data-admin="spawn-laser">Spawn laser</button>
           <button type="button" data-admin="laser-paddle">Laser at paddle</button>
-          <button type="button" data-admin="spawn-missile">Launch mouse-guided missile</button>
+          <button type="button" data-admin="spawn-missile">Arm mouse-guided missile</button>
           <label>Nextbot
             <select id="admin-nextbot-select" aria-label="Nextbot to spawn">
               <option value="random">Random</option>
             </select>
           </label>
           <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
+          <button type="button" data-admin="nextbot-wave">Spawn nextbot wave</button>
+          <button type="button" data-admin="nextbot-attack">Force nextbot attack</button>
           <button type="button" data-admin="spawn-all">Spawn everything</button>
         </section>
         <section class="admin-group" aria-label="Boss spawns">
@@ -256,6 +259,10 @@
           <button type="button" data-admin="spawn-boss-4">Spawn Nexus Prime</button>
           <button type="button" data-admin="spawn-boss-5">Spawn Tempest Core</button>
           <button type="button" data-admin="spawn-boss-6">Spawn Ember Titan</button>
+          <button type="button" data-admin="spawn-boss-7">Spawn Aurora Wraith</button>
+          <button type="button" data-admin="spawn-boss-8">Spawn Machine Heart</button>
+          <button type="button" data-admin="spawn-boss-9">Spawn Star Forge</button>
+          <button type="button" data-admin="spawn-boss-10">Spawn Deep Current</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>
@@ -282,6 +289,13 @@
         </section>
         <section class="admin-group" aria-label="Gameplay variables">
           <h3>Gameplay Variables</h3>
+          <div class="speed-controls" role="group" aria-label="Simulation speed">
+            <span>Simulation speed</span>
+            <button type="button" data-speed-toggle="1" aria-pressed="true">1x</button>
+            <button type="button" data-speed-toggle="2" aria-pressed="false">2x</button>
+            <button type="button" data-speed-toggle="3" aria-pressed="false">3x</button>
+            <button type="button" data-speed-toggle="5" aria-pressed="false">5x</button>
+          </div>
           <label>Ball speed <input id="admin-ball-speed" type="range" min="3" max="9" step="0.5" value="5"><output id="admin-ball-speed-value">5</output></label>
           <label>Paddle speed <input id="admin-paddle-speed" type="range" min="2" max="12" step="0.5" value="6"><output id="admin-paddle-speed-value">6</output></label>
           <label>Paddle width <input id="admin-paddle-width" type="range" min="50" max="160" step="5" value="90"><output id="admin-paddle-width-value">90</output></label>
@@ -317,6 +331,9 @@
           <button type="button" data-view-toggle="balls" aria-pressed="true">Balls: On</button>
           <button type="button" data-view-toggle="extras" aria-pressed="true">Extras: On</button>
           <button type="button" data-view-toggle="hitboxes" aria-pressed="false">Hitboxes: Off</button>
+          <button type="button" data-view-toggle="trajectory" aria-pressed="false">Ball paths: Off</button>
+          <button type="button" data-view-toggle="paddlePlan" aria-pressed="false">Paddle plan: Off</button>
+          <button type="button" data-view-toggle="timers" aria-pressed="false">Threat timers: Off</button>
           <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
         </div>
         <label for="admin-repeat-count">Right-click repeats</label>
