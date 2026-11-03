@@ -361,12 +361,12 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y, options
   return { x: WIDTH / 2, vx: source.vx, vy: source.vy, hazard: false, steps: 500, path: path };
 }
 
-function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
+function scoreAutoShot(startX, angle, incomingVX, incomingVY, targetPaddle = paddle) {
   const reflected = reflectFromPaddle(incomingVX, incomingVY, angle);
   const reflectedSpeed = Math.hypot(reflected.vx, reflected.vy);
   const shotBall = {
     x: startX - ball.width / 2,
-    y: paddle.y - ball.height - 1,
+    y: targetPaddle.y - ball.height - 1,
     width: ball.width,
     height: ball.height,
     vx: reflected.vx * BALL_SPEED / reflectedSpeed,
@@ -394,7 +394,7 @@ function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
     extraThreat = extraBalls.reduce(function (total, extraBall) {
       const ballCenterX = extraBall.x + extraBall.width / 2;
       const ballCenterY = extraBall.y + extraBall.height / 2;
-      if (ballCenterY < paddle.y) {
+      if (ballCenterY < targetPaddle.y) {
         return total - Math.abs(ballCenterX - startX) * 0.25;
       }
       return total - Math.max(0, HEIGHT - ballCenterY) * 0.05;
@@ -424,9 +424,9 @@ function scoreAutoShot(startX, angle, incomingVX, incomingVY) {
   return broken * 10 + extraThreat;
 }
 
-function planAutoPlay() {
+function planAutoPlay(targetPaddle = paddle) {
   const projections = [ball].concat(extraBalls).map(function (activeBall) {
-    return { activeBall: activeBall, landing: projectToPaddle(activeBall, bricks) };
+    return { activeBall: activeBall, landing: projectToPaddle(activeBall, bricks, targetPaddle.y) };
   });
   const whiteProjection = projections.find(function (entry) { return entry.activeBall === ball; });
   const greenProjection = projections.filter(function (entry) { return entry.activeBall !== ball; })
@@ -441,40 +441,40 @@ function planAutoPlay() {
     !greenProjection.landing.hazard &&
     !whiteProjection.landing.hazard &&
     greenProjection.landing.steps + 12 < whiteProjection.landing.steps &&
-    Math.abs(greenProjection.landing.x - (paddle.x + paddle.width / 2)) <=
-      paddle.speed * greenProjection.landing.steps + paddle.width / 2 &&
+    Math.abs(greenProjection.landing.x - (targetPaddle.x + targetPaddle.width / 2)) <=
+      targetPaddle.speed * greenProjection.landing.steps + targetPaddle.width / 2 &&
     Math.abs(whiteProjection.landing.x - greenProjection.landing.x) <=
-      paddle.speed * whiteFramesAfterGreen + paddle.width / 2;
+      targetPaddle.speed * whiteFramesAfterGreen + targetPaddle.width / 2;
   if (canCatchGreenSafely) {
     chosenProjection = greenProjection;
   }
   const projection = chosenProjection.landing;
-  const targetX = Math.max(paddle.width / 2, Math.min(WIDTH - paddle.width / 2, projection.x));
+  const targetX = Math.max(targetPaddle.width / 2, Math.min(WIDTH - targetPaddle.width / 2, projection.x));
   const targetFrames = projection.steps;
   let powerUpTarget = null;
 
   for (const powerUp of powerUps) {
-    const framesToCatch = (paddle.y - powerUp.y - powerUp.height) / powerUp.speed;
+    const framesToCatch = (targetPaddle.y - powerUp.y - powerUp.height) / powerUp.speed;
     if (framesToCatch <= 0 || framesToCatch >= targetFrames - 8) continue;
     const powerUpX = powerUp.x + powerUp.width / 2;
-    const paddleCenterX = paddle.x + paddle.width / 2;
-    if (Math.abs(powerUpX - paddleCenterX) > paddle.speed * framesToCatch + paddle.width / 2) continue;
+    const paddleCenterX = targetPaddle.x + targetPaddle.width / 2;
+    if (Math.abs(powerUpX - paddleCenterX) > targetPaddle.speed * framesToCatch + targetPaddle.width / 2) continue;
     if (framesToCatch >= whiteProjection.landing.steps - 8 ||
         Math.abs(whiteProjection.landing.x - powerUpX) >
-          paddle.speed * (whiteProjection.landing.steps - framesToCatch) + paddle.width / 2) continue;
+          targetPaddle.speed * (whiteProjection.landing.steps - framesToCatch) + targetPaddle.width / 2) continue;
     if (!powerUpTarget || framesToCatch < powerUpTarget.frames) {
       powerUpTarget = { x: powerUpX, frames: framesToCatch };
     }
   }
 
   const catchX = powerUpTarget
-    ? Math.max(paddle.width / 2, Math.min(WIDTH - paddle.width / 2, powerUpTarget.x))
+    ? Math.max(targetPaddle.width / 2, Math.min(WIDTH - targetPaddle.width / 2, powerUpTarget.x))
     : targetX;
   let bestAngle = 0;
   let bestScore = -Infinity;
 
   for (let angle = -MAX_PADDLE_TILT; angle <= MAX_PADDLE_TILT; angle += 5) {
-    const score = scoreAutoShot(catchX, angle, projection.vx, projection.vy);
+    const score = scoreAutoShot(catchX, angle, projection.vx, projection.vy, targetPaddle);
     if (score > bestScore) {
       bestScore = score;
       bestAngle = angle;

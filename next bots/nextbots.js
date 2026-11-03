@@ -42,7 +42,15 @@ const NEXTBOT_ROSTER = [
   { name: "LATTICE", color: "#84cc16", accent: "#ecfccb", speed: 1.18, telegraphFrames: 72 },
   { name: "ECHO", color: "#a78bfa", accent: "#f5d0fe", speed: 1.74, telegraphFrames: 28 },
   { name: "BULWARK", color: "#64748b", accent: "#fda4af", speed: 0.82, telegraphFrames: 96 },
-  { name: "COMET", color: "#facc15", accent: "#bae6fd", speed: 1.88, telegraphFrames: 22 }
+  { name: "COMET", color: "#facc15", accent: "#bae6fd", speed: 1.88, telegraphFrames: 22 },
+  { name: "MIRROR", color: "#cbd5e1", accent: "#f472b6", speed: 1.42, telegraphFrames: 34 },
+  { name: "GRAVITY WELL", color: "#1e293b", accent: "#38bdf8", speed: 1.08, telegraphFrames: 88 },
+  { name: "VOLT", color: "#facc15", accent: "#22d3ee", speed: 1.96, telegraphFrames: 20 },
+  { name: "THORNS", color: "#15803d", accent: "#bef264", speed: 1.26, telegraphFrames: 62 },
+  { name: "MONSOON", color: "#0e7490", accent: "#a5f3fc", speed: 1.52, telegraphFrames: 40 },
+  { name: "PHANTOM ARRAY", color: "#334155", accent: "#e879f9", speed: 1.66, telegraphFrames: 26 },
+  { name: "SUNSPOT", color: "#ea580c", accent: "#fde047", speed: 1.34, telegraphFrames: 54 },
+  { name: "DEADBOLT", color: "#374151", accent: "#f87171", speed: 0.96, telegraphFrames: 78 }
 
 
 ];

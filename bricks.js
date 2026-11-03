@@ -353,14 +353,14 @@ const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff",
 function makeBricks(level) {
   const list = [];
   if (level === LEVEL_COUNT - 1) {
-    const bossWidth = 440;
-    const bossHeight = 178;
+    const bossWidth = 520;
+    const bossHeight = 210;
     return [{
       x: (WIDTH - bossWidth) / 2,
       y: 62,
       originX: (WIDTH - bossWidth) / 2,
       originY: 62,
-      moveAmplitude: 72,
+      moveAmplitude: 48,
       movePhase: 0.8,
       width: bossWidth,
       height: bossHeight,
@@ -374,11 +374,11 @@ function makeBricks(level) {
       glow: "#87efb2",
       eyes: "#afffd4",
       damagedEyes: "#ffe36b",
-      minionInterval: 210,
-      minionLimit: 4,
-      minionTimer: 150,
-      hp: 180,
-      maxHp: 180,
+      minionInterval: 165,
+      minionLimit: 5,
+      minionTimer: 120,
+      hp: 260,
+      maxHp: 260,
       color: "#526e58",
       isKill: false
     }];
@@ -634,8 +634,15 @@ function drawBricks() {
 
     ctx.save();
     ctx.lineCap = "round";
+    ctx.globalAlpha = 0.28 + Math.max(0, pulse) * 0.16;
+    ctx.strokeStyle = stage === 3 ? "#ff475f" : boss.glow;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(centerX, top + 92, boss.width * (0.44 + Math.max(0, pulse) * 0.025), boss.height * 0.58, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.shadowColor = stage === 3 ? "#ff475f" : boss.glow;
-    ctx.shadowBlur = stage === 3 ? 26 : 18;
+    ctx.shadowBlur = stage === 3 ? 38 : 24;
     ctx.strokeStyle = colors[1];
     ctx.lineWidth = 12;
     for (let index = 0; index < tentacleCount; index++) {
@@ -677,7 +684,7 @@ function drawBricks() {
       ctx.fillRect(headX + 12, headY + 8, 10, 5);
     }
 
-    const coreSize = 62;
+    const coreSize = 82 + Math.max(0, pulse) * 8;
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#111b17";
     ctx.fillRect(centerX - coreSize / 2, top + 67, coreSize, coreSize);
@@ -699,10 +706,13 @@ function drawBricks() {
     ctx.fillStyle = "#e7ffad";
     ctx.textAlign = "center";
     ctx.font = "bold 9px Courier New";
-    ctx.fillText("CMD", centerX, top + 101);
+    ctx.fillText("CMD", centerX, top + 100);
+    ctx.font = "bold 10px Courier New";
+    ctx.fillText("CORE " + Math.ceil(boss.hp) + " / " + boss.maxHp, centerX, top + 114);
     ctx.font = "bold 12px Courier New";
     ctx.fillStyle = "#fff";
-    ctx.fillText(FINAL_BOSS_PHASES[stage - 1], centerX, top + boss.height - 4);
+    ctx.font = "bold 14px Courier New";
+    ctx.fillText("COMMAND WRAITH // " + FINAL_BOSS_PHASES[stage - 1], centerX, top + boss.height - 8);
 
     const barWidth = boss.width * 0.7;
     const barX = centerX - barWidth / 2;

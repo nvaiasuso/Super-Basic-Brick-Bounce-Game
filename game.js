@@ -2528,6 +2528,10 @@ function update() {
   updateAiPaddles();
   if (autoPlay && ball.stuck) {
     launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
+  } else if (localTestMode && ball.stuck &&
+    ((ball.stuckPlayerId === "local-test-player-1" && localTestCpu[0]) ||
+     (ball.stuckPlayerId === "local-test-player-2" && localTestCpu[1]))) {
+    launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId), ball.stuckPlayerId);
   }
 
   for (const activeBall of [ball].concat(extraBalls)) {
@@ -2681,7 +2685,7 @@ function movePaddle() {
 
   if (autoPlay) {
     if (autoPlanCooldown-- <= 0) {
-      const plan = planAutoPlay();
+      const plan = planAutoPlay(paddle);
       autoAimAngle = plan.angle;
       paddle.autoTargetX = plan.x;
       autoPlanCooldown = 4;
@@ -2710,9 +2714,17 @@ function movePaddle() {
 }
 
 function moveTestCpuPaddle(targetPaddle) {
-  const targetX = Math.max(0, Math.min(WIDTH - targetPaddle.width, ball.x + ball.width / 2 - targetPaddle.width / 2));
-  const distance = targetX - targetPaddle.x;
-  targetPaddle.x += Math.sign(distance) * Math.min(targetPaddle.speed || paddle.speed, Math.abs(distance));
+  if (targetPaddle.cpuPlanCooldown > 0) {
+    targetPaddle.cpuPlanCooldown--;
+  } else {
+    const plan = planAutoPlay(targetPaddle);
+    targetPaddle.autoTargetX = plan.x;
+    targetPaddle.angle = plan.angle;
+    targetPaddle.cpuPlanCooldown = 4;
+  }
+  const targetX = dodgeLaserTarget(targetPaddle.autoTargetX, targetPaddle) - targetPaddle.width / 2;
+  targetPaddle.x += Math.sign(targetX - targetPaddle.x) * Math.min(targetPaddle.speed || paddle.speed, Math.abs(targetX - targetPaddle.x));
+  targetPaddle.x = Math.max(0, Math.min(WIDTH - targetPaddle.width, targetPaddle.x));
 }
 
 function updateLocalTestPaddle() {
@@ -2898,8 +2910,8 @@ function updateSpecialBricks() {
       const finalBoss = brick.isFinalBoss;
       if (finalBoss) {
         brick.phase = finalBossPhaseForHealth(brick);
-        brick.minionInterval = brick.phase === 1 ? 210 : brick.phase === 2 ? 150 : 105;
-        brick.minionLimit = brick.phase === 1 ? 2 : brick.phase === 2 ? 4 : 5;
+        brick.minionInterval = brick.phase === 1 ? 165 : brick.phase === 2 ? 115 : 75;
+        brick.minionLimit = brick.phase === 1 ? 3 : brick.phase === 2 ? 5 : 7;
         if (brick.phase > 1 && --brick.phaseTimer <= 0) {
           dropBossKillbrick(brick);
           if (brick.phase === 3) dropBossKillbrick(brick);
@@ -3296,90 +3308,15 @@ function updateAiPaddles() {
 
     if (bot.lobbyAI) {
       bot.y = paddle.y;
-      const landings = activeBalls.map(function (activeBall) {
-        const projection = projectToPaddle(activeBall, bricks, bot.y, { includePath: adminVisibility.trajectory });
-        return {
-          ball: activeBall,
-          frames: projection.steps,
-          landingX: projection.x,
-          hazard: projection.hazard,
-          path: projection.path
-        };
-      }).sort(function (first, second) { return first.frames - second.frames; });
-      const whiteLanding = landings.find(function (entry) { return entry.ball === ball; });
-      const greenLandings = landings.filter(function (entry) { return entry.ball !== ball; });
-      const nextGreenLanding = greenLandings[bot.lobbyIndex % Math.max(1, greenLandings.length)] || null;
-      const whiteNeedsSaving = whiteLanding &&
-        (whiteLanding.hazard || whiteLanding.frames < 300 ||
-         Math.abs(whiteLanding.landingX - (bot.x + bot.width / 2)) > bot.speed * whiteLanding.frames + bot.width / 2);
-      const greenIsSafeToCatch = whiteLanding && nextGreenLanding && !whiteNeedsSaving &&
-        !nextGreenLanding.hazard && nextGreenLanding.frames + 12 < whiteLanding.frames &&
-        Math.abs(nextGreenLanding.landingX - (bot.x + bot.width / 2)) <= bot.speed * nextGreenLanding.frames + bot.width / 2 &&
-        Math.abs(whiteLanding.landingX - nextGreenLanding.landingX) <=
-          bot.speed * (whiteLanding.frames - nextGreenLanding.frames) + bot.width / 2;
-      const assignedLanding = greenIsSafeToCatch ? nextGreenLanding : whiteLanding;
-      if (assignedLanding) target = assignedLanding.ball;
-      let targetFrames = assignedLanding ? assignedLanding.frames : Infinity;
-      let targetX = assignedLanding ? assignedLanding.landingX : target.x + target.width / 2;
-      let catchablePowerUp = null;
-      for (const powerUp of whiteNeedsSaving || greenIsSafeToCatch ? [] : powerUps) {
-        const framesToCatch = (bot.y - powerUp.y - powerUp.height) / powerUp.speed;
-        const powerUpX = powerUp.x + powerUp.width / 2;
-        const paddleCenter = bot.x + bot.width / 2;
-        if (framesToCatch <= 0 || framesToCatch >= targetFrames - 8 ||
-            Math.abs(powerUpX - paddleCenter) > bot.speed * framesToCatch + bot.width / 2) continue;
-        if (!catchablePowerUp || framesToCatch < catchablePowerUp.frames) {
-          catchablePowerUp = { x: powerUpX, frames: framesToCatch, label: powerUp.label, type: powerUp.type };
-        }
-      }
-      if (catchablePowerUp) targetX = catchablePowerUp.x;
-      const assignedBallName = assignedLanding && assignedLanding.ball !== ball
-        ? "extra ball " + (extraBalls.indexOf(assignedLanding.ball) + 1)
-        : "main ball";
-      bot.aiIntent = catchablePowerUp
-        ? "Catch power-up " + (catchablePowerUp.label || catchablePowerUp.type)
-        : greenIsSafeToCatch ? "Catch an extra ball while the main ball is safe" : "Intercept the " + assignedBallName;
-      bot.aiCalculation = assignedLanding
-        ? "Predicted " + assignedBallName + " landing at X " + Math.round(assignedLanding.landingX) + " in " + Math.ceil(assignedLanding.frames) + " frames; " + (whiteNeedsSaving ? "main ball needs saving" : "main ball is reachable")
-        : "No predicted ball landing; repositioning";
-      if (catchablePowerUp) bot.aiCalculation += "; power-up is reachable in " + Math.ceil(catchablePowerUp.frames) + " frames";
-      const laserSafeTarget = dodgeLaserTarget(targetX, bot);
-      if (Math.abs(laserSafeTarget - targetX) > 1) {
-        bot.aiIntent = "Avoid laser lane, then intercept";
-        bot.aiCalculation += "; laser-safe target X " + Math.round(laserSafeTarget);
-      }
-      if (Number.isFinite(targetFrames)) {
-        const currentCenter = bot.x + bot.width / 2;
-        const maximumTravel = bot.speed * Math.max(0, targetFrames - 3);
-        const reachableLaserTarget = Math.max(currentCenter - maximumTravel, Math.min(currentCenter + maximumTravel, laserSafeTarget));
-        const reachableBallTarget = assignedLanding
-          ? Math.max(currentCenter - maximumTravel, Math.min(currentCenter + maximumTravel, assignedLanding.landingX))
-          : reachableLaserTarget;
-        targetX = targetFrames < 45 ? reachableBallTarget : reachableLaserTarget;
-      } else {
-        targetX = laserSafeTarget;
-      }
-      targetX = Math.max(bot.width / 2, Math.min(WIDTH - bot.width / 2, targetX));
-      bot.aiCalculation += "; reachable move target X " + Math.round(targetX) + " at " + bot.speed + " px/frame";
+      moveTestCpuPaddle(bot);
+      bot.aiIntent = "Shift+Q smart interception and shot planning";
+      bot.aiCalculation = "Uses the same ball, power-up, hazard, and shot-angle planner as auto-play.";
       bot.knownStuff = {
-        balls: landings.map(function (entry, index) {
-          return {
-            label: entry.ball === ball ? "Main ball" : "Extra ball " + index,
-            path: entry.path || [],
-            landingX: entry.landingX,
-            framesToLanding: entry.frames,
-            hazard: entry.hazard
-          };
-        }),
-        targetX: targetX,
+        balls: [],
+        targetX: bot.autoTargetX,
         summary: bot.aiIntent,
-        calculation: "Projects each ball against walls/bricks, checks the main-ball safety margin, pickup arrival time, laser lanes, and reachable travel distance. " + bot.aiCalculation
+        calculation: bot.aiCalculation
       };
-      bot.previousX = bot.x;
-      bot.previousY = bot.y;
-      const dx = targetX - (bot.x + bot.width / 2);
-      bot.x += Math.sign(dx) * Math.min(bot.speed, Math.abs(dx));
-      bot.x = Math.max(0, Math.min(WIDTH - bot.width, bot.x));
       continue;
     }
 
