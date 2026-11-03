@@ -331,8 +331,9 @@ function handleMessage(socket, message) {
     });
     if (!player.host) return sendError(socket, "Only the host can start the game.");
     if (room.adminBattle && room.players.size < 2) return sendError(socket, "Admin Battle requires a second human player.");
-    if (room.adminBattle && !Array.from(room.players.values()).some(function (member) { return !room.adminIds.includes(member.id); })) {
-      return sendError(socket, "Admin Battle needs at least one player without admin access.");
+      if (room.adminBattle && (!room.adminIds.some(function (adminId) { return room.players.has(adminId); }) || 
+        !Array.from(room.players.values()).some(function (member) { return !room.adminIds.includes(member.id); }))) {
+        return sendError(socket, "Admin Battle needs at least one admin and one player without admin access.");
     }
     if (room.players.size + room.bots.length < 2) return sendError(socket, "Invite another player or add an AI player before starting.");
     if (!everyoneReady) return sendError(socket, "Wait for every player to be ready.");

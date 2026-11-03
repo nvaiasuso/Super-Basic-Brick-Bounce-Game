@@ -290,8 +290,9 @@ function createRealtimeLobbySocket(initialAction) {
       const everyoneReady = roomPlayers.every(function (item) { return item.host || item.ready; });
       if (!player.host) return sendError("Only the host can start the game.", senderId);
       if (roomAdminBattle && roomPlayers.length < 2) return sendError("Admin Battle requires a second human player.", senderId);
-      if (roomAdminBattle && !roomPlayers.some(function (member) { return !roomAdminIds.includes(member.id); })) {
-        return sendError("Admin Battle needs at least one player without admin access.", senderId);
+      if (roomAdminBattle && (!roomAdminIds.some(function (adminId) { return roomPlayers.some(function (member) { return member.id === adminId; }); }) ||
+        !roomPlayers.some(function (member) { return !roomAdminIds.includes(member.id); }))) {
+        return sendError("Admin Battle needs at least one admin and one player without admin access.", senderId);
       }
       if (roomPlayers.length + roomBots.length < 2) return sendError("Invite another player or add an AI player before starting.", senderId);
       if (!everyoneReady) return sendError("Wait for every player to be ready.", senderId);
@@ -545,7 +546,11 @@ function renderLobbyPlayers() {
   const hasAdminBattleSurvivor = lobbyPlayers.some(function (player) {
     return !player.ai && !lobbyAdminIds.includes(player.id);
   });
-  lobbyStartButton.disabled = !otherPlayer || !otherPlayer.ready || lobbyStarted || (adminBattleModeInput.checked && !hasAdminBattleSurvivor);
+  const hasAdminBattleAdmin = lobbyAdminIds.some(function (adminId) {
+    return lobbyPlayers.some(function (player) { return !player.ai && player.id === adminId; });
+  });
+  lobbyStartButton.disabled = !otherPlayer || !otherPlayer.ready || lobbyStarted ||
+    (adminBattleModeInput.checked && (!hasAdminBattleAdmin || !hasAdminBattleSurvivor));
   adminBattleModeInput.disabled = lobbyActive || !lobbyHost;
 }
 
