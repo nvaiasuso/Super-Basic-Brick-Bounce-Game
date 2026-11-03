@@ -378,6 +378,17 @@ p {
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 
+.lobby-admin-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.lobby-admin-role input {
+  accent-color: var(--theme-accent, #d6ff55);
+}
+
 .multiplayer-chat,
 .music-player {
   min-width: 0;

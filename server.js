@@ -119,7 +119,8 @@ function playersIn(room) {
       left: player.left,
       right: player.right,
       ready: player.ready,
-      host: player.host
+      host: player.host,
+      admin: room.adminIds.includes(player.id)
     };
   });
   return humanPlayers.concat(room.bots);
@@ -137,6 +138,7 @@ function broadcastRoomState(room) {
     code: room.code,
     started: room.started,
     adminBattle: room.adminBattle,
+    adminIds: room.adminIds,
     players: playersIn(room)
   });
 }
@@ -161,6 +163,7 @@ function removePlayer(socket, notifyPlayer) {
   }
   if (!room) return;
   room.players.delete(player.id);
+  room.adminIds = room.adminIds.filter(function (adminId) { return adminId !== player.id; });
 
   if (wasHost) {
     for (const other of room.players.values()) {
@@ -191,7 +194,7 @@ function createLobby(socket, message) {
   if (player.roomCode) return sendError(socket, "Leave your current lobby first.");
 
   const code = createRoomCode();
-  const room = { code: code, hostId: player.id, players: new Map(), bots: [], started: false, adminBattle: Boolean(message.adminBattle) };
+  const room = { code: code, hostId: player.id, players: new Map(), bots: [], adminIds: [player.id], started: false, adminBattle: Boolean(message.adminBattle) };
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[0];
@@ -260,6 +263,16 @@ function handleMessage(socket, message) {
     return broadcastRoomState(room);
   }
 
+  if (message.type === "set-admins") {
+    if (!player.host) return sendError(socket, "Only the host can assign admin access.");
+    if (room.started) return sendError(socket, "Admin access cannot be changed after the game starts.");
+    const validIds = new Set(room.players.keys());
+    room.adminIds = Array.isArray(message.adminIds)
+      ? Array.from(new Set(message.adminIds.filter(function (adminId) { return typeof adminId === "string" && validIds.has(adminId); })))
+      : [];
+    return broadcastRoomState(room);
+  }
+
   if (message.type === "chat") {
     const text = cleanChatText(message.text);
     if (!text) return;
@@ -304,17 +317,28 @@ function handleMessage(socket, message) {
     return;
   }
 
+  if (message.type === "admin-command") {
+    if (!room.started || !room.adminIds.includes(player.id)) return sendError(socket, "You do not have admin access in this game.");
+    if (!message.command || typeof message.command !== "object" || Array.isArray(message.command)) return;
+    const host = Array.from(room.players.values()).find(function (member) { return member.host; });
+    if (host) send(host.socket, { type: "admin-command", adminId: player.id, command: message.command });
+    return;
+  }
+
   if (message.type === "start") {
     const everyoneReady = Array.from(room.players.values()).every(function (member) {
       return member.host || member.ready;
     });
     if (!player.host) return sendError(socket, "Only the host can start the game.");
     if (room.adminBattle && room.players.size < 2) return sendError(socket, "Admin Battle requires a second human player.");
+    if (room.adminBattle && !Array.from(room.players.values()).some(function (member) { return !room.adminIds.includes(member.id); })) {
+      return sendError(socket, "Admin Battle needs at least one player without admin access.");
+    }
     if (room.players.size + room.bots.length < 2) return sendError(socket, "Invite another player or add an AI player before starting.");
     if (!everyoneReady) return sendError(socket, "Wait for every player to be ready.");
     room.started = true;
     for (const member of room.players.values()) {
-      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room), adminBattle: room.adminBattle });
+      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room), adminBattle: room.adminBattle, adminIds: room.adminIds });
     }
     return;
   }

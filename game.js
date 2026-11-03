@@ -237,8 +237,8 @@ function applySkin(nextSkinIndex = currentSkin) {
 
 // Put the ball in the center and reset its speed and direction.
 function resetBall() {
-  const survivor = adminBattleAdmin && multiplayerPlayers.find(function (player) {
-    return !player.host && !player.ai;
+  const survivor = adminBattleMode && multiplayerPlayers.find(function (player) {
+    return !player.ai && !multiplayerAdminIds.includes(player.id);
   });
   ball.x = survivor ? survivor.x + survivor.width / 2 - ball.width / 2 : WIDTH / 2 - ball.width / 2;
   ball.y = survivor ? survivor.y - ball.height - 1 : HEIGHT / 2 - ball.height / 2;
@@ -473,6 +473,7 @@ let localTestCpu = [false, false];
 let localTestPreviousAutoPlay = false;
 let adminBattleMode = false;
 let adminBattleAdmin = false;
+let multiplayerAdminIds = [];
 let multiplayerPlayerId = null;
 let multiplayerPlayers = [];
 const LOBBY_INTERPOLATION_DELAY_MS = 100;
@@ -662,6 +663,23 @@ function refreshAdminVisibilityButtons() {
   }
 }
 
+function sendRemoteAdminCommand(command) {
+  if (!multiplayerActive || multiplayerHost) return false;
+  if (multiplayerAdminIds.includes(multiplayerPlayerId) && typeof window.sendLobbyAdminCommand === "function") {
+    window.sendLobbyAdminCommand(command);
+  }
+  return true;
+}
+
+function setSimulationSpeed(value) {
+  const speed = Number(value);
+  if (![1, 2, 3, 5, 10, 20].includes(speed)) return;
+  simulationSpeed = speed;
+  for (const speedButton of document.querySelectorAll("[data-speed-toggle]")) {
+    speedButton.setAttribute("aria-pressed", String(Number(speedButton.dataset.speedToggle) === simulationSpeed));
+  }
+}
+
 for (const button of document.querySelectorAll("[data-view-toggle]")) {
   const view = button.dataset.viewToggle;
   if (view !== "all") button.dataset.viewLabel = button.textContent.replace(/: (On|Off)$/, "");
@@ -679,10 +697,9 @@ refreshAdminVisibilityButtons();
 
 for (const button of document.querySelectorAll("[data-speed-toggle]")) {
   button.addEventListener("click", function () {
-    simulationSpeed = Number(button.dataset.speedToggle);
-    for (const speedButton of document.querySelectorAll("[data-speed-toggle]")) {
-      speedButton.setAttribute("aria-pressed", String(Number(speedButton.dataset.speedToggle) === simulationSpeed));
-    }
+    const speed = Number(button.dataset.speedToggle);
+    if (sendRemoteAdminCommand({ type: "speed", value: speed })) return;
+    setSimulationSpeed(speed);
   });
 }
 
@@ -847,15 +864,15 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
   multiplayerActive = active;
   multiplayerHost = isHost;
   adminBattleMode = active && isAdminBattle;
-  adminBattleAdmin = adminBattleMode && isHost;
+  adminBattleAdmin = adminBattleMode && multiplayerAdminIds.includes(playerId);
   multiplayerPlayerId = playerId;
   if (adminBattleAdmin) paddle.y = HEIGHT + 100;
   const adminBattleToggle = document.getElementById("admin-battle-toggle");
-  adminBattleToggle.hidden = !adminBattleAdmin;
+  adminBattleToggle.hidden = !active || !multiplayerAdminIds.includes(playerId);
   adminBattleToggle.setAttribute("aria-pressed", "false");
   adminMenu.hidden = true;
-  adminMenu.classList.toggle("admin-battle-dock", adminBattleAdmin);
-  document.body.classList.toggle("admin-battle-host", adminBattleAdmin);
+  adminMenu.classList.toggle("admin-battle-dock", adminBattleAdmin && isHost);
+  document.body.classList.toggle("admin-battle-host", adminBattleAdmin && isHost);
   multiplayerPlayers = [];
   lobbySnapshotBuffer = [];
   lobbySnapshotSequence = 0;
@@ -865,6 +882,7 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
     paddle.y = HEIGHT - 30;
     paddle.width = basePaddleWidth;
     paddle.angle = 0;
+    multiplayerAdminIds = [];
   }
 }
 
@@ -872,8 +890,15 @@ function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
   if (!multiplayerActive) return;
   if (multiplayerHost) {
-    if (adminBattleAdmin && ball.stuck) {
-      const survivor = multiplayerPlayers.find(function (player) { return !player.host && !player.ai; });
+    if (adminBattleMode) {
+      for (const player of multiplayerPlayers) {
+        if (multiplayerAdminIds.includes(player.id)) player.y = HEIGHT + 100;
+      }
+    }
+    if (adminBattleMode && ball.stuck) {
+      const survivor = multiplayerPlayers.find(function (player) {
+        return !player.ai && !multiplayerAdminIds.includes(player.id);
+      });
       if (survivor) {
         ball.stuckPlayerId = survivor.id;
         ball.x = survivor.x + survivor.width / 2 - ball.width / 2;
@@ -882,6 +907,10 @@ function setMultiplayerPlayers(players) {
         ball.previousY = ball.y;
       }
     }
+    return;
+  }
+  if (adminBattleAdmin) {
+    paddle.y = HEIGHT + 100;
     return;
   }
   const localPlayer = multiplayerPlayers.find(function (player) { return player.id === multiplayerPlayerId; });
@@ -920,7 +949,8 @@ function addLobbyAIPlayers(players) {
   });
 }
 
-function beginLobbyGame(isHost, playerId, isAdminBattle = false) {
+function beginLobbyGame(isHost, playerId, isAdminBattle = false, adminIds = []) {
+  multiplayerAdminIds = Array.isArray(adminIds) ? adminIds : [];
   setMultiplayerSession(true, isHost, playerId, isAdminBattle);
   beginGame(false);
 }
@@ -1185,16 +1215,16 @@ window.launchLobbyBall = function (playerId) {
 
 function toggleAdminMenu() {
   if (!adminMenu) return;
-  if (adminBattleMode && !adminBattleAdmin) return;
+  if (multiplayerActive && !multiplayerAdminIds.includes(multiplayerPlayerId)) return;
   adminMenu.hidden = !adminMenu.hidden;
   const button = document.getElementById("admin-battle-toggle");
-  if (button && adminBattleAdmin) button.setAttribute("aria-pressed", String(!adminMenu.hidden));
+  if (button && multiplayerAdminIds.includes(multiplayerPlayerId)) button.setAttribute("aria-pressed", String(!adminMenu.hidden));
 }
 
 document.getElementById("admin-close").addEventListener("click", function () {
   adminMenu.hidden = true;
   const button = document.getElementById("admin-battle-toggle");
-  if (button && adminBattleAdmin) button.setAttribute("aria-pressed", "false");
+  if (button && multiplayerAdminIds.includes(multiplayerPlayerId)) button.setAttribute("aria-pressed", "false");
 });
 
 const adminTitlebar = document.getElementById("admin-titlebar");
@@ -1941,14 +1971,17 @@ function setupAdminVariableControls() {
   const livesInput = document.getElementById("admin-lives");
   const nextBotSpeed = document.getElementById("admin-nextbot-speed");
   ballSpeed.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "ballSpeed", value: Number(ballSpeed.value) })) return;
     applyAdminBallSpeed(ballSpeed.value);
     refreshAdminVariableControls();
   });
   paddleSpeed.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "paddleSpeed", value: Number(paddleSpeed.value) })) return;
     paddle.speed = Number(paddleSpeed.value);
     refreshAdminVariableControls();
   });
   paddleWidth.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "paddleWidth", value: Number(paddleWidth.value) })) return;
     const center = paddle.x + paddle.width / 2;
     basePaddleWidth = Number(paddleWidth.value);
     paddle.width = basePaddleWidth;
@@ -1956,17 +1989,20 @@ function setupAdminVariableControls() {
     refreshAdminVariableControls();
   });
   livesInput.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "startingLives", value: Number(livesInput.value) })) return;
     startingLives = Number(livesInput.value);
     lives = startingLives;
     if (lives > 0) gameOver = false;
     refreshAdminVariableControls();
   });
   nextBotSpeed.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "nextBotSpeed", value: Number(nextBotSpeed.value) })) return;
     adminNextBotSpeedMultiplier = Number(nextBotSpeed.value);
     refreshAdminVariableControls();
   });
   const nextBotLimit = document.getElementById("admin-nextbot-limit");
   nextBotLimit.addEventListener("input", function () {
+    if (sendRemoteAdminCommand({ type: "setting", key: "nextBotLimit", value: Number(nextBotLimit.value) })) return;
     maxActiveNextBots = Math.max(12, Math.min(64, Number(nextBotLimit.value) || 64));
     document.getElementById("admin-nextbot-limit-value").value = String(maxActiveNextBots);
   });
@@ -2078,8 +2114,8 @@ async function openAdminUrlFromFile() {
   status.textContent = "Opened " + targetUrl.href;
 }
 
-function runAdminAction(action) {
-  if (adminBattleMode && !adminBattleAdmin) return;
+function runAdminAction(action, remoteAuthorized = false) {
+  if (multiplayerActive && !remoteAuthorized && !multiplayerAdminIds.includes(multiplayerPlayerId)) return;
   if (action === "open-url-from-file") {
     openAdminUrlFromFile();
   } else if (action === "ball") {
@@ -2227,9 +2263,82 @@ function runAdminAction(action) {
   }
 }
 
+const remoteAdminActions = new Set(Array.from(document.querySelectorAll("#admin-menu [data-admin]"), function (button) {
+  return button.dataset.admin;
+}));
+
+function getRemoteAdminToolOptions() {
+  return {
+    brickType: document.getElementById("admin-brick-select").value,
+    powerUp: document.getElementById("admin-powerup-select").value,
+    nextBot: document.getElementById("admin-nextbot-select").value,
+    level: document.getElementById("admin-level-select").value,
+    mouseX: adminMousePosition.x,
+    mouseY: adminMousePosition.y
+  };
+}
+
+function setRemoteAdminSelect(id, value) {
+  const select = document.getElementById(id);
+  const optionValue = String(value);
+  if (select && Array.from(select.options).some(function (option) { return option.value === optionValue; })) {
+    select.value = optionValue;
+  }
+}
+
+window.runRemoteAdminCommand = function (adminId, command) {
+  if (!multiplayerHost || !multiplayerAdminIds.includes(adminId) || !command || typeof command !== "object") return;
+  if (command.type === "tool") {
+    if (!remoteAdminActions.has(command.action)) return;
+    const options = command.options || {};
+    setRemoteAdminSelect("admin-brick-select", options.brickType);
+    setRemoteAdminSelect("admin-powerup-select", options.powerUp);
+    setRemoteAdminSelect("admin-nextbot-select", options.nextBot);
+    setRemoteAdminSelect("admin-level-select", options.level);
+    if (Number.isFinite(options.mouseX) && Number.isFinite(options.mouseY)) {
+      adminMousePosition = {
+        x: Math.max(0, Math.min(WIDTH, options.mouseX)),
+        y: Math.max(0, Math.min(HEIGHT, options.mouseY))
+      };
+    }
+    runAdminAction(command.action, true);
+  } else if (command.type === "repeat" && remoteAdminActions.has(command.action) && repeatAdminActions.has(command.action)) {
+    const count = Number.isInteger(command.count) ? Math.max(1, Math.min(100, command.count)) : 1;
+    const options = command.options || {};
+    setRemoteAdminSelect("admin-brick-select", options.brickType);
+    setRemoteAdminSelect("admin-powerup-select", options.powerUp);
+    setRemoteAdminSelect("admin-nextbot-select", options.nextBot);
+    setRemoteAdminSelect("admin-level-select", options.level);
+    for (let index = 0; index < count; index++) runAdminAction(command.action, true);
+  } else if (command.type === "setting" && Number.isFinite(command.value)) {
+    const settings = {};
+    if (["ballSpeed", "paddleSpeed", "paddleWidth", "startingLives", "nextBotSpeed"].includes(command.key)) {
+      settings[command.key] = command.value;
+      applyAdminGameSettings(settings);
+      if (command.key === "startingLives") {
+        lives = startingLives;
+        if (lives > 0) gameOver = false;
+        refreshAdminVariableControls();
+      }
+    } else if (command.key === "nextBotLimit") {
+      maxActiveNextBots = Math.max(12, Math.min(64, command.value));
+      document.getElementById("admin-nextbot-limit").value = String(maxActiveNextBots);
+      document.getElementById("admin-nextbot-limit-value").value = String(maxActiveNextBots);
+    }
+  } else if (command.type === "speed") {
+    setSimulationSpeed(command.value);
+  } else if (command.type === "mode" && Number.isInteger(command.value) && command.value >= 0 && command.value < GAME_MODES.length) {
+    applyMode(command.value);
+  } else if (command.type === "skin" && Number.isInteger(command.value) && command.value >= 0 && command.value < SKINS.length) {
+    applySkin(command.value);
+  }
+};
+
 for (const adminButton of document.querySelectorAll("#admin-menu button")) {
   adminButton.addEventListener("click", function () {
-    if (adminButton.dataset.admin) runAdminAction(adminButton.dataset.admin);
+    if (!adminButton.dataset.admin) return;
+    if (sendRemoteAdminCommand({ type: "tool", action: adminButton.dataset.admin, options: getRemoteAdminToolOptions() })) return;
+    runAdminAction(adminButton.dataset.admin);
   });
   adminButton.addEventListener("pointerdown", function (event) {
     if (event.button !== 2) return;
@@ -2238,6 +2347,7 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
     if (!repeatAdminActions.has(action)) return;
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
     const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 25;
+    if (sendRemoteAdminCommand({ type: "repeat", action: action, count: count, options: getRemoteAdminToolOptions() })) return;
     const startingBotCount = nextBots.length;
     if (adminRepeatCount) adminRepeatCount.value = String(count);
     for (let index = 0; index < count; index++) runAdminAction(action);
@@ -2253,12 +2363,14 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
 
 if (adminSkinSelect) {
   adminSkinSelect.addEventListener("change", function () {
+    if (sendRemoteAdminCommand({ type: "skin", value: Number(adminSkinSelect.value) })) return;
     applySkin(Number(adminSkinSelect.value));
   });
 }
 
 if (adminModeSelect) {
   adminModeSelect.addEventListener("change", function () {
+    if (sendRemoteAdminCommand({ type: "mode", value: Number(adminModeSelect.value) })) return;
     applyMode(Number(adminModeSelect.value));
   });
 }
@@ -2476,13 +2588,13 @@ function update() {
 
   if (multiplayerActive && !multiplayerHost) {
     applyInterpolatedLobbySnapshot();
-    if (!gameOver && !gameWon) {
+    if (!gameOver && !gameWon && !adminBattleAdmin) {
       paddle.previousX = paddle.x;
       paddle.previousY = paddle.y;
       paddle.previousAngle = paddle.angle;
       movePaddle();
     }
-    if (typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
+    if (!adminBattleAdmin && typeof window.updateLobbyPaddle === "function") window.updateLobbyPaddle(paddle.x, paddle.angle, paddle.width, keys[CONTROL_KEYS.left], keys[CONTROL_KEYS.right]);
     return;
   }
 
@@ -2766,7 +2878,7 @@ function getEnemyShotTargets() {
   const targets = [];
   if (!adminBattleAdmin) targets.push(paddle);
   for (const player of multiplayerPlayers) {
-    if (player.id === multiplayerPlayerId || player.ai || (adminBattleMode && player.host)) continue;
+    if (player.id === multiplayerPlayerId || player.ai || (adminBattleMode && multiplayerAdminIds.includes(player.id))) continue;
     targets.push({
       x: player.x,
       y: Number.isFinite(player.y) ? player.y : HEIGHT - 30,
@@ -3819,6 +3931,7 @@ window.addEventListener("load", function () {
 // always runs exactly 60 times per second on every computer.
 // ------------------------------------------------------------
 const STEP = 1000 / 60;
+const MAX_SIMULATION_STEPS_PER_FRAME = 12;
 let lastTime = 0;
 let leftover = 0;
 let lastLobbySnapshotSentAt = 0;
@@ -3838,13 +3951,15 @@ function frame(now) {
   lastTime = now;
 
   // If the tab was hidden for a while, don't try to catch up.
-  const maxAccumulatedTime = 250 * simulationSpeed;
+  const maxAccumulatedTime = STEP * MAX_SIMULATION_STEPS_PER_FRAME;
   if (leftover > maxAccumulatedTime) {
     leftover = maxAccumulatedTime;
   }
 
-  while (leftover >= STEP) {
+  let simulationSteps = 0;
+  while (leftover >= STEP && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
     update();
+    simulationSteps++;
     if (gameStarted && !paused) gameFpsFrameCount++;
     leftover = leftover - STEP;
   }
