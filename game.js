@@ -25,6 +25,7 @@ const HEIGHT = canvas.height;
 const BALL_SPEED = 5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
+const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8, gunnerBullets: 256 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
   { label: "Normal", description: "Standard bricks, speed, and power-up odds.", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
@@ -111,6 +112,8 @@ let newBest = false;
 let activeChallenge = null;
 let dailyChallenge = null;
 let aiPaddles = [];
+let adminGunners = [];
+let adminGunnerBullets = [];
 let powerUps = [];
 let widePaddleTimer = 0;
 let slowBallTimer = 0;
@@ -525,6 +528,97 @@ function consumeAdminToolsWithWitherStorm(boss) {
     adminMenu.hidden = true;
     const adminBattleButton = document.getElementById("admin-battle-toggle");
     if (adminBattleButton) adminBattleButton.setAttribute("aria-pressed", "false");
+  }
+}
+
+function spawnAdminGunner() {
+  const index = adminGunners.length;
+  adminGunners.push({
+    x: 36 + (index * 47) % (WIDTH - 72),
+    y: HEIGHT - 88 - Math.floor(index / 16) * 28,
+    fireCooldown: 18 + index % 36,
+    facing: 1
+  });
+}
+
+function updateAdminGunners() {
+  for (const gunner of adminGunners) {
+    if (gunner.fireCooldown > 0) {
+      gunner.fireCooldown--;
+      continue;
+    }
+
+    let target = null;
+    let targetType = "nextbot";
+    let targetDistance = Infinity;
+    for (const bot of nextBots) {
+      const distance = Math.hypot(bot.x - gunner.x, bot.y - gunner.y);
+      if (distance < targetDistance) {
+        target = bot;
+        targetDistance = distance;
+      }
+    }
+    if (!target) {
+      targetType = "brick";
+      for (const brick of bricks) {
+        if (brick.isKill || brick.hidden) continue;
+        const distance = Math.hypot(brick.x + brick.width / 2 - gunner.x, brick.y + brick.height / 2 - gunner.y);
+        if (distance < targetDistance) {
+          target = brick;
+          targetDistance = distance;
+        }
+      }
+    }
+    if (target && adminGunnerBullets.length < ADMIN_SPAWN_LIMITS.gunnerBullets) {
+      const targetX = targetType === "brick" ? target.x + target.width / 2 : target.x;
+      const targetY = targetType === "brick" ? target.y + target.height / 2 : target.y;
+      const angle = Math.atan2(targetY - gunner.y, targetX - gunner.x);
+      gunner.facing = Math.cos(angle) >= 0 ? 1 : -1;
+      adminGunnerBullets.push({
+        x: gunner.x + gunner.facing * 12,
+        y: gunner.y - 12,
+        vx: Math.cos(angle) * 7,
+        vy: Math.sin(angle) * 7,
+        targetType: targetType,
+        life: 120
+      });
+    }
+    gunner.fireCooldown = 48;
+  }
+
+  for (let bulletIndex = adminGunnerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
+    const bullet = adminGunnerBullets[bulletIndex];
+    bullet.x += bullet.vx;
+    bullet.y += bullet.vy;
+    bullet.life--;
+    let hit = false;
+    if (bullet.targetType === "nextbot") {
+      const botIndex = nextBots.findIndex(function (bot) {
+        return Math.hypot(bot.x - bullet.x, bot.y - bullet.y) <= 20;
+      });
+      if (botIndex >= 0) {
+        const [defeatedBot] = nextBots.splice(botIndex, 1);
+        if (nextBotBattle && nextBotBattle.bot === defeatedBot) {
+          nextBotBattle = null;
+          nextBotBanner = { text: defeatedBot.name + " ELIMINATED BY GUNNER", timer: 110 };
+          nextBotCooldown = 180;
+        }
+        hit = true;
+      }
+    } else {
+      const brickIndex = bricks.findIndex(function (brick) {
+        return !brick.isKill && !brick.hidden &&
+          bullet.x >= brick.x && bullet.x <= brick.x + brick.width &&
+          bullet.y >= brick.y && bullet.y <= brick.y + brick.height;
+      });
+      if (brickIndex >= 0) {
+        breakBrickAt(brickIndex, Object.assign({}, ball, { perfect: false }));
+        hit = true;
+      }
+    }
+    if (hit || bullet.life <= 0 || bullet.x < 0 || bullet.x > WIDTH || bullet.y < 0 || bullet.y > HEIGHT) {
+      adminGunnerBullets.splice(bulletIndex, 1);
+    }
   }
 }
 
@@ -1199,6 +1293,8 @@ function getLobbyGameSnapshot() {
     aiPaddles: aiPaddles.map(function (bot) {
       return { x: bot.x, y: bot.y, width: bot.width, height: bot.height, speed: bot.speed, angle: bot.angle, color: bot.color, lobbyAI: bot.lobbyAI, lobbyName: bot.lobbyName };
     }),
+    adminGunners: adminGunners.map(function (gunner) { return Object.assign({}, gunner); }),
+    adminGunnerBullets: adminGunnerBullets.map(function (bullet) { return Object.assign({}, bullet); }),
     powerUps: powerUps.map(function (powerUp) { return Object.assign({}, powerUp); }),
     players: multiplayerPlayers.map(function (player) {
       if (player.id !== multiplayerPlayerId) return Object.assign({}, player);
@@ -1346,10 +1442,12 @@ function applyInterpolatedLobbySnapshot(now = performance.now()) {
 
   if (latestState.players) setMultiplayerPlayers(arrayFromLobbySnapshot(latestState.players));
   extraBalls = interpolateLobbyList(oldState.extraBalls, newState.extraBalls, latestState.extraBalls, ["x", "y"], amount);
-    enemyShots = interpolateLobbyList(oldState.enemyShots || [], newState.enemyShots || [], latestState.enemyShots || [], ["x", "y"], amount);
+  enemyShots = interpolateLobbyList(oldState.enemyShots || [], newState.enemyShots || [], latestState.enemyShots || [], ["x", "y"], amount);
   bricks = interpolateLobbyBricks(oldState.bricks, newState.bricks, latestState.bricks, amount);
   aiPaddles = interpolateLobbyList(oldState.aiPaddles, newState.aiPaddles, latestState.aiPaddles, ["x", "y"], amount)
     .map(function (bot) { return Object.assign({ assignedBall: null }, bot); });
+  adminGunners = interpolateLobbyList(oldState.adminGunners || [], newState.adminGunners || [], latestState.adminGunners || [], ["x", "y"], amount);
+  adminGunnerBullets = interpolateLobbyList(oldState.adminGunnerBullets || [], newState.adminGunnerBullets || [], latestState.adminGunnerBullets || [], ["x", "y"], amount);
   powerUps = interpolateLobbyList(oldState.powerUps, newState.powerUps, latestState.powerUps, ["x", "y"], amount);
   lasers = interpolateLobbyList(oldState.lasers, newState.lasers, latestState.lasers, ["x", "y"], amount);
   widePaddleTimer = latestState.widePaddleTimer || 0;
@@ -1552,6 +1650,34 @@ function spawnAdminAiPaddle() {
     color: ["#ff4fd8", "#4fe6ff", "#ffd166"][aiPaddles.length % 3],
     assignedBall: null
   });
+}
+
+function drawAdminGunners() {
+  for (const gunner of adminGunners) {
+    ctx.save();
+    ctx.translate(gunner.x, gunner.y);
+    ctx.fillStyle = "#d6ff55";
+    ctx.fillRect(-7, -5, 14, 23);
+    ctx.beginPath();
+    ctx.arc(0, -13, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#20261a";
+    ctx.fillRect(-4, 17, 4, 10);
+    ctx.fillRect(1, 17, 4, 10);
+    ctx.fillStyle = "#e8edf0";
+    ctx.fillRect(gunner.facing * 5, -12, gunner.facing * 13, 4);
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.fillStyle = "#fff176";
+  ctx.shadowColor = "#fff176";
+  ctx.shadowBlur = 9;
+  for (const bullet of adminGunnerBullets) {
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function removeAdminAiPaddle() {
@@ -2097,6 +2223,7 @@ function spawnAdminEverything() {
   spawnAdminPowerUp();
   spawnAdminLaser();
   spawnAdminAiPaddle();
+  spawnAdminGunner();
   spawnAdminBoss();
   const nextBotSelect = document.getElementById("admin-nextbot-select");
   spawnNextBot(nextBotSelect && nextBotSelect.value !== "random" ? nextBotSelect.value : undefined);
@@ -2107,6 +2234,8 @@ function clearAdminSpawnedObjects() {
   powerUps = [];
   lasers = [];
   aiPaddles = [];
+  adminGunners = [];
+  adminGunnerBullets = [];
   bricks = bricks.filter(function (brick) { return !brick.adminSpawned; });
   selectNextBots();
   assignAiBallTargets();
@@ -2266,7 +2395,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2421,7 +2550,12 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "website-fps") {
     setWebsiteFpsEnabled(!websiteFpsEnabled);
   } else if (action === "spawn-nextbot") {
-    spawnNextBot();
+    if (!spawnNextBot() && adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
+    }
+  } else if (action === "spawn-gunner") {
+    spawnAdminGunner();
+    if (adminRepeatStatus) adminRepeatStatus.textContent = "Friendly gunners: " + adminGunners.length + ". Right-click to spawn a batch.";
   } else if (action === "nextbot-wave") {
     let spawned = 0;
     for (let index = 0; index < 8; index++) {
@@ -2841,8 +2975,9 @@ function update() {
   if (updateHitEffects()) return;
   if (shieldTimer > 0) shieldTimer--;
 
-  if (isNextBotBattleActive() && !nextBotAttacksPaused) {
+  if (isNextBotBattleActive()) {
     updateNextBotBattle();
+    if (isNextBotBattleActive()) return;
   }
 
   if (!adminBattleAdmin) {
@@ -2857,6 +2992,7 @@ function update() {
   if (localTestMode) updateLocalTestPaddle();
   if (autoPlay || isNextBotAIEnabled()) movePaddleAwayFromLasers(paddle);
   updateNextBots();
+  updateAdminGunners();
   if (randomEverythingEnabled) updateNextBotShots();
   if (updateEnemyShots()) return;
   updateRockets();
@@ -3851,6 +3987,7 @@ function draw() {
         ctx.fillText(bot.lobbyName, bot.x + bot.width / 2, bot.y - 5);
       }
     }
+    if (adminVisibility.enemies) drawAdminGunners();
   }
   if (adminVisibility.balls && adminVisibility.extras && ballTrail.length) {
     ballTrail.forEach(function (position, index) {
@@ -4149,6 +4286,8 @@ function restartGame() {
   mola = 0;
   newBest = false;
   aiPaddles = [];
+  adminGunners = [];
+  adminGunnerBullets = [];
   gameOver = false;
   gameWon = false;
   simulationFrame = 0;

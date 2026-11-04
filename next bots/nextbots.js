@@ -446,7 +446,7 @@ function updateNextBotBattle() {
   battle.time++;
   battle.radius = BATTLE_START_RADIUS - Math.min(1, battle.time / BATTLE_DURATION) * (BATTLE_START_RADIUS - BATTLE_END_RADIUS);
 
-  if (nextBotAI) {
+  if (nextBotAI || autoPlay || (localTestMode && (localTestCpu[0] || localTestCpu[1]))) {
     steerBattleShieldAI(battle);
   } else if (multiplayerActive && battle.playerId && battle.playerId !== multiplayerPlayerId && !localTestMode) {
     const participant = multiplayerPlayers.find(function (player) { return player.id === battle.playerId; });
@@ -518,6 +518,7 @@ function steerBattleShieldAI(battle) {
   if (discriminant < 0) return;
 
   const impactTime = (-b + Math.sqrt(discriminant)) / (2 * velocitySquared);
+  if (impactTime < 0) return;
   const impactX = relativeX + relativeVX * impactTime;
   const impactY = relativeY + relativeVY * impactTime;
   const impactAngle = Math.atan2(impactY, impactX);

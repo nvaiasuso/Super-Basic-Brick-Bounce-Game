@@ -94,6 +94,9 @@ function createRealtimeLobbySocket(initialAction) {
   let hostPlayerId = isHost ? playerId : null;
   let channel;
   let closed = false;
+  let realtimeSubscribed = false;
+  let joiningHost = false;
+  let joinPresenceTimeout = null;
 
   const socket = {
     readyState: WebSocket.CONNECTING,
@@ -152,6 +155,7 @@ function createRealtimeLobbySocket(initialAction) {
     close: function () {
       if (closed) return;
       closed = true;
+      if (joinPresenceTimeout !== null) window.clearTimeout(joinPresenceTimeout);
       socket.readyState = WebSocket.CLOSED;
       if (channel) channel.unsubscribe();
       socket.dispatch("close");
@@ -377,6 +381,30 @@ function createRealtimeLobbySocket(initialAction) {
     }
   }
 
+  function connectToPresentHost() {
+    if (closed || isHost || !realtimeSubscribed || joiningHost || socket.readyState === WebSocket.OPEN) return;
+    const hostPresence = Object.values(channel.presenceState()).flat().find(function (presence) {
+      return presence.host && typeof presence.id === "string";
+    });
+    if (!hostPresence) return;
+
+    joiningHost = true;
+    hostPlayerId = hostPresence.id;
+    if (joinPresenceTimeout !== null) {
+      window.clearTimeout(joinPresenceTimeout);
+      joinPresenceTimeout = null;
+    }
+    Promise.resolve(channel.track({ id: playerId, name: cleanLobbyName(initialAction.name), host: false }))
+      .then(function () {
+        if (closed) return;
+        socket.readyState = WebSocket.OPEN;
+        socket.dispatch("open");
+      })
+      .catch(function () {
+        fail();
+      });
+  }
+
   channel = client.channel("block-breaker-lobby-" + lobbyCode, {
     config: { broadcast: { self: false }, presence: { key: playerId } }
   });
@@ -397,8 +425,11 @@ function createRealtimeLobbySocket(initialAction) {
       window.setTimeout(function () { socket.close(); }, 150);
     }
   });
+  channel.on("presence", { event: "sync" }, connectToPresentHost);
+  channel.on("presence", { event: "join" }, connectToPresentHost);
   channel.subscribe(async function (status) {
     if (status === "SUBSCRIBED") {
+      realtimeSubscribed = true;
       if (isHost) {
         const occupied = Object.values(channel.presenceState()).some(function (members) { return members.length > 0; });
         if (occupied) {
@@ -408,15 +439,16 @@ function createRealtimeLobbySocket(initialAction) {
         }
         await channel.track({ id: playerId, name: cleanLobbyName(initialAction.name), host: true });
       } else {
-        const hostPresence = Object.values(channel.presenceState()).flat().find(function (presence) { return presence.host; });
-        if (!hostPresence) {
-          emitMessage({ type: "error", message: "That lobby code was not found. The host may be offline." });
-          socket.close();
-          return;
+        connectToPresentHost();
+        if (!joiningHost) {
+          joinPresenceTimeout = window.setTimeout(function () {
+            if (joiningHost || closed) return;
+            emitMessage({ type: "error", message: "That lobby code was not found. Make sure the host is online and try again." });
+            socket.close();
+          }, 2500);
         }
-        hostPlayerId = hostPresence.id;
-        await channel.track({ id: playerId, name: cleanLobbyName(initialAction.name), host: false });
       }
+      if (!isHost) return;
       socket.readyState = WebSocket.OPEN;
       socket.dispatch("open");
     } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {

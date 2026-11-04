@@ -381,15 +381,15 @@ function makeBricks(level) {
       minionInterval: 165,
       minionLimit: 0,
       minionTimer: 120,
-      hp: 360,
-      maxHp: 360,
+      hp: 120,
+      maxHp: 120,
       color: "#60704f",
       isKill: false
     }];
   }
   if (BOSS_LEVELS.includes(level)) {
     const variant = BOSS_VARIANTS[BOSS_LEVELS.indexOf(level)];
-    const bossHealth = 40 + Math.max(0, level - 9) * 5;
+    const bossHealth = 24 + Math.floor(Math.max(0, level - 9) * 2);
     const bossWidth = 320;
     const bossHeight = 140;
     return [{
