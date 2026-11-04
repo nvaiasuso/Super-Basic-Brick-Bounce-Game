@@ -18,10 +18,13 @@ const BOSS_VARIANTS = [
   { name: "AURORA WRAITH", palette: ["#a5f3fc", "#6366f1", "#312e81"], damagedPalette: ["#fef08a", "#ec4899", "#500724"], glow: "#67e8f9", eyes: "#f8fafc", damagedEyes: "#fef08a", minionInterval: 145, minionLimit: 3 },
   { name: "MACHINE HEART", palette: ["#a3e635", "#15803d", "#052e16"], damagedPalette: ["#fde047", "#ea580c", "#431407"], glow: "#84cc16", eyes: "#bae6fd", damagedEyes: "#fff176", minionInterval: 135, minionLimit: 3 },
   { name: "STAR FORGE", palette: ["#f0abfc", "#7c3aed", "#2e1065"], damagedPalette: ["#fde68a", "#f43f5e", "#7f1d1d"], glow: "#c084fc", eyes: "#67e8f9", damagedEyes: "#fff176", minionInterval: 125, minionLimit: 4 },
-  { name: "DEEP CURRENT", palette: ["#5eead4", "#0369a1", "#082f49"], damagedPalette: ["#fb7185", "#c026d3", "#4a044e"], glow: "#2dd4bf", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 115, minionLimit: 4 }
+  { name: "DEEP CURRENT", palette: ["#5eead4", "#0369a1", "#082f49"], damagedPalette: ["#fb7185", "#c026d3", "#4a044e"], glow: "#2dd4bf", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 115, minionLimit: 4 },
+  { name: "BINARY REGENT", palette: ["#67e8f9", "#155e75", "#082f49"], damagedPalette: ["#facc15", "#b91c1c", "#450a0a"], glow: "#22d3ee", eyes: "#a7f3d0", damagedEyes: "#fff176", minionInterval: 108, minionLimit: 5 },
+  { name: "CROWN OF ASH", palette: ["#fda4af", "#9f1239", "#4c0519"], damagedPalette: ["#fde68a", "#ea580c", "#431407"], glow: "#fb7185", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 98, minionLimit: 5 },
+  { name: "ORBITAL MAW", palette: ["#c4b5fd", "#4338ca", "#1e1b4b"], damagedPalette: ["#5eead4", "#be123c", "#500724"], glow: "#818cf8", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 90, minionLimit: 6 }
 ];
 const FINAL_BOSS_PHASES = ["INCUBATION / CONSUMPTION", "TENTACLED TITAN / EVOLUTION", "SPLIT / INCURABLE PLAGUE"];
-const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, LEVEL_COUNT - 1];
+const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];
 
 function finalBossPhaseForHealth(boss) {
   const healthRatio = boss.hp / boss.maxHp;
@@ -340,7 +343,7 @@ for (let level = LEVEL_LAYOUTS.length; level < LEVEL_COUNT; level++) {
     let line = "";
     for (let col = 0; col < BRICK_COLUMNS; col++) {
       const pattern = (row * 13 + col * 7 + level * 5) % 12;
-      line += pattern < 2 ? "." : pattern === 2 || pattern === 8 ? "X" : pattern === 10 ? "H" : "#";
+      line += pattern < 2 ? "." : pattern === 2 ? "H" : pattern === 8 ? "P" : pattern === 10 ? "C" : "#";
     }
     layout.push(line);
   }
@@ -419,23 +422,35 @@ function makeBricks(level) {
 
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
-      const type = layout[row][col];
-      if (type !== ".") {
+      const marker = layout[row][col];
+      if (marker !== ".") {
+        const type = marker === "H" ? "sweeper" : marker === "P" ? "prism" : marker === "C" ? "crystal" : marker === "R" ? "command" : "normal";
         const brick = {
           x: left + col * (BRICK_WIDTH + BRICK_GAP),
           y: BRICKS_TOP + row * (BRICK_HEIGHT + BRICK_GAP),
           width: BRICK_WIDTH,
           height: BRICK_HEIGHT,
-          isKill: type === "X" || type === "H",
-          type: type === "H" ? "sweeper" : type === "X" ? "kill" : "normal",
-          color: type === "X" || type === "H" ? "#ffffff" : BRICK_ROW_COLORS[row % BRICK_ROW_COLORS.length]
+          isKill: false,
+          type: type,
+          color: type === "sweeper" ? "#ff4f6d" : type === "prism" ? "#a78bfa" : type === "crystal" ? "#7dd3fc" : type === "command" ? "#50664c" : BRICK_ROW_COLORS[row % BRICK_ROW_COLORS.length]
         };
         if (brick.type === "sweeper") {
           brick.originX = brick.x;
           brick.moveAmplitude = Math.min(70, 36 + level);
           brick.movePhase = (row + col) * 0.8;
         }
-        if (!brick.isKill && level >= 2) {
+        if (type === "prism") {
+          brick.hp = 3;
+          brick.maxHp = 3;
+          brick.spin = (row + col) % 2 === 0 ? 1 : -1;
+        } else if (type === "crystal") {
+          brick.hp = 2;
+          brick.maxHp = 2;
+        } else if (type === "command") {
+          brick.hp = 4;
+          brick.maxHp = 4;
+        }
+        if (type === "normal" && level >= 2) {
           const variant = (row * 7 + col * 11 + level * 3) % 17;
           if (variant < 2) {
             brick.type = "armored";
@@ -454,6 +469,17 @@ function makeBricks(level) {
           } else if (variant < 8) {
             brick.type = "regenerating";
             brick.color = "#a986ef";
+          } else if (variant < 11) {
+            brick.type = "prism";
+            brick.hp = 3;
+            brick.maxHp = 3;
+            brick.spin = (row + col) % 2 === 0 ? 1 : -1;
+            brick.color = "#a78bfa";
+          } else if (variant < 14) {
+            brick.type = "crystal";
+            brick.hp = 2;
+            brick.maxHp = 2;
+            brick.color = "#7dd3fc";
           }
         }
         list.push(brick);
@@ -501,6 +527,32 @@ function drawBricks() {
       ctx.textAlign = "center";
       ctx.font = "bold 9px Courier New";
       ctx.fillText("CMD " + brick.hp, brick.x + brick.width / 2, brick.y + brick.height / 2 + 3);
+    } else if (brick.type === "prism") {
+      ctx.fillStyle = "#f5f3ff";
+      ctx.beginPath();
+      ctx.moveTo(brick.x + brick.width / 2, brick.y + 3);
+      ctx.lineTo(brick.x + brick.width - 6, brick.y + brick.height / 2);
+      ctx.lineTo(brick.x + brick.width / 2, brick.y + brick.height - 3);
+      ctx.lineTo(brick.x + 6, brick.y + brick.height / 2);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "bold 9px Courier New";
+      ctx.fillText(String(brick.hp), brick.x + brick.width / 2, brick.y + brick.height / 2 + 3);
+    } else if (brick.type === "crystal") {
+      ctx.strokeStyle = "#e0f2fe";
+      ctx.beginPath();
+      ctx.moveTo(brick.x + brick.width / 2, brick.y + 3);
+      ctx.lineTo(brick.x + brick.width - 9, brick.y + brick.height / 2);
+      ctx.lineTo(brick.x + brick.width / 2, brick.y + brick.height - 3);
+      ctx.lineTo(brick.x + 9, brick.y + brick.height / 2);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "bold 9px Courier New";
+      ctx.fillText(String(brick.hp), brick.x + brick.width / 2, brick.y + brick.height / 2 + 3);
     } else if (brick.type === "explosive") {
       ctx.fillStyle = "#1b1010";
       ctx.textAlign = "center";

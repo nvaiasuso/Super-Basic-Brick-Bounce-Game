@@ -313,6 +313,12 @@ function createRealtimeLobbySocket(initialAction) {
       return;
     }
 
+    if (message.type === "reset-level") {
+      if (!roomStarted) return;
+      sendServerMessage({ type: "reset-level" }, hostPlayerId);
+      return;
+    }
+
     if (message.type === "admin-command") {
       if (!roomStarted || !roomAdminIds.includes(senderId)) return sendError("You do not have admin access in this game.", senderId);
       if (!message.command || typeof message.command !== "object" || Array.isArray(message.command)) return;
@@ -505,6 +511,12 @@ window.sendLobbyAdminCommand = function (command) {
   return true;
 };
 
+window.requestLobbyReset = function () {
+  if (!lobbyStarted || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return false;
+  lobbySocket.send(JSON.stringify({ type: "reset-level" }));
+  return true;
+};
+
 function renderLobbyPlayers() {
   lobbyPlayerList.replaceChildren();
   for (const player of lobbyPlayers) {
@@ -656,6 +668,10 @@ function handleLobbyMessage(message) {
     if (lobbyHost && typeof window.runRemoteAdminCommand === "function") {
       window.runRemoteAdminCommand(message.adminId, message.command);
     }
+    return;
+  }
+  if (message.type === "reset-level") {
+    if (lobbyHost && typeof window.resetCurrentLevel === "function") window.resetCurrentLevel();
     return;
   }
   if (message.type === "snapshot") {

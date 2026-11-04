@@ -180,7 +180,6 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
         });
       }
     }
-    if (brick.hp > 0 && (brick.hp % 3 === 0 || (brick.isFinalBoss && brick.phase === 3 && brick.hp % 2 === 0))) dropBossKillbrick(brick);
     if (brick.hp > 0) return;
     dropPowerUp(brick);
   }
@@ -254,7 +253,20 @@ function bounceOffBricks(activeBall) {
       }
     }
 
-    if ((brick.type === "armored" || brick.type === "command") && brick.hp > 1) {
+    if (brick.type === "prism") {
+      const speed = Math.hypot(activeBall.vx, activeBall.vy);
+      const angle = (brick.spin || 1) * 0.12;
+      const cosine = Math.cos(angle);
+      const sine = Math.sin(angle);
+      const vx = activeBall.vx;
+      activeBall.vx = (vx * cosine - activeBall.vy * sine) * speed / Math.hypot(vx, activeBall.vy);
+      activeBall.vy = (vx * sine + activeBall.vy * cosine) * speed / Math.hypot(vx, activeBall.vy);
+      brick.hp--;
+      if (brick.hp > 0) brick.damaged = true;
+      else breakBrickAt(i, activeBall);
+      break;
+    }
+    if ((brick.type === "armored" || brick.type === "command" || brick.type === "crystal") && brick.hp > 1) {
       brick.hp--;
       brick.damaged = true;
       break;
@@ -331,7 +343,7 @@ function projectToPaddle(source, sourceBricks, targetPaddleY = paddle.y, options
         projectedBall.vy = -projectedBall.vy;
         projectedBall.y = projectedBall.y < brick.y ? brick.y - projectedBall.height : brick.y + brick.height;
       }
-      if ((brick.type === "boss" || brick.type === "armored" || brick.type === "command") && (brick.hp || 1) > 1) {
+      if ((brick.type === "boss" || brick.type === "armored" || brick.type === "command" || brick.type === "crystal" || brick.type === "prism") && (brick.hp || 1) > 1) {
         brick.hp--;
       } else {
         projectedBricks.splice(i, 1);

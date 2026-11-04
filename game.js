@@ -25,7 +25,7 @@ const HEIGHT = canvas.height;
 const BALL_SPEED = 5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
-const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 120, powerUps: 24, lasers: 24, aiPaddles: 8 };
+const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
   { label: "Normal", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
@@ -51,7 +51,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 70;
+const LEVEL_COUNT = 90;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -64,6 +64,8 @@ let powerUpDropsEnabled = true;
 let laserDamageEnabled = true;
 let bossMinionsEnabled = true;
 let adminNextBotSpeedMultiplier = 1;
+let bossHealthBoost = 1;
+let adminBossMinionLimit = 8;
 const MULTIBALL_HIT_STREAK = 5;
 const SHIELD_DURATION_FRAMES = 300;
 const FREEZE_DURATION_FRAMES = 180;
@@ -521,6 +523,7 @@ let bricks = [];
 // ------------------------------------------------------------
 const keys = {};
 let autoPlay = false;
+let lastShiftResetTime = 0;
 let paused = false;
 let rebindingControl = null;
 let autoAimAngle = 0;
@@ -2401,6 +2404,24 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
+  if (gameStarted && event.shiftKey && key === "r") {
+    event.preventDefault();
+    if (event.repeat) return;
+    const now = performance.now();
+    if (now - lastShiftResetTime <= 1100) {
+      lastShiftResetTime = 0;
+      if (multiplayerActive && !multiplayerHost && typeof window.requestLobbyReset === "function") {
+        window.requestLobbyReset();
+      } else {
+        resetCurrentLevel();
+      }
+    } else {
+      lastShiftResetTime = now;
+      levelNotice = { text: "PRESS SHIFT+R AGAIN TO RESET THIS LEVEL", timer: 90 };
+    }
+    return;
+  }
+
   if (customKeybinds["toggle-fullscreen"] && key === customKeybinds["toggle-fullscreen"] && Boolean(event.shiftKey) === Boolean(customKeybindShift["toggle-fullscreen"])) {
     event.preventDefault();
     toggleFullscreen();
@@ -2954,7 +2975,7 @@ function moveBall(activeBall) {
     ballTrail.push({ x: activeBall.x + activeBall.width / 2, y: activeBall.y + activeBall.height / 2 });
     if (ballTrail.length > 8) ballTrail.shift();
   }
-  const attackScale = activeBall === ball
+  const attackScale = activeBall === ball && !multiplayerActive
     ? isNextBotBattleActive() ? 0.45 : (isNextBotAttackActive() ? 0.68 : 1)
     : 1;
   const powerUpScale = slowBallTimer > 0 ? 0.7 : 1;
@@ -3912,6 +3933,36 @@ function restartGame() {
   selectNextBots();
   startLevel(level);
 }
+
+function resetCurrentLevel() {
+  if (!gameStarted) return;
+  const currentLevel = level;
+  gameOver = false;
+  gameWon = false;
+  lives = Math.max(1, lives);
+  extraBalls = [];
+  powerUps = [];
+  enemyShots = [];
+  adminMissile = null;
+  adminMissileArmed = false;
+  widePaddleTimer = 0;
+  slowBallTimer = 0;
+  fastBallTimer = 0;
+  piercingTimer = 0;
+  shieldCharges = 0;
+  shieldTimer = 0;
+  magnetTimer = 0;
+  magnetPlayerId = null;
+  powerUpNotice = null;
+  brickHitStreak = 0;
+  autoPlanCooldown = 0;
+  paddle.angle = 0;
+  selectNextBots();
+  setPaused(false);
+  startLevel(currentLevel);
+}
+
+window.resetCurrentLevel = resetCurrentLevel;
 
 window.addEventListener("load", function () {
   mobileControlsEnabled = readMobileSetting();

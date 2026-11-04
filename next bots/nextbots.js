@@ -50,14 +50,20 @@ const NEXTBOT_ROSTER = [
   { name: "MONSOON", color: "#0e7490", accent: "#a5f3fc", speed: 1.52, telegraphFrames: 40 },
   { name: "PHANTOM ARRAY", color: "#334155", accent: "#e879f9", speed: 1.66, telegraphFrames: 26 },
   { name: "SUNSPOT", color: "#ea580c", accent: "#fde047", speed: 1.34, telegraphFrames: 54 },
-  { name: "DEADBOLT", color: "#374151", accent: "#f87171", speed: 0.96, telegraphFrames: 78 }
+  { name: "DEADBOLT", color: "#374151", accent: "#f87171", speed: 0.96, telegraphFrames: 78 },
+  { name: "MIMIC", color: "#ec4899", accent: "#fef08a", speed: 1.72, telegraphFrames: 32 },
+  { name: "TREMOR", color: "#78716c", accent: "#fbbf24", speed: 1.02, telegraphFrames: 92 },
+  { name: "BLOOM", color: "#16a34a", accent: "#f0abfc", speed: 1.38, telegraphFrames: 58 },
+  { name: "SINGULARITY", color: "#312e81", accent: "#67e8f9", speed: 1.58, telegraphFrames: 36 },
+  { name: "RICOCHET", color: "#f97316", accent: "#bfdbfe", speed: 1.88, telegraphFrames: 24 },
+  { name: "FIREWALL", color: "#b91c1c", accent: "#fdba74", speed: 1.24, telegraphFrames: 70 }
 
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
-let maxActiveNextBots = 64;
+let maxActiveNextBots = 128;
 const BATTLE_DURATION = 300;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
@@ -227,10 +233,31 @@ function setNextBotAttacksPaused(paused) {
   }
 }
 
-function getNextBotAimTarget() {
-  return nextBotAimAtBall && !ball.stuck
-    ? { x: ball.x + ball.width / 2, y: ball.y + ball.height / 2 }
-    : { x: paddle.x + paddle.width / 2, y: paddle.y + paddle.height / 2 };
+function getNextBotPlayerTargets() {
+  const targets = [];
+  const localIsAdmin = adminBattleMode && multiplayerAdminIds.includes(multiplayerPlayerId);
+  if (!localIsAdmin) targets.push({ id: multiplayerPlayerId, paddle: paddle });
+  if (multiplayerActive) {
+    for (const player of multiplayerPlayers) {
+      if (player.ai || player.id === multiplayerPlayerId || (adminBattleMode && multiplayerAdminIds.includes(player.id))) continue;
+      targets.push({ id: player.id, paddle: player });
+    }
+  }
+  return targets;
+}
+
+function getNextBotAimTarget(bot) {
+  if (nextBotAimAtBall && !ball.stuck) {
+    return { x: ball.x + ball.width / 2, y: ball.y + ball.height / 2 };
+  }
+  const targets = getNextBotPlayerTargets();
+  const nearest = targets.reduce(function (closest, target) {
+    if (!closest) return target;
+    return Math.hypot(target.paddle.x - bot.x, target.paddle.y - bot.y) <
+      Math.hypot(closest.paddle.x - bot.x, closest.paddle.y - bot.y) ? target : closest;
+  }, null);
+  const targetPaddle = nearest ? nearest.paddle : paddle;
+  return { x: targetPaddle.x + targetPaddle.width / 2, y: targetPaddle.y + targetPaddle.height / 2 };
 }
 
 function setNextBotAI(enabled) {
@@ -256,7 +283,7 @@ function updateNextBots() {
     }
 
     if (bot.mode === "walk") {
-      const aimTarget = getNextBotAimTarget();
+      const aimTarget = getNextBotAimTarget(bot);
       const dx = bot.targetX - bot.x;
       const dy = bot.targetY - bot.y;
       const distance = Math.hypot(dx, dy);
@@ -292,8 +319,11 @@ function updateNextBots() {
     bot.x += bot.dashVX;
     bot.y += bot.dashVY;
     bot.phaseTimer--;
-    if (segmentHitsPaddle(previousX, previousY, bot.x, bot.y)) {
-      beginNextBotBattle(bot);
+    const hitTarget = getNextBotPlayerTargets().find(function (target) {
+      return segmentHitsPaddle(previousX, previousY, bot.x, bot.y, target.paddle);
+    });
+    if (hitTarget) {
+      beginNextBotBattle(bot, hitTarget.id);
       return;
     }
     if (bot.phaseTimer <= 0 || bot.x < -30 || bot.x > WIDTH + 30 || bot.y < -30 || bot.y > HEIGHT + 30) {
@@ -333,7 +363,7 @@ function updateNextBots() {
 }
 
 function startNextBotAttack(bot) {
-  const aimTarget = getNextBotAimTarget();
+  const aimTarget = getNextBotAimTarget(bot);
   bot.angle = Math.atan2(aimTarget.y - bot.y, aimTarget.x - bot.x);
   bot.mode = "telegraph";
   bot.phaseTimer = bot.telegraphFrames || NEXTBOT_TELEGRAPH_FRAMES;
@@ -354,13 +384,13 @@ function triggerNextBotAttack() {
 
 if (typeof populateAdminNextBotSelect === "function") populateAdminNextBotSelect();
 
-function segmentHitsPaddle(startX, startY, endX, endY) {
+function segmentHitsPaddle(startX, startY, endX, endY, targetPaddle = paddle) {
   if (shieldTimer > 0) return false;
   const padding = 15;
-  const left = paddle.x - padding;
-  const right = paddle.x + paddle.width + padding;
-  const top = paddle.y - padding;
-  const bottom = paddle.y + paddle.height + padding;
+  const left = targetPaddle.x - padding;
+  const right = targetPaddle.x + targetPaddle.width + padding;
+  const top = targetPaddle.y - padding;
+  const bottom = targetPaddle.y + targetPaddle.height + padding;
   let minTime = 0;
   let maxTime = 1;
 
@@ -381,7 +411,7 @@ function segmentHitsPaddle(startX, startY, endX, endY) {
   return true;
 }
 
-function beginNextBotBattle(bot) {
+function beginNextBotBattle(bot, playerId = null) {
   if (nextBotBattle) return;
   const centerX = WIDTH / 2;
   const centerY = HEIGHT / 2;
@@ -390,7 +420,7 @@ function beginNextBotBattle(bot) {
   const ballAngle = shieldAngle;
   nextBotBattle = {
     bot: bot,
-    playerId: multiplayerActive ? multiplayerPlayerId : null,
+    playerId: multiplayerActive ? playerId : null,
     time: 0,
     centerX: centerX,
     centerY: centerY,
@@ -410,18 +440,17 @@ function updateNextBotBattle() {
   battle.time++;
   battle.radius = BATTLE_START_RADIUS - Math.min(1, battle.time / BATTLE_DURATION) * (BATTLE_START_RADIUS - BATTLE_END_RADIUS);
 
-  if (nextBotAI || autoPlay) {
+  if (nextBotAI) {
     steerBattleShieldAI(battle);
+  } else if (multiplayerActive && battle.playerId && battle.playerId !== multiplayerPlayerId && !localTestMode) {
+    const participant = multiplayerPlayers.find(function (player) { return player.id === battle.playerId; });
+    if (participant && participant.left) battle.shieldAngle -= 0.14;
+    if (participant && participant.right) battle.shieldAngle += 0.14;
   } else {
-    if (keys[CONTROL_KEYS.left]) battle.shieldAngle -= 0.14;
-    if (keys[CONTROL_KEYS.right]) battle.shieldAngle += 0.14;
-    if (multiplayerHost) {
-      if (aiPaddles.some(function (bot) { return bot.lobbyAI; })) {
-        const targetAngle = Math.atan2(battle.ballY - battle.centerY, battle.ballX - battle.centerX);
-        const difference = Math.atan2(Math.sin(targetAngle - battle.shieldAngle), Math.cos(targetAngle - battle.shieldAngle));
-        battle.shieldAngle += Math.max(-0.025, Math.min(0.025, difference));
-      }
-    }
+    const leftPressed = localTestMode && battle.playerId === "local-test-player-2" ? keys.a : keys[CONTROL_KEYS.left];
+    const rightPressed = localTestMode && battle.playerId === "local-test-player-2" ? keys.d : keys[CONTROL_KEYS.right];
+    if (leftPressed) battle.shieldAngle -= 0.14;
+    if (rightPressed) battle.shieldAngle += 0.14;
   }
 
   battle.centerX += battle.centerVX;
@@ -494,12 +523,14 @@ function steerBattleShieldAI(battle) {
 }
 
 function finishNextBotBattle(won) {
-  const defeatedBot = nextBotBattle.bot;
+  const battle = nextBotBattle;
+  const defeatedBot = battle.bot;
   nextBotBattle = null;
   nextBotCooldown = 360;
   nextBotBanner = {
     text: won ? defeatedBot.name + " REPELLED - EXTRA BALL" : (invincible ? "CAUGHT! INVINCIBILITY SAVED YOU" : "CAUGHT! LIFE LOST"),
-    timer: 110
+    timer: 110,
+    playerId: battle.playerId
   };
   for (const bot of nextBots) {
     if (!(bot.frozenTimer > 0) && (bot.mode === "telegraph" || bot.mode === "dash")) {
@@ -583,8 +614,10 @@ function drawNextBots() {
     ctx.fillText("NEXTBOT ATTACK QUEUED: " + queuedCount, WIDTH / 2, 46);
   }
 
-  if (nextBotBattle) drawNextBotBattle();
-  if (nextBotBanner) {
+  const showBattle = nextBotBattle && (!multiplayerActive || nextBotBattle.playerId === multiplayerPlayerId);
+  const showBanner = nextBotBanner && (!multiplayerActive || !nextBotBanner.playerId || nextBotBanner.playerId === multiplayerPlayerId);
+  if (showBattle) drawNextBotBattle();
+  if (showBanner) {
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.font = "14px Courier New";

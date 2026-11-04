@@ -317,6 +317,13 @@ function handleMessage(socket, message) {
     return;
   }
 
+  if (message.type === "reset-level") {
+    if (!room.started) return;
+    const host = Array.from(room.players.values()).find(function (member) { return member.host; });
+    if (host) send(host.socket, { type: "reset-level" });
+    return;
+  }
+
   if (message.type === "admin-command") {
     if (!room.started || !room.adminIds.includes(player.id)) return sendError(socket, "You do not have admin access in this game.");
     if (!message.command || typeof message.command !== "object" || Array.isArray(message.command)) return;
