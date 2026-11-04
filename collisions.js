@@ -166,7 +166,7 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
         brick.phase = nextPhase;
         brick.phaseTimer = nextPhase === 2 ? 150 : 90;
         const phaseText = FINAL_BOSS_PHASES[nextPhase - 1];
-        levelNotice = { text: "COMMAND WRAITH // " + phaseText, timer: 150 };
+        levelNotice = { text: "WITHER STORM // " + phaseText, timer: 150 };
         screenShakeFrames = 18;
         powerUps.push({
           x: Math.max(0, Math.min(WIDTH - 22, brick.x + brick.width / 2 - 11)),

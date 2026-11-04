@@ -23,7 +23,7 @@ const BOSS_VARIANTS = [
   { name: "CROWN OF ASH", palette: ["#fda4af", "#9f1239", "#4c0519"], damagedPalette: ["#fde68a", "#ea580c", "#431407"], glow: "#fb7185", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 98, minionLimit: 5 },
   { name: "ORBITAL MAW", palette: ["#c4b5fd", "#4338ca", "#1e1b4b"], damagedPalette: ["#5eead4", "#be123c", "#500724"], glow: "#818cf8", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 90, minionLimit: 6 }
 ];
-const FINAL_BOSS_PHASES = ["INCUBATION / CONSUMPTION", "TENTACLED TITAN / EVOLUTION", "SPLIT / INCURABLE PLAGUE"];
+const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
 const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];
 
 function finalBossPhaseForHealth(boss) {
@@ -356,33 +356,34 @@ const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff",
 function makeBricks(level) {
   const list = [];
   if (level === LEVEL_COUNT - 1) {
-    const bossWidth = 520;
-    const bossHeight = 210;
+    const bossWidth = 430;
+    const bossHeight = 220;
     return [{
       x: (WIDTH - bossWidth) / 2,
-      y: 62,
+      y: 54,
       originX: (WIDTH - bossWidth) / 2,
-      originY: 62,
-      moveAmplitude: 48,
+      originY: 54,
+      moveAmplitude: 32,
       movePhase: 0.8,
       width: bossWidth,
       height: bossHeight,
       type: "boss",
-      bossName: "COMMAND WRAITH",
+      bossName: "WITHER STORM",
       isFinalBoss: true,
+      isWitherStorm: true,
       phase: 1,
       phaseTimer: 180,
-      palette: ["#859c79", "#405346", "#17231d"],
-      damagedPalette: ["#e3bc45", "#a54639", "#3d1724"],
-      glow: "#87efb2",
-      eyes: "#afffd4",
-      damagedEyes: "#ffe36b",
+      palette: ["#66715f", "#343b31", "#10120f"],
+      damagedPalette: ["#f3a712", "#b92438", "#260b16"],
+      glow: "#9bbf75",
+      eyes: "#ff3b32",
+      damagedEyes: "#fff176",
       minionInterval: 165,
-      minionLimit: 5,
+      minionLimit: 0,
       minionTimer: 120,
-      hp: 260,
-      maxHp: 260,
-      color: "#526e58",
+      hp: 360,
+      maxHp: 360,
+      color: "#60704f",
       isKill: false
     }];
   }
@@ -572,7 +573,7 @@ function drawBricks() {
 
   function drawBoss(boss) {
     if (boss.isFinalBoss) {
-      drawCommandWraith(boss);
+      drawWitherStorm(boss);
       return;
     }
     const phase = boss.hp <= boss.maxHp / 2;
@@ -675,13 +676,13 @@ function drawBricks() {
     ctx.restore();
   }
 
-  function drawCommandWraith(boss) {
+  function drawWitherStorm(boss) {
     const centerX = boss.x + boss.width / 2;
     const bob = Math.sin(simulationFrame * 0.045) * 4;
     const top = boss.y + bob;
     const stage = boss.phase || finalBossPhaseForHealth(boss);
     const colors = stage === 1 ? boss.palette : boss.damagedPalette;
-    const tentacleCount = stage === 1 ? 4 : stage === 2 ? 7 : 9;
+    const tentacleCount = stage === 1 ? 6 : stage === 2 ? 9 : 12;
     const pulse = Math.sin(simulationFrame * 0.12);
 
     ctx.save();
@@ -696,54 +697,65 @@ function drawBricks() {
     ctx.shadowColor = stage === 3 ? "#ff475f" : boss.glow;
     ctx.shadowBlur = stage === 3 ? 38 : 24;
     ctx.strokeStyle = colors[1];
-    ctx.lineWidth = 12;
+    ctx.lineWidth = boss.adminAssimilated ? 16 : 12;
     for (let index = 0; index < tentacleCount; index++) {
-      const startX = boss.x + 62 + index * ((boss.width - 124) / Math.max(1, tentacleCount - 1));
-      const sway = Math.sin(simulationFrame * 0.06 + index * 1.4) * (18 + stage * 7);
+      const startX = boss.x + 44 + index * ((boss.width - 88) / Math.max(1, tentacleCount - 1));
+      const sway = Math.sin(simulationFrame * 0.06 + index * 1.4) * (22 + stage * 9);
       ctx.beginPath();
-      ctx.moveTo(startX, top + 119);
-      ctx.bezierCurveTo(startX + sway, top + 150, startX - sway, top + 164, startX + sway * 0.7, top + 193);
+      ctx.moveTo(startX, top + 140);
+      ctx.bezierCurveTo(startX + sway, top + 174, startX - sway, top + 202, startX + sway * 0.7, top + 228);
       ctx.stroke();
       ctx.strokeStyle = colors[0];
       ctx.lineWidth = 3;
       ctx.stroke();
       ctx.strokeStyle = colors[1];
-      ctx.lineWidth = 12;
+      ctx.lineWidth = boss.adminAssimilated ? 16 : 12;
     }
 
+    ctx.fillStyle = colors[2];
+    ctx.strokeStyle = stage === 3 ? "#ff7b78" : boss.glow;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(centerX, top + 120, boss.width * 0.34, 86 + Math.max(0, pulse) * 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
     for (let head = 0; head < 3; head++) {
-      const headX = centerX + (head - 1) * 112;
-      const headY = top + (head === 1 ? 8 : 24);
+      const headX = centerX + (head - 1) * Math.min(150, boss.width * 0.24);
+      const headY = top + (head === 1 ? 12 : 36);
       ctx.fillStyle = colors[1];
       ctx.strokeStyle = stage === 3 ? "#ff7b78" : boss.eyes;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(headX - 40, headY + 27);
-      ctx.lineTo(headX - 35, headY - 5);
-      ctx.lineTo(headX - 18, headY - 22);
-      ctx.lineTo(headX, headY - 12);
-      ctx.lineTo(headX + 18, headY - 22);
-      ctx.lineTo(headX + 35, headY - 5);
-      ctx.lineTo(headX + 40, headY + 27);
-      ctx.lineTo(headX + 20, headY + 43);
-      ctx.lineTo(headX, headY + 32 + pulse * 3);
-      ctx.lineTo(headX - 20, headY + 43);
+      ctx.moveTo(headX - 48, headY + 34);
+      ctx.lineTo(headX - 40, headY - 8);
+      ctx.lineTo(headX - 22, headY - 30);
+      ctx.lineTo(headX, headY - 16);
+      ctx.lineTo(headX + 22, headY - 30);
+      ctx.lineTo(headX + 40, headY - 8);
+      ctx.lineTo(headX + 48, headY + 34);
+      ctx.lineTo(headX + 24, headY + 55);
+      ctx.lineTo(headX, headY + 42 + pulse * 4);
+      ctx.lineTo(headX - 24, headY + 55);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = stage === 3 ? "#ffef9c" : boss.eyes;
-      ctx.fillRect(headX - 22, headY + 8, 10, 5);
-      ctx.fillRect(headX + 12, headY + 8, 10, 5);
+      ctx.shadowColor = boss.eyes;
+      ctx.shadowBlur = 12;
+      ctx.fillRect(headX - 26, headY + 10, 12, 6);
+      ctx.fillRect(headX + 14, headY + 10, 12, 6);
+      ctx.shadowBlur = 0;
     }
 
-    const coreSize = 82 + Math.max(0, pulse) * 8;
+    const coreSize = (boss.adminAssimilated ? 130 : 88) + Math.max(0, pulse) * 10;
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#111b17";
+    ctx.fillStyle = boss.adminAssimilated ? "#220914" : "#111b17";
     ctx.fillRect(centerX - coreSize / 2, top + 67, coreSize, coreSize);
-    ctx.strokeStyle = stage === 3 ? "#ff475f" : "#d8ff9b";
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = boss.adminAssimilated ? "#ff476f" : stage === 3 ? "#ff475f" : "#d8ff9b";
+    ctx.lineWidth = boss.adminAssimilated ? 7 : 4;
     ctx.strokeRect(centerX - coreSize / 2, top + 67, coreSize, coreSize);
-    ctx.strokeStyle = "rgba(216, 255, 155, 0.7)";
+    ctx.strokeStyle = boss.adminAssimilated ? "rgba(255, 71, 111, 0.8)" : "rgba(216, 255, 155, 0.7)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(centerX - 20, top + 78);
@@ -755,16 +767,33 @@ function drawBricks() {
     ctx.moveTo(centerX + 20, top + 78);
     ctx.lineTo(centerX + 20, top + 118);
     ctx.stroke();
-    ctx.fillStyle = "#e7ffad";
+    ctx.fillStyle = boss.adminAssimilated ? "#ffef9c" : "#e7ffad";
     ctx.textAlign = "center";
-    ctx.font = "bold 9px Courier New";
-    ctx.fillText("CMD", centerX, top + 100);
+    ctx.font = "bold 11px Courier New";
+    ctx.fillText(boss.adminAssimilated ? "ADMIN CORE" : "WITHER CORE", centerX, top + 100);
     ctx.font = "bold 10px Courier New";
-    ctx.fillText("CORE " + Math.ceil(boss.hp) + " / " + boss.maxHp, centerX, top + 114);
+    ctx.fillText("CORE " + Math.ceil(boss.hp) + " / " + boss.maxHp, centerX, top + 116);
+    if (boss.adminAssimilated && boss.adminPowers) {
+      ctx.font = "bold 8px Courier New";
+      ctx.fillText("TOGGLES " + boss.adminPowers.enabledToggleCount + "/" + boss.adminPowers.toggles.length + " // SPAWNS HIJACKED", centerX, top + 132);
+      ctx.fillText("ENEMY MULTIPLIER x" + boss.adminPowers.enemyMultiplier + " // NO NEXTBOTS", centerX, top + 144);
+    }
     ctx.font = "bold 12px Courier New";
     ctx.fillStyle = "#fff";
     ctx.font = "bold 14px Courier New";
-    ctx.fillText("COMMAND WRAITH // " + FINAL_BOSS_PHASES[stage - 1], centerX, top + boss.height - 8);
+    ctx.fillText(boss.adminAssimilated ? "WITHER STORM // ADMIN OVERRIDE" : "WITHER STORM // " + FINAL_BOSS_PHASES[stage - 1], centerX, top + boss.height - 8);
+
+    if (boss.adminAssimilated) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      for (let index = 0; index < 6; index++) {
+        const glitchY = top + 70 + index * 24;
+        const glitchX = Math.sin(simulationFrame * 0.7 + index * 2) * 34;
+        ctx.fillStyle = index % 2 === 0 ? "#ff355e" : "#77f7ff";
+        ctx.fillRect(boss.x + 24 + Math.abs(glitchX), glitchY, boss.width * 0.72, 2 + index % 3);
+      }
+      ctx.restore();
+    }
 
     const barWidth = boss.width * 0.7;
     const barX = centerX - barWidth / 2;

@@ -186,8 +186,12 @@ function setNextBotMultiplayerState(state) {
 }
 
 function setNextBotsForLevel(currentLevel) {
+  if (currentLevel === LEVEL_COUNT - 1) {
+    selectNextBots();
+    return;
+  }
   const modeMultiplier = typeof getCurrentMode === "function" ? getCurrentMode().nextbotMultiplier || 1 : 1;
-  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier);
+  const targetCount = Math.min(maxActiveNextBots, currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier));
   while (nextBots.length < targetCount) spawnNextBot();
   while (nextBots.length > targetCount) removeNextBot();
 }

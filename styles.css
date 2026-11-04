@@ -40,9 +40,22 @@ main {
 }
 
 .game-active main {
-  max-width: 840px;
-  padding: 16px;
+  width: 100%;
+  max-width: none;
+  padding: clamp(4px, 1vw, 12px);
   text-align: center;
+}
+
+.game-active canvas#game {
+  width: min(96vw, 1200px);
+  max-height: 76dvh;
+  margin-inline: auto;
+}
+
+.lobby-offline-note {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
 }
 
 canvas {
@@ -193,6 +206,53 @@ p {
 #admin-titlebar button {
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.admin-panel-echo {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--theme-accent, #d6ff55);
+  background: rgba(0, 0, 0, 0.96);
+  color: #fff;
+  box-shadow: 0 0 28px rgba(255, 71, 111, 0.75);
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: center;
+  animation: admin-panel-eaten 1.15s cubic-bezier(0.45, 0, 0.8, 0.35) forwards;
+}
+
+.admin-panel-echo-compact {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.admin-panel-echo-compact strong {
+  color: var(--theme-accent, #d6ff55);
+}
+
+.admin-panel-echo-compact p {
+  margin: 0;
+  font-size: 10px;
+}
+
+@keyframes admin-panel-eaten {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.02) rotate(-2deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--consume-x), var(--consume-y)) scale(0.04) rotate(22deg);
+  }
 }
 
 .missile-status {
@@ -873,6 +933,10 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   button {
     transition: none;
+  }
+
+  .admin-panel-echo {
+    animation-duration: 1ms;
   }
 }
 

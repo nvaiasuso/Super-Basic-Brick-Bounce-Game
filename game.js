@@ -440,6 +440,94 @@ function triggerBrickBreak(brick) {
   screenShakeFrames = bossHit ? 12 : 4;
 }
 
+function consumeAdminToolsWithWitherStorm(boss) {
+  if (boss.adminAssimilated) return;
+  boss.adminAssimilated = true;
+  const toggles = Array.from(adminMenu.querySelectorAll("button[aria-pressed], [data-view-toggle]"), function (button) {
+    return {
+      label: button.textContent.trim(),
+      enabled: button.getAttribute("aria-pressed") === "true"
+    };
+  });
+  boss.adminPowers = {
+    toggles: toggles,
+    enabledToggleCount: toggles.filter(function (toggle) { return toggle.enabled; }).length,
+    actions: Array.from(adminMenu.querySelectorAll("[data-admin]"), function (button) { return button.dataset.admin; }),
+    controls: Array.from(adminMenu.querySelectorAll("input, select"), function (control) {
+      return {
+        id: control.id,
+        value: control.value,
+        checked: control.type === "checkbox" ? control.checked : null
+      };
+    }),
+    ballSpeed: baseBallSpeed,
+    paddleSpeed: paddle.speed,
+    paddleWidth: paddle.width,
+    lives: lives,
+    simulationSpeed: simulationSpeed,
+    nextbotSpeed: adminNextBotSpeedMultiplier,
+    nextbotLimit: maxActiveNextBots,
+    bossHealthBoost: bossHealthBoost,
+    bossMinionLimit: adminBossMinionLimit,
+    enemyMultiplier: getCurrentMode().nextbotMultiplier || 1,
+    enemySpawnSelection: document.getElementById("admin-nextbot-select").value,
+    blockSpawnSelection: document.getElementById("admin-brick-select").value,
+    powerUpSpawnSelection: document.getElementById("admin-powerup-select").value
+  };
+  boss.adminAttackTimer = 75;
+  boss.width = Math.min(WIDTH - 32, 640);
+  boss.height = 270;
+  boss.originX = (WIDTH - boss.width) / 2;
+  boss.originY = 34;
+  boss.x = boss.originX;
+  boss.y = boss.originY;
+  boss.moveAmplitude = 18;
+  levelNotice = { text: "ADMIN PANEL CONSUMED // ALL CONTROLS HIJACKED", timer: 210 };
+  hitStopFrames = 8;
+  screenShakeFrames = 48;
+
+  const panelWasOpen = !adminMenu.hidden;
+  const canvasBounds = canvas.getBoundingClientRect();
+  const bounds = panelWasOpen ? adminMenu.getBoundingClientRect() : {
+    left: canvasBounds.left + canvasBounds.width - 208,
+    top: canvasBounds.top + 44,
+    width: 188,
+    height: 104
+  };
+  const echo = panelWasOpen ? adminMenu.cloneNode(true) : document.createElement("div");
+  echo.removeAttribute("id");
+  echo.removeAttribute("hidden");
+  echo.setAttribute("aria-hidden", "true");
+  echo.classList.remove("admin-battle-dock");
+  echo.classList.add("admin-panel-echo");
+  if (!panelWasOpen) {
+    echo.classList.add("admin-panel-echo-compact");
+    const title = document.createElement("strong");
+    title.textContent = "ADMIN TOOLS // ALL SYSTEMS";
+    const contents = document.createElement("p");
+    contents.textContent = "ENEMY SPAWNS // TOGGLES // GAME CONTROLS";
+    echo.append(title, contents);
+  }
+  echo.style.left = bounds.left + "px";
+  echo.style.top = bounds.top + "px";
+  echo.style.width = bounds.width + "px";
+  echo.style.height = bounds.height + "px";
+  echo.style.maxWidth = bounds.width + "px";
+  echo.style.maxHeight = "none";
+  echo.style.resize = "none";
+  echo.style.transform = "none";
+  echo.style.margin = "0";
+  echo.style.setProperty("--consume-x", (canvasBounds.left + canvasBounds.width * (boss.x + boss.width / 2) / WIDTH - bounds.left - bounds.width / 2) + "px");
+  echo.style.setProperty("--consume-y", (canvasBounds.top + canvasBounds.height * (boss.y + boss.height / 2) / HEIGHT - bounds.top - bounds.height / 2) + "px");
+  echo.addEventListener("animationend", function () { echo.remove(); }, { once: true });
+  document.body.append(echo);
+  if (panelWasOpen) {
+    adminMenu.hidden = true;
+    const adminBattleButton = document.getElementById("admin-battle-toggle");
+    if (adminBattleButton) adminBattleButton.setAttribute("aria-pressed", "false");
+  }
+}
+
 function updateHitEffects() {
   if (hitStopFrames > 0) {
     hitStopFrames--;
@@ -1565,11 +1653,13 @@ function spawnAdminFinalBoss() {
   gameWon = false;
   level = LEVEL_COUNT - 1;
   bricks = makeBricks(level);
-  clearBossMinions();
+  setNextBotsForLevel(level);
   enemyShots = [];
   powerUps = [];
   lasers = [];
-  levelNotice = { text: "FINAL ENCOUNTER // COMMAND WRAITH", timer: 180 };
+  paddle.width = 56;
+  paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x + (BASE_PADDLE_WIDTH - paddle.width) / 2));
+  levelNotice = { text: "FINAL ENCOUNTER // WITHER STORM // NO NEXTBOTS", timer: 180 };
   resetBall();
 }
 
@@ -1582,7 +1672,7 @@ function advanceAdminBossPhase() {
   boss.phase = boss.phase >= 3 ? 1 : boss.phase + 1;
   boss.hp = boss.phase === 1 ? boss.maxHp : boss.phase === 2 ? Math.floor(boss.maxHp * 0.65) : Math.floor(boss.maxHp / 3);
   boss.phaseTimer = 90;
-  levelNotice = { text: "COMMAND WRAITH // " + FINAL_BOSS_PHASES[boss.phase - 1], timer: 150 };
+  levelNotice = { text: "WITHER STORM // " + FINAL_BOSS_PHASES[boss.phase - 1], timer: 150 };
 }
 
 function spawnAdminLaser() {
@@ -2488,6 +2578,9 @@ if (adminModeSelect) {
   adminModeSelect.addEventListener("change", function () {
     if (sendRemoteAdminCommand({ type: "mode", value: Number(adminModeSelect.value) })) return;
     applyMode(Number(adminModeSelect.value));
+    if (gameStarted && !randomEverythingEnabled && (!multiplayerActive || multiplayerHost)) {
+      setNextBotsForLevel(level);
+    }
   });
 }
 
@@ -3156,15 +3249,30 @@ function updateSpecialBricks() {
       if (finalBoss) {
         brick.phase = finalBossPhaseForHealth(brick);
         brick.minionInterval = brick.phase === 1 ? 165 : brick.phase === 2 ? 115 : 75;
+        brick.minionLimit = brick.phase === 1 ? 3 : brick.phase === 2 ? 5 : 7;
+        if (brick.hp <= brick.maxHp * 0.2) consumeAdminToolsWithWitherStorm(brick);
         if (brick.phase > 1 && --brick.phaseTimer <= 0) {
           dropBossKillbrick(brick);
           if (brick.phase === 3) dropBossKillbrick(brick);
           brick.phaseTimer = brick.phase === 2 ? 150 : 90;
         }
       }
-      if (bossMinionsEnabled && (finalBoss || brick.hp <= brick.maxHp * 0.8) && --brick.minionTimer <= 0) {
-        const minion = spawnNextBot();
-        if (minion) minion.bossMinion = true;
+      if (brick.adminAssimilated && --brick.adminAttackTimer <= 0) {
+        brick.adminAttackCount = (brick.adminAttackCount || 0) + 1;
+        const enemyBurst = brick.adminPowers ? Math.max(1, Math.min(4, Math.ceil(brick.adminPowers.enemyMultiplier))) : 1;
+        for (let shot = 0; shot < enemyBurst; shot++) dropBossKillbrick(brick);
+        if (brick.adminAttackCount % 3 === 0) {
+          spawnAdminLaserAt(paddle.x + paddle.width / 2);
+        }
+        const enabledToggleCount = brick.adminPowers ? brick.adminPowers.enabledToggleCount : 0;
+        brick.adminAttackTimer = Math.max(34, 96 - enabledToggleCount * 4);
+      }
+      if (bossMinionsEnabled && !brick.isWitherStorm && brick.hp <= brick.maxHp * 0.8 && --brick.minionTimer <= 0) {
+        const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
+        if (minionCount < brick.minionLimit) {
+          const minion = spawnNextBot();
+          if (minion) minion.bossMinion = true;
+        }
         brick.minionTimer = brick.minionInterval;
       }
     }
@@ -3958,7 +4066,7 @@ function makeRandomRunBricks() {
     generated.push({ x: left, y: BRICKS_TOP, width: BRICK_WIDTH, height: BRICK_HEIGHT, type: "normal", isKill: false, color: BRICK_ROW_COLORS[0] });
   }
   if (Math.random() < 0.28) {
-    const boss = makeBricks(BOSS_LEVELS[randomInteger(0, BOSS_LEVELS.length - 1)])[0];
+    const boss = makeBricks(BOSS_LEVELS[randomInteger(0, BOSS_LEVELS.length - 2)])[0];
     boss.hp = randomInteger(16, 90);
     boss.maxHp = boss.hp;
     boss.minionInterval = randomInteger(120, 330);
@@ -3979,8 +4087,13 @@ function randomizeRunStats() {
 
 function startLevel(nextLevel) {
   level = nextLevel;
+  if (activeChallenge) level = activeChallenge.startLevel;
+  const targetPaddleWidth = level === LEVEL_COUNT - 1 ? 56
+    : widePaddleTimer > 0 ? Math.min(215, basePaddleWidth + 45) : basePaddleWidth;
+  const paddleCenter = paddle.x + paddle.width / 2;
+  paddle.width = targetPaddleWidth;
+  paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddleCenter - paddle.width / 2));
   if (activeChallenge) {
-    level = activeChallenge.startLevel;
     bricks = makeBricks(level);
     selectNextBots();
     for (const enemyName of activeChallenge.enemyNames) spawnNextBot(enemyName);
@@ -4022,6 +4135,7 @@ function startLevel(nextLevel) {
   if (level === 2) features.push("LASERS START");
   else if (level > 2) features.push(lasers.length + " LASERS ACTIVE");
   if (bricks[0] && bricks[0].type === "boss") features.push(bricks[0].bossName);
+  if (level === LEVEL_COUNT - 1) features.push("NO NEXTBOTS // SMALL PADDLE // FINAL BOSS");
   levelNotice = {
     text: "LEVEL " + (level + 1) + " START" + (features.length ? " // " + features.join(" // ") : ""),
     timer: 150

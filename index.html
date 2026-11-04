@@ -19,7 +19,7 @@
           <p class="menu-kicker">ARCADE / BLOCK BREAKER</p>
           <h1>BREAK THE<br>FIELD.</h1>
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
-          <p class="menu-tagline">Fifty levels. Three lives. Keep the ball alive.</p>
+          <p class="menu-tagline">Ninety levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
             <label class="start-mode-picker" for="start-mode-select">
               Start mode
@@ -29,7 +29,7 @@
             <p id="start-mode-description" class="mode-description" aria-live="polite"></p>
             <button type="button" id="start-game" class="primary-action" data-hotkey-action="start-game">Start Game</button>
             <button type="button" id="random-game">Random Everything</button>
-            <button type="button" id="local-multiplayer-test">Test Multiplayer</button>
+            <button type="button" id="local-multiplayer-test">Local Multiplayer (Offline)</button>
             <button type="button" id="menu-controls" data-hotkey-action="menu-controls">Settings</button>
             <button type="button" id="menu-admin" data-hotkey-action="toggle-admin">Admin Tools</button>
             <button type="button" id="menu-fullscreen" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
@@ -56,6 +56,7 @@
             </label>
             <button type="button" id="lobby-join">Join Lobby</button>
           </div>
+          <p class="lobby-offline-note">Online lobbies need an internet connection. Local Multiplayer works offline on this device.</p>
           <p id="lobby-status" role="status" aria-live="polite">Create a lobby or enter a friend's code.</p>
           <section id="lobby-room" class="lobby-room" aria-label="Lobby room" hidden>
             <div class="lobby-room-heading">
@@ -111,7 +112,7 @@
       <button type="button" id="touch-launch" class="touch-control touch-launch" aria-label="Launch ball" disabled>Launch</button>
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 70 levels. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 90 levels. The final Wither Storm fight has no nextbots. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
       <div class="chat-heading">
         <h2>Lobby Chat</h2>
@@ -224,6 +225,19 @@
       <label class="skin-picker">
         Mode
         <select id="mode-select">
+          <option value="0">Normal</option>
+          <option value="1">Dark</option>
+          <option value="2">Chaos</option>
+          <option value="3">Neon</option>
+          <option value="4">Retro</option>
+          <option value="5">Void</option>
+          <option value="6">Sunset</option>
+          <option value="7">Ice</option>
+          <option value="8">Arena</option>
+          <option value="9">Candy</option>
+          <option value="10">Boss Rush</option>
+          <option value="11">Endless</option>
+          <option value="12">Swarm (2x nextbots)</option>
         </select>
       </label>
       <small id="settings-mode-description" class="mode-description" aria-live="polite"></small>
@@ -297,8 +311,8 @@
           <button type="button" data-admin="spawn-boss-11">Spawn Binary Regent</button>
           <button type="button" data-admin="spawn-boss-12">Spawn Crown of Ash</button>
           <button type="button" data-admin="spawn-boss-13">Spawn Orbital Maw</button>
-          <button type="button" data-admin="spawn-final-boss">Spawn Command Wraith</button>
-          <button type="button" data-admin="boss-phase">Advance Wraith phase</button>
+          <button type="button" data-admin="spawn-final-boss">Spawn Wither Storm</button>
+          <button type="button" data-admin="boss-phase">Advance Wither Storm phase</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>
