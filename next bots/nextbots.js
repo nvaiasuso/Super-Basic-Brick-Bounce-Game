@@ -56,14 +56,17 @@ const NEXTBOT_ROSTER = [
   { name: "BLOOM", color: "#16a34a", accent: "#f0abfc", speed: 1.38, telegraphFrames: 58 },
   { name: "SINGULARITY", color: "#312e81", accent: "#67e8f9", speed: 1.58, telegraphFrames: 36 },
   { name: "RICOCHET", color: "#f97316", accent: "#bfdbfe", speed: 1.88, telegraphFrames: 24 },
-  { name: "FIREWALL", color: "#b91c1c", accent: "#fdba74", speed: 1.24, telegraphFrames: 70 }
+  { name: "FIREWALL", color: "#b91c1c", accent: "#fdba74", speed: 1.24, telegraphFrames: 70 },
+  { name: "RIFT", description: "Fast attacker with a short warning", color: "#7c3aed", accent: "#67e8f9", speed: 1.78, telegraphFrames: 18 },
+  { name: "BULKHEAD", description: "Slow mover with a long warning", color: "#475569", accent: "#fbbf24", speed: 0.72, telegraphFrames: 110 },
+  { name: "HUNTER", description: "Quick attacker that tracks players", color: "#be123c", accent: "#fda4af", speed: 1.92, telegraphFrames: 28 },
+  { name: "AFTERSHOCK", description: "Heavy attacker with a delayed strike", color: "#a16207", accent: "#fde047", speed: 1.12, telegraphFrames: 84 }
 
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
 const NEXTBOT_DASH_FRAMES = 58;
 const NEXTBOT_DASH_SPEED = 11;
-let maxActiveNextBots = 128;
 const BATTLE_DURATION = 300;
 const BATTLE_START_RADIUS = 148;
 const BATTLE_END_RADIUS = 112;
@@ -97,7 +100,6 @@ function makeNextBot(definition, index) {
 }
 
 function spawnNextBot(name) {
-  if (nextBots.length >= maxActiveNextBots) return null;
   if (name) {
     const selected = NEXTBOT_ROSTER.find(function (definition) { return definition.name === name; });
     if (selected) {

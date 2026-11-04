@@ -320,9 +320,13 @@ function createRealtimeLobbySocket(initialAction) {
     }
 
     if (message.type === "admin-command") {
-      if (!roomStarted || !roomAdminIds.includes(senderId)) return sendError("You do not have admin access in this game.", senderId);
+      if (!player.host && !roomAdminIds.includes(senderId)) return sendError("You do not have admin access in this game.", senderId);
       if (!message.command || typeof message.command !== "object" || Array.isArray(message.command)) return;
-      sendServerMessage({ type: "admin-command", adminId: senderId, command: message.command }, hostPlayerId);
+      if (player.host) {
+        sendServerMessage({ type: "admin-command", adminId: senderId, command: message.command }, null, senderId);
+      } else {
+        sendServerMessage({ type: "admin-command", adminId: senderId, command: message.command }, hostPlayerId);
+      }
       return;
     }
 
@@ -665,8 +669,9 @@ function handleLobbyMessage(message) {
     return;
   }
   if (message.type === "admin-command") {
-    if (lobbyHost && typeof window.runRemoteAdminCommand === "function") {
-      window.runRemoteAdminCommand(message.adminId, message.command);
+    if (typeof window.runRemoteAdminCommand === "function") {
+      const senderId = typeof message.adminId === "string" ? message.adminId : lobbyPlayerId;
+      window.runRemoteAdminCommand(senderId, message.command);
     }
     return;
   }

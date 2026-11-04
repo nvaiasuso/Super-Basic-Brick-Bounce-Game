@@ -25,26 +25,29 @@ const HEIGHT = canvas.height;
 const BALL_SPEED = 5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
-const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
-  { label: "Normal", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
-  { label: "Dark", accent: "#8ec5ff", background: "#02070b", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.14 },
-  { label: "Chaos", accent: "#ff6b6b", background: "#1b0505", ballSpeedMultiplier: 1.28, powerUpDropChance: 0.18 },
-  { label: "Neon", accent: "#39ff14", background: "#050b1a", ballSpeedMultiplier: 1.15, powerUpDropChance: 0.16 },
-  { label: "Retro", accent: "#ffd166", background: "#1f1a0c", ballSpeedMultiplier: 0.96, powerUpDropChance: 0.1 },
-  { label: "Void", accent: "#b38cff", background: "#070912", ballSpeedMultiplier: 1.22, powerUpDropChance: 0.15 },
-  { label: "Sunset", accent: "#ff8c69", background: "#220d09", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.17 },
-  { label: "Ice", accent: "#7be7ff", background: "#08141b", ballSpeedMultiplier: 0.92, powerUpDropChance: 0.12 },
-  { label: "Arena", accent: "#f4faff", background: "#0d1118", ballSpeedMultiplier: 1.18, powerUpDropChance: 0.2 },
-  { label: "Candy", accent: "#ff75d8", background: "#1a0d1e", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.19 },
-  { label: "Boss Rush", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.16, bossRush: true },
-  { label: "Endless", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
-  { label: "Swarm", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, nextbotMultiplier: 2 }
+  { label: "Normal", description: "Standard bricks, speed, and power-up odds.", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
+  { label: "Dark", description: "Dark arena with a slightly faster ball.", accent: "#8ec5ff", background: "#02070b", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.14 },
+  { label: "Chaos", description: "Fast ball and more frequent power-ups.", accent: "#ff6b6b", background: "#1b0505", ballSpeedMultiplier: 1.28, powerUpDropChance: 0.18 },
+  { label: "Neon", description: "Bright arena, faster ball, and extra drops.", accent: "#39ff14", background: "#050b1a", ballSpeedMultiplier: 1.15, powerUpDropChance: 0.16 },
+  { label: "Retro", description: "Slower ball and fewer power-up drops.", accent: "#ffd166", background: "#1f1a0c", ballSpeedMultiplier: 0.96, powerUpDropChance: 0.1 },
+  { label: "Void", description: "A dark arena with a much faster ball.", accent: "#b38cff", background: "#070912", ballSpeedMultiplier: 1.22, powerUpDropChance: 0.15 },
+  { label: "Sunset", description: "Warm colors and frequent power-ups.", accent: "#ff8c69", background: "#220d09", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.17 },
+  { label: "Ice", description: "Slower ball for a more deliberate run.", accent: "#7be7ff", background: "#08141b", ballSpeedMultiplier: 0.92, powerUpDropChance: 0.12 },
+  { label: "Arena", description: "Quick play with the highest standard drop rate.", accent: "#f4faff", background: "#0d1118", ballSpeedMultiplier: 1.18, powerUpDropChance: 0.2 },
+  { label: "Candy", description: "Balanced speed with generous power-ups.", accent: "#ff75d8", background: "#1a0d1e", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.19 },
+  { label: "Boss Rush", description: "Every level is a boss encounter.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.16, bossRush: true },
+  { label: "Endless", description: "Keep playing past level 90 as layouts cycle.", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
+  { label: "Swarm", description: "Twice as many nextbots appear as levels advance.", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, nextbotMultiplier: 2 },
+  { label: "Inverted", description: "Left and right paddle controls are reversed.", accent: "#ffad55", background: "#15100a", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, reverseControls: true },
+  { label: "Laserstorm", description: "Laser hazards appear twice as often.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, laserMultiplier: 2 },
+  { label: "Glass Cannon", description: "One life, a very fast ball, and plentiful power-ups.", accent: "#f0abfc", background: "#16091b", ballSpeedMultiplier: 1.45, powerUpDropChance: 0.25, startingLives: 1 },
+  { label: "Fortress", description: "Normal bricks take two hits; the ball moves slower.", accent: "#67e8f9", background: "#071318", ballSpeedMultiplier: 0.9, powerUpDropChance: 0.14, armoredBricks: true },
+  { label: "Overdrive", description: "Very fast ball, extra power-ups, and more nextbots.", accent: "#fb923c", background: "#1b0c05", ballSpeedMultiplier: 1.55, powerUpDropChance: 0.22, nextbotMultiplier: 1.5 }
 ];
 const PADDLE_TILT_SPEED = 2;
 const DASH_DISTANCE = 120;
-const MAX_ENEMY_SHOTS = 24;
 const PADDLE_JUMP_HEIGHT = 72;
 const PADDLE_JUMP_FRAMES = 28;
 const PADDLE_JUMP_COOLDOWN = 72;
@@ -65,7 +68,6 @@ let laserDamageEnabled = true;
 let bossMinionsEnabled = true;
 let adminNextBotSpeedMultiplier = 1;
 let bossHealthBoost = 1;
-let adminBossMinionLimit = 8;
 const MULTIBALL_HIT_STREAK = 5;
 const SHIELD_DURATION_FRAMES = 300;
 const FREEZE_DURATION_FRAMES = 180;
@@ -106,6 +108,8 @@ const idleMemeImage = document.getElementById("idle-meme-image");
 let mola = 0;
 let highScore = readHighScore();
 let newBest = false;
+let activeChallenge = null;
+let dailyChallenge = null;
 let aiPaddles = [];
 let powerUps = [];
 let widePaddleTimer = 0;
@@ -175,6 +179,7 @@ function readHighScore() {
 }
 
 function recordHighScore() {
+  recordDailyChallengeScore();
   if (mola <= highScore) return;
   highScore = mola;
   newBest = true;
@@ -183,6 +188,64 @@ function recordHighScore() {
   } catch (error) {
     // Keep the current run playable when storage is unavailable.
   }
+}
+
+function makeDailyChallenge(dateKey = new Date().toISOString().slice(0, 10)) {
+  let seed = Number(dateKey.replace(/-/g, "")) >>> 0;
+  const choose = function (length) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed % length;
+  };
+  const enemyNames = [];
+  const roster = typeof NEXTBOT_ROSTER === "undefined" ? [] : NEXTBOT_ROSTER;
+  while (enemyNames.length < Math.min(3, roster.length)) {
+    const name = roster[choose(roster.length)].name;
+    if (!enemyNames.includes(name)) enemyNames.push(name);
+  }
+  return {
+    date: dateKey,
+    modeIndex: choose(GAME_MODES.length),
+    startLevel: choose(LEVEL_COUNT),
+    enemyNames: enemyNames
+  };
+}
+
+function getDailyChallengeBest(challenge = dailyChallenge) {
+  if (!challenge) return 0;
+  try {
+    return Number(localStorage.getItem("blockBreakerDailyBest:" + challenge.date)) || 0;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function updateDailyChallengeDisplay() {
+  if (!dailyChallenge) return;
+  const mode = GAME_MODES[dailyChallenge.modeIndex];
+  const title = document.getElementById("daily-challenge-title");
+  const details = document.getElementById("daily-challenge-details");
+  const best = document.getElementById("daily-challenge-best");
+  if (title) title.textContent = "Daily Challenge / " + dailyChallenge.date;
+  if (details) {
+    details.textContent = mode.label + " / Level " + (dailyChallenge.startLevel + 1) + " / " +
+      (dailyChallenge.enemyNames.length ? "Enemies: " + dailyChallenge.enemyNames.join(", ") : "No nextbots");
+  }
+  if (best) best.textContent = "Best score: " + getDailyChallengeBest().toLocaleString();
+}
+
+function recordDailyChallengeScore() {
+  if (!activeChallenge || mola <= getDailyChallengeBest(activeChallenge)) return;
+  try {
+    localStorage.setItem("blockBreakerDailyBest:" + activeChallenge.date, String(mola));
+  } catch (error) {
+    // Keep the challenge playable when storage is unavailable.
+  }
+  if (dailyChallenge && activeChallenge.date === dailyChallenge.date) updateDailyChallengeDisplay();
+}
+
+function setupDailyChallenge() {
+  dailyChallenge = makeDailyChallenge();
+  updateDailyChallengeDisplay();
 }
 
 const ball = {
@@ -217,6 +280,10 @@ function applyMode(nextModeIndex = currentMode) {
     if (modeSelect) {
       modeSelect.value = String(currentMode);
     }
+    if (startModeSelect) {
+      startModeSelect.value = String(currentMode);
+    }
+    updateModeDescriptions(currentMode);
   }
 }
 
@@ -439,6 +506,23 @@ function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId), 
   ball.stuckPlayerId = null;
 }
 
+function autoLaunchStuckBallIfEnabled() {
+  if (!autoPlay || !ball.stuck) {
+    autoLaunchRequestOwner = null;
+    return;
+  }
+  const ownerId = ball.stuckPlayerId;
+  if (multiplayerActive && !multiplayerHost && ownerId !== multiplayerPlayerId) {
+    autoLaunchRequestOwner = null;
+    return;
+  }
+  const now = performance.now();
+  if (autoLaunchRequestOwner === ownerId && now - autoLaunchRequestAt < 500) return;
+  autoLaunchRequestOwner = ownerId;
+  autoLaunchRequestAt = now;
+  launchStuckBall(getPaddleForPlayer(ownerId), ownerId);
+}
+
 function spawnBattleRewardBall() {
   const speed = Math.max(getModeBallSpeed(), Math.hypot(ball.vx, ball.vy));
   let x = WIDTH / 2 - ball.width / 2;
@@ -528,6 +612,8 @@ let paused = false;
 let rebindingControl = null;
 let autoAimAngle = 0;
 let autoPlanCooldown = 0;
+let autoLaunchRequestOwner = null;
+let autoLaunchRequestAt = 0;
 const controlMenu = document.getElementById("control-menu");
 const resumeButton = document.getElementById("resume");
 const customKeybinds = {};
@@ -632,6 +718,9 @@ const autoPlayButton = document.getElementById("autoplay");
 const adminMenu = document.getElementById("admin-menu");
 const adminSkinSelect = document.getElementById("skin-select");
 const adminModeSelect = document.getElementById("mode-select");
+const startModeSelect = document.getElementById("start-mode-select");
+const startModeDescription = document.getElementById("start-mode-description");
+const settingsModeDescription = document.getElementById("settings-mode-description");
 const adminLevelSelect = document.getElementById("admin-level-select");
 const mainMenu = document.getElementById("main-menu");
 const gameInfo = document.getElementById("game-info");
@@ -640,6 +729,33 @@ const touchLaunchButton = document.getElementById("touch-launch");
 const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
+
+function populateModeOptions() {
+  for (const select of [startModeSelect, adminModeSelect]) {
+    if (!select) continue;
+    select.replaceChildren();
+    GAME_MODES.forEach(function (mode, index) {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = mode.label;
+      select.append(option);
+    });
+  }
+}
+
+function updateModeDescriptions(selectedIndex = currentMode) {
+  const mode = GAME_MODES[selectedIndex] || GAME_MODES[0];
+  if (startModeDescription) startModeDescription.textContent = mode.description;
+  if (settingsModeDescription) settingsModeDescription.textContent = mode.description;
+}
+
+populateModeOptions();
+if (startModeSelect) {
+  startModeSelect.addEventListener("change", function () {
+    updateModeDescriptions(Number(startModeSelect.value));
+  });
+}
+updateModeDescriptions();
 
 if (adminLevelSelect) {
   adminLevelSelect.replaceChildren();
@@ -740,6 +856,8 @@ function refreshMobileControlsButton() {
 function showMainMenu() {
   gameStarted = false;
   paused = false;
+  activeChallenge = null;
+  if (adminModeSelect) adminModeSelect.disabled = false;
   document.body.classList.add("menu-active");
   document.body.classList.remove("game-active");
   mainMenu.hidden = false;
@@ -769,7 +887,10 @@ function openMenuControls() {
   setPaused(true);
 }
 
-function beginGame(randomRun = false) {
+function beginGame(randomRun = false, chosenMode = currentMode, challenge = null) {
+  activeChallenge = challenge;
+  applyMode(chosenMode);
+  if (adminModeSelect) adminModeSelect.disabled = Boolean(challenge);
   if (randomRun && !randomEverythingEnabled) {
     randomRunOriginalStats = {
       ballSpeed: baseBallSpeed,
@@ -1298,8 +1419,18 @@ resumeButton.addEventListener("click", function () {
   }
 });
 
-startGameButton.addEventListener("click", function () { beginGame(false); });
-document.getElementById("random-game").addEventListener("click", function () { beginGame(true); });
+startGameButton.addEventListener("click", function () {
+  const chosenMode = Number(startModeSelect ? startModeSelect.value : currentMode);
+  beginGame(false, chosenMode);
+});
+document.getElementById("start-daily-challenge").addEventListener("click", function () {
+  if (!dailyChallenge) setupDailyChallenge();
+  beginGame(false, dailyChallenge.modeIndex, dailyChallenge);
+});
+document.getElementById("random-game").addEventListener("click", function () {
+  const chosenMode = Number(startModeSelect ? startModeSelect.value : currentMode);
+  beginGame(true, chosenMode);
+});
 document.getElementById("local-multiplayer-test").addEventListener("click", startLocalMultiplayerTest);
 document.getElementById("test-p1-cpu").addEventListener("click", function () { toggleLocalTestCpu(0); });
 document.getElementById("test-p2-cpu").addEventListener("click", function () { toggleLocalTestCpu(1); });
@@ -1319,12 +1450,10 @@ function refreshInvincibilityButton() {
 }
 
 function addAdminBall() {
-  if (extraBalls.length >= ADMIN_SPAWN_LIMITS.balls) return;
   spawnExtraBall(ball);
 }
 
 function spawnAdminAiPaddle() {
-  if (aiPaddles.length >= ADMIN_SPAWN_LIMITS.aiPaddles) return;
   aiPaddles.push({
     x: 80 + (aiPaddles.length * 60) % (WIDTH - 200),
     y: HEIGHT - 45,
@@ -1355,7 +1484,6 @@ function breakNearestBrick() {
 }
 
 function spawnAdminBrick() {
-  if (bricks.filter(function (brick) { return brick.adminSpawned; }).length >= ADMIN_SPAWN_LIMITS.bricks) return;
   const brickTypeSelect = document.getElementById("admin-brick-select");
   const type = brickTypeSelect ? brickTypeSelect.value : "normal";
   const colors = {
@@ -1399,7 +1527,6 @@ function spawnAdminBrick() {
 }
 
 function spawnAdminPowerUp() {
-  if (powerUps.length >= ADMIN_SPAWN_LIMITS.powerUps) return;
   const kinds = [
     { type: "wide", label: "W", color: "#4fe6ff" },
     { type: "slow", label: "S", color: "#ffd166" },
@@ -1427,7 +1554,6 @@ function spawnAdminPowerUp() {
 }
 
 function spawnAdminBoss(selectedBoss = 0) {
-  if (bricks.filter(function (brick) { return brick.adminSpawned; }).length >= ADMIN_SPAWN_LIMITS.bricks) return;
   const bossLevel = BOSS_LEVELS[Math.max(0, Math.min(BOSS_LEVELS.length - 1, selectedBoss))];
   const boss = makeBricks(bossLevel)[0];
   boss.adminSpawned = true;
@@ -1464,7 +1590,6 @@ function spawnAdminLaser() {
 }
 
 function spawnAdminLaserAt(x) {
-  if (lasers.length >= ADMIN_SPAWN_LIMITS.lasers) return;
   lasers.push({
     x: Math.max(8, Math.min(WIDTH - 8, x)),
     mode: "warning",
@@ -1917,7 +2042,7 @@ function populateAdminNextBotSelect() {
   for (const bot of NEXTBOT_ROSTER) {
     const option = document.createElement("option");
     option.value = bot.name;
-    option.textContent = bot.name;
+    option.textContent = bot.description ? bot.name + " - " + bot.description : bot.name;
     select.append(option);
   }
 }
@@ -2003,12 +2128,6 @@ function setupAdminVariableControls() {
     adminNextBotSpeedMultiplier = Number(nextBotSpeed.value);
     refreshAdminVariableControls();
   });
-  const nextBotLimit = document.getElementById("admin-nextbot-limit");
-  nextBotLimit.addEventListener("input", function () {
-    if (sendRemoteAdminCommand({ type: "setting", key: "nextBotLimit", value: Number(nextBotLimit.value) })) return;
-    maxActiveNextBots = Math.max(12, Math.min(64, Number(nextBotLimit.value) || 64));
-    document.getElementById("admin-nextbot-limit-value").value = String(maxActiveNextBots);
-  });
   refreshAdminVariableControls();
 }
 
@@ -2057,7 +2176,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2212,15 +2331,13 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "website-fps") {
     setWebsiteFpsEnabled(!websiteFpsEnabled);
   } else if (action === "spawn-nextbot") {
-    if (!spawnNextBot() && adminRepeatStatus) {
-      adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
-    }
+    spawnNextBot();
   } else if (action === "nextbot-wave") {
     let spawned = 0;
-    for (let index = 0; index < 8 && nextBots.length < maxActiveNextBots; index++) {
+    for (let index = 0; index < 8; index++) {
       if (spawnNextBot()) spawned++;
     }
-    if (adminRepeatStatus) adminRepeatStatus.textContent = "Spawned " + spawned + " nextbots (" + nextBots.length + "/" + maxActiveNextBots + ").";
+    if (adminRepeatStatus) adminRepeatStatus.textContent = "Spawned " + spawned + " nextbots; " + nextBots.length + " active.";
   } else if (action === "nextbot-attack") {
     const started = triggerNextBotAttack();
     if (adminRepeatStatus) adminRepeatStatus.textContent = started ? "Nextbot attack queued." : "No available nextbot, or attacks are paused.";
@@ -2323,10 +2440,6 @@ window.runRemoteAdminCommand = function (adminId, command) {
         if (lives > 0) gameOver = false;
         refreshAdminVariableControls();
       }
-    } else if (command.key === "nextBotLimit") {
-      maxActiveNextBots = Math.max(12, Math.min(64, command.value));
-      document.getElementById("admin-nextbot-limit").value = String(maxActiveNextBots);
-      document.getElementById("admin-nextbot-limit-value").value = String(maxActiveNextBots);
     }
   } else if (command.type === "speed") {
     setSimulationSpeed(command.value);
@@ -2355,7 +2468,7 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
     if (adminRepeatCount) adminRepeatCount.value = String(count);
     for (let index = 0; index < count; index++) runAdminAction(action);
     if (adminRepeatStatus) {
-      const botCount = action === "spawn-nextbot" ? "; spawned " + (nextBots.length - startingBotCount) + " (" + nextBots.length + "/" + maxActiveNextBots + ")" : "";
+      const botCount = action === "spawn-nextbot" ? "; spawned " + (nextBots.length - startingBotCount) + " (" + nextBots.length + " active)" : "";
       adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times" + botCount + ".";
     }
   });
@@ -2609,6 +2722,7 @@ function update() {
 
   if (multiplayerActive && !multiplayerHost) {
     applyInterpolatedLobbySnapshot();
+    if (!gameOver && !gameWon) autoLaunchStuckBallIfEnabled();
     if (!gameOver && !gameWon && !adminBattleAdmin) {
       paddle.previousX = paddle.x;
       paddle.previousY = paddle.y;
@@ -2621,6 +2735,7 @@ function update() {
 
   if (gameOver || gameWon) return;
 
+  autoLaunchStuckBallIfEnabled();
   simulationFrame++;
   if (simulationFrame % 6 === 0) updatePaddleKnownStuff();
   if (isBossFightActive()) {
@@ -2659,9 +2774,7 @@ function update() {
   if (updateLasers()) return;
 
   updateAiPaddles();
-  if (autoPlay && ball.stuck) {
-    launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId));
-  } else if (localTestMode && ball.stuck &&
+  if (localTestMode && ball.stuck &&
     ((ball.stuckPlayerId === "local-test-player-1" && localTestCpu[0]) ||
      (ball.stuckPlayerId === "local-test-player-2" && localTestCpu[1]))) {
     launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId), ball.stuckPlayerId);
@@ -2828,13 +2941,14 @@ function movePaddle() {
     paddle.x += Math.sign(targetX - paddle.x) * Math.min(paddle.speed, Math.abs(targetX - paddle.x));
   }
 
+  const horizontalDirection = getCurrentMode().reverseControls ? -1 : 1;
   if (!autoPlay && keys[CONTROL_KEYS.left]) {
-    paddleFacingDirection = -1;
-    paddle.x = paddle.x - paddle.speed;
+    paddleFacingDirection = -horizontalDirection;
+    paddle.x -= paddle.speed * horizontalDirection;
   }
   if (!autoPlay && keys[CONTROL_KEYS.right]) {
-    paddleFacingDirection = 1;
-    paddle.x = paddle.x + paddle.speed;
+    paddleFacingDirection = horizontalDirection;
+    paddle.x += paddle.speed * horizontalDirection;
   }
 
   // Keep the paddle on the screen.
@@ -2911,7 +3025,6 @@ function getEnemyShotTargets() {
 }
 
 function updateNextBotShots() {
-  if (enemyShots.length >= MAX_ENEMY_SHOTS) return;
   const targets = getEnemyShotTargets();
   if (targets.length === 0) return;
   for (const bot of nextBots) {
@@ -2929,7 +3042,6 @@ function updateNextBotShots() {
     const distance = Math.max(1, Math.hypot(dx, dy));
     const speed = randomInteger(4, 6);
     enemyShots.push({ x: bot.x, y: bot.y, vx: dx / distance * speed, vy: dy / distance * speed, radius: 5 });
-    if (enemyShots.length >= MAX_ENEMY_SHOTS) return;
   }
 }
 
@@ -3044,7 +3156,6 @@ function updateSpecialBricks() {
       if (finalBoss) {
         brick.phase = finalBossPhaseForHealth(brick);
         brick.minionInterval = brick.phase === 1 ? 165 : brick.phase === 2 ? 115 : 75;
-        brick.minionLimit = brick.phase === 1 ? 3 : brick.phase === 2 ? 5 : 7;
         if (brick.phase > 1 && --brick.phaseTimer <= 0) {
           dropBossKillbrick(brick);
           if (brick.phase === 3) dropBossKillbrick(brick);
@@ -3052,11 +3163,8 @@ function updateSpecialBricks() {
         }
       }
       if (bossMinionsEnabled && (finalBoss || brick.hp <= brick.maxHp * 0.8) && --brick.minionTimer <= 0) {
-        const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
-        if (minionCount < brick.minionLimit) {
-          const minion = spawnNextBot();
-          if (minion) minion.bossMinion = true;
-        }
+        const minion = spawnNextBot();
+        if (minion) minion.bossMinion = true;
         brick.minionTimer = brick.minionInterval;
       }
     }
@@ -3186,7 +3294,8 @@ function updateTemporaryPowerUps() {
 
 function createLevelLasers(currentLevel) {
   if (currentLevel < 2) return [];
-  const count = currentLevel === 2 ? 1 : Math.min(8, 2 + Math.floor((currentLevel - 3) / 2));
+  const baseCount = currentLevel === 2 ? 1 : Math.min(8, 2 + Math.floor((currentLevel - 3) / 2));
+  const count = Math.ceil(baseCount * (getCurrentMode().laserMultiplier || 1));
   return Array.from({ length: count }, function (_, index) {
     return {
       x: 60 + Math.random() * (WIDTH - 120),
@@ -3422,7 +3531,7 @@ function updateAiPaddles() {
   for (const bot of aiPaddles) {
     if (bot.lobbyAI && ball.stuck && ball.stuckPlayerId === bot.lobbyPlayerId) {
       bot.magnetReleaseTimer = (bot.magnetReleaseTimer || 45) - 1;
-      if (bot.magnetReleaseTimer <= 0) launchStuckBall(bot);
+      if (bot.magnetReleaseTimer <= 0) launchStuckBall(bot, bot.lobbyPlayerId);
       continue;
     }
     let target = bot.assignedBall && activeBalls.includes(bot.assignedBall) ? bot.assignedBall : null;
@@ -3539,7 +3648,7 @@ function draw() {
   ctx.fillStyle = "white";
   ctx.font = "16px Courier New";
   ctx.textAlign = "left";
-  ctx.fillText("LEVEL " + (level + 1) + " / " + LEVEL_COUNT, 16, 24);
+  ctx.fillText(getCurrentMode().endless ? "LEVEL " + (level + 1) + " / ENDLESS" : "LEVEL " + (level + 1) + " / " + LEVEL_COUNT, 16, 24);
   ctx.textAlign = "right";
   ctx.fillText("LIVES " + lives, WIDTH - 16, 24);
   ctx.textAlign = "left";
@@ -3733,9 +3842,13 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.font = "24px Courier New";
-    ctx.fillText(gameWon ? "ALL LEVELS CLEARED!" : "GAME OVER", WIDTH / 2, HEIGHT / 2 - 25);
+    const resultTitle = gameWon
+      ? activeChallenge ? "CHALLENGE CLEARED!" : "ALL LEVELS CLEARED!"
+      : activeChallenge ? "CHALLENGE OVER" : "GAME OVER";
+    ctx.fillText(resultTitle, WIDTH / 2, HEIGHT / 2 - 25);
     ctx.font = "13px Courier New";
-    ctx.fillText("SCORE " + mola + "   BEST " + highScore, WIDTH / 2, HEIGHT / 2 + 2);
+    const displayedBest = activeChallenge ? getDailyChallengeBest(activeChallenge) : highScore;
+    ctx.fillText("SCORE " + mola + "   BEST " + displayedBest, WIDTH / 2, HEIGHT / 2 + 2);
     ctx.fillStyle = newBest ? "#fff176" : "#ffffff";
     ctx.fillText(newBest ? "NEW BEST" : "Press R to play again", WIDTH / 2, HEIGHT / 2 + 25);
     if (newBest) {
@@ -3780,7 +3893,12 @@ function loseLife() {
 }
 
 function advanceLevel() {
-  if (level + 1 >= LEVEL_COUNT) {
+  if (activeChallenge) {
+    gameWon = true;
+    recordDailyChallengeScore();
+    return;
+  }
+  if (level + 1 >= LEVEL_COUNT && !getCurrentMode().endless) {
     gameWon = true;
     return;
   }
@@ -3843,7 +3961,6 @@ function makeRandomRunBricks() {
     const boss = makeBricks(BOSS_LEVELS[randomInteger(0, BOSS_LEVELS.length - 1)])[0];
     boss.hp = randomInteger(16, 90);
     boss.maxHp = boss.hp;
-    boss.minionLimit = randomInteger(1, 3);
     boss.minionInterval = randomInteger(120, 330);
     boss.minionTimer = boss.minionInterval;
     generated.push(boss);
@@ -3862,7 +3979,13 @@ function randomizeRunStats() {
 
 function startLevel(nextLevel) {
   level = nextLevel;
-  if (level === LEVEL_COUNT - 1) {
+  if (activeChallenge) {
+    level = activeChallenge.startLevel;
+    bricks = makeBricks(level);
+    selectNextBots();
+    for (const enemyName of activeChallenge.enemyNames) spawnNextBot(enemyName);
+    lasers = createLevelLasers(level);
+  } else if (level === LEVEL_COUNT - 1) {
     bricks = makeBricks(level);
     clearBossMinions();
     setNextBotsForLevel(level);
@@ -3882,6 +4005,15 @@ function startLevel(nextLevel) {
     setNextBotsForLevel(level);
     lasers = createLevelLasers(level);
   }
+  if (getCurrentMode().armoredBricks) {
+    for (const brick of bricks) {
+      if (brick.isKill || (brick.type && brick.type !== "normal") || brick.hp) continue;
+      brick.type = "armored";
+      brick.hp = 2;
+      brick.maxHp = 2;
+      brick.color = "#9292a0";
+    }
+  }
   enemyShots = [];
   powerUps = [];
   const features = [];
@@ -3898,16 +4030,25 @@ function startLevel(nextLevel) {
 }
 
 function restartGame() {
-  level = 0;
-  lives = randomEverythingEnabled ? randomInteger(2, 6) : startingLives;
+  level = activeChallenge ? activeChallenge.startLevel : 0;
+  lives = randomEverythingEnabled ? randomInteger(2, 6) : (getCurrentMode().startingLives || startingLives);
   mola = 0;
   newBest = false;
   aiPaddles = [];
   gameOver = false;
   gameWon = false;
+  simulationFrame = 0;
+  enemyShots = [];
+  lasers = [];
+  rockets = [];
+  adminMissile = null;
+  adminMissileArmed = false;
+  ballTrail = [];
   setPaused(false);
   paddle.angle = 0;
   autoPlanCooldown = 0;
+  autoLaunchRequestOwner = null;
+  autoLaunchRequestAt = 0;
   brickHitStreak = 0;
   extraBalls = [];
   powerUps = [];
@@ -3972,6 +4113,8 @@ window.addEventListener("load", function () {
   applyMode(currentMode);
   applySkin(currentSkin);
   refreshTouchControls();
+  setupDailyChallenge();
+  if (startModeSelect) startModeSelect.value = String(currentMode);
 });
 
 
@@ -3986,6 +4129,35 @@ const MAX_SIMULATION_STEPS_PER_FRAME = 12;
 let lastTime = 0;
 let leftover = 0;
 let lastLobbySnapshotSentAt = 0;
+let backgroundTicker = null;
+
+function ensureBackgroundTicker() {
+  if (!document.hidden) {
+    if (backgroundTicker) {
+      window.clearInterval(backgroundTicker);
+      backgroundTicker = null;
+    }
+    return;
+  }
+  if (backgroundTicker) return;
+  backgroundTicker = window.setInterval(function () {
+    if (!gameStarted || paused || !document.hidden) return;
+    const now = performance.now();
+    if (!lastTime) lastTime = now;
+    const elapsed = Math.min(250, Math.max(0, now - lastTime));
+    leftover += elapsed * simulationSpeed;
+    lastTime = now;
+    let steps = 0;
+    while (leftover >= STEP && steps < MAX_SIMULATION_STEPS_PER_FRAME) {
+      update();
+      leftover -= STEP;
+      steps++;
+    }
+    if (gameStarted && !paused) draw();
+  }, 1000 / 30);
+}
+
+document.addEventListener("visibilitychange", ensureBackgroundTicker);
 
 function frame(now) {
   websiteFpsFrameCount++;

@@ -21,6 +21,12 @@
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
           <p class="menu-tagline">Fifty levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
+            <label class="start-mode-picker" for="start-mode-select">
+              Start mode
+              <select id="start-mode-select" aria-label="Mode to begin the run with">
+              </select>
+            </label>
+            <p id="start-mode-description" class="mode-description" aria-live="polite"></p>
             <button type="button" id="start-game" class="primary-action" data-hotkey-action="start-game">Start Game</button>
             <button type="button" id="random-game">Random Everything</button>
             <button type="button" id="local-multiplayer-test">Test Multiplayer</button>
@@ -28,6 +34,13 @@
             <button type="button" id="menu-admin" data-hotkey-action="toggle-admin">Admin Tools</button>
             <button type="button" id="menu-fullscreen" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
           </div>
+          <section id="daily-challenge" class="daily-challenge" aria-label="Daily challenge">
+            <p class="menu-kicker">TODAY'S RUN</p>
+            <h2 id="daily-challenge-title">Daily Challenge</h2>
+            <p id="daily-challenge-details" aria-live="polite">Preparing today's challenge...</p>
+            <p id="daily-challenge-best">Best score: 0</p>
+            <button type="button" id="start-daily-challenge" class="primary-action">Start Challenge</button>
+          </section>
         </section>
         <section class="lobby-panel" aria-label="Online lobby">
           <p class="menu-kicker">MULTIPLAYER</p>
@@ -148,10 +161,37 @@
           <option value="one">Repeat one</option>
         </select>
       </div>
-      <label class="bass-control" for="music-bass"><span>Bass boost</span>
-        <input id="music-bass" type="range" min="0" max="40" step="1" value="0" aria-label="Bass boost in decibels">
-        <output id="music-bass-value" for="music-bass">0 dB</output>
-      </label>
+      <button type="button" id="music-editor-toggle" aria-expanded="false" aria-controls="music-editor">Open music editor</button>
+      <section id="music-editor" class="music-editor" aria-label="Music sound editor" hidden>
+        <label class="bass-control" for="music-bass"><span>Bass boost</span>
+          <input id="music-bass" type="range" min="0" max="40" step="1" value="0" aria-label="Bass boost in decibels">
+          <output id="music-bass-value" for="music-bass">0 dB</output>
+        </label>
+        <label class="bass-control" for="music-bass-max"><span>Maximum bass (dB)</span>
+          <input id="music-bass-max" type="number" min="0" max="60" step="1" value="40" inputmode="numeric">
+          <output id="music-bass-max-value" for="music-bass-max">40 dB</output>
+        </label>
+        <label class="bass-control" for="music-treble"><span>Treble</span>
+          <input id="music-treble" type="range" min="-24" max="24" step="1" value="0" aria-label="Treble boost or cut in decibels">
+          <output id="music-treble-value" for="music-treble">0 dB</output>
+        </label>
+        <label class="bass-control" for="music-volume"><span>Volume</span>
+          <input id="music-volume" type="range" min="0" max="100" step="1" value="100" aria-label="Playback volume">
+          <output id="music-volume-value" for="music-volume">100%</output>
+        </label>
+        <label class="bass-control" for="music-gain"><span>Gain</span>
+          <input id="music-gain" type="range" min="0" max="3" step="0.05" value="1" aria-label="Audio gain multiplier">
+          <output id="music-gain-value" for="music-gain">1.00x</output>
+        </label>
+        <label class="bass-control" for="music-bass-frequency"><span>Bass frequency</span>
+          <input id="music-bass-frequency" type="range" min="40" max="500" step="10" value="160" aria-label="Bass shelf frequency in hertz">
+          <output id="music-bass-frequency-value" for="music-bass-frequency">160 Hz</output>
+        </label>
+        <label class="bass-control" for="music-treble-frequency"><span>Treble frequency</span>
+          <input id="music-treble-frequency" type="range" min="1000" max="12000" step="100" value="4000" aria-label="Treble shelf frequency in hertz">
+          <output id="music-treble-frequency-value" for="music-treble-frequency">4000 Hz</output>
+        </label>
+      </section>
       <div class="music-track-details">
         <label for="music-track-title">Track title</label>
         <input id="music-track-title" type="text" maxlength="120" placeholder="Select a track">
@@ -184,21 +224,9 @@
       <label class="skin-picker">
         Mode
         <select id="mode-select">
-          <option value="0">Normal</option>
-          <option value="1">Dark</option>
-          <option value="2">Chaos</option>
-          <option value="3">Neon</option>
-          <option value="4">Retro</option>
-          <option value="5">Void</option>
-          <option value="6">Sunset</option>
-          <option value="7">Ice</option>
-          <option value="8">Arena</option>
-          <option value="9">Candy</option>
-          <option value="10">Boss Rush</option>
-          <option value="11">Endless</option>
-          <option value="12">Swarm</option>
         </select>
       </label>
+      <small id="settings-mode-description" class="mode-description" aria-live="polite"></small>
       <button type="button" id="mobile-controls-toggle" aria-pressed="true" data-hotkey-action="toggle-mobile-controls">Mobile Controls: On</button>
       <button type="button" id="autoplay" aria-pressed="false" data-hotkey-action="toggle-autoplay">Auto-play: Off</button>
       <button type="button" id="website-fps-toggle" aria-pressed="false">Website FPS: Off</button>
@@ -266,6 +294,9 @@
           <button type="button" data-admin="spawn-boss-8">Spawn Machine Heart</button>
           <button type="button" data-admin="spawn-boss-9">Spawn Star Forge</button>
           <button type="button" data-admin="spawn-boss-10">Spawn Deep Current</button>
+          <button type="button" data-admin="spawn-boss-11">Spawn Binary Regent</button>
+          <button type="button" data-admin="spawn-boss-12">Spawn Crown of Ash</button>
+          <button type="button" data-admin="spawn-boss-13">Spawn Orbital Maw</button>
           <button type="button" data-admin="spawn-final-boss">Spawn Command Wraith</button>
           <button type="button" data-admin="boss-phase">Advance Wraith phase</button>
         </section>
@@ -309,9 +340,7 @@
           <label>Paddle width <input id="admin-paddle-width" type="range" min="50" max="160" step="5" value="90"><output id="admin-paddle-width-value">90</output></label>
           <label>Lives <input id="admin-lives" type="range" min="1" max="10" step="1" value="3"><output id="admin-lives-value">3</output></label>
           <label>Nextbot speed <input id="admin-nextbot-speed" type="range" min="0.5" max="2.5" step="0.1" value="1"><output id="admin-nextbot-speed-value">1.0x</output></label>
-          <label>Nextbot limit <input id="admin-nextbot-limit" type="range" min="12" max="128" step="1" value="128"><output id="admin-nextbot-limit-value">128</output></label>
           <label>Boss health boost <input id="admin-boss-health" type="range" min="1" max="100" step="1" value="1"><output id="admin-boss-health-value">1x</output></label>
-          <label>Boss minion limit <input id="admin-boss-minion-limit" type="range" min="1" max="64" step="1" value="8"><output id="admin-boss-minion-limit-value">8</output></label>
         </section>
         <section class="admin-group" aria-label="Clear objects">
           <h3>Cleanup</h3>

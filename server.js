@@ -328,6 +328,9 @@ function handleMessage(socket, message) {
     if (!room.started || !room.adminIds.includes(player.id)) return sendError(socket, "You do not have admin access in this game.");
     if (!message.command || typeof message.command !== "object" || Array.isArray(message.command)) return;
     const host = Array.from(room.players.values()).find(function (member) { return member.host; });
+    if (player.host) {
+      return broadcastRoom(room, { type: "admin-command", adminId: player.id, command: message.command });
+    }
     if (host) send(host.socket, { type: "admin-command", adminId: player.id, command: message.command });
     return;
   }

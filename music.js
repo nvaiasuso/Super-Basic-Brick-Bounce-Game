@@ -5,6 +5,20 @@ const musicCurrent = document.getElementById("music-current");
 const musicMode = document.getElementById("music-mode");
 const musicBass = document.getElementById("music-bass");
 const musicBassValue = document.getElementById("music-bass-value");
+const musicBassMax = document.getElementById("music-bass-max");
+const musicBassMaxValue = document.getElementById("music-bass-max-value");
+const musicTreble = document.getElementById("music-treble");
+const musicTrebleValue = document.getElementById("music-treble-value");
+const musicVolume = document.getElementById("music-volume");
+const musicVolumeValue = document.getElementById("music-volume-value");
+const musicGain = document.getElementById("music-gain");
+const musicGainValue = document.getElementById("music-gain-value");
+const musicBassFrequency = document.getElementById("music-bass-frequency");
+const musicBassFrequencyValue = document.getElementById("music-bass-frequency-value");
+const musicTrebleFrequency = document.getElementById("music-treble-frequency");
+const musicTrebleFrequencyValue = document.getElementById("music-treble-frequency-value");
+const musicEditorToggle = document.getElementById("music-editor-toggle");
+const musicEditor = document.getElementById("music-editor");
 const musicTrackTitle = document.getElementById("music-track-title");
 const musicTrackNotes = document.getElementById("music-track-notes");
 const adminMusicToggle = document.getElementById("admin-music-toggle");
@@ -19,6 +33,8 @@ const musicTracks = [];
 let currentMusicIndex = -1;
 let musicAudioContext = null;
 let bassFilter = null;
+let trebleFilter = null;
+let musicGainNode = null;
 const repositoryMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
 const sharedMusicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
 const maxSharedMusicBytes = 25 * 1024 * 1024;
@@ -58,12 +74,26 @@ function setupBassBoost() {
     bassFilter = musicAudioContext.createBiquadFilter();
     bassFilter.type = "lowshelf";
     bassFilter.frequency.value = 160;
+    trebleFilter = musicAudioContext.createBiquadFilter();
+    trebleFilter.type = "highshelf";
+    trebleFilter.frequency.value = 4000;
+    musicGainNode = musicAudioContext.createGain();
     const mediaSource = musicAudioContext.createMediaElementSource(musicMedia);
     mediaSource.connect(bassFilter);
-    bassFilter.connect(musicAudioContext.destination);
+    bassFilter.connect(trebleFilter);
+    trebleFilter.connect(musicGainNode);
+    musicGainNode.connect(musicAudioContext.destination);
   } catch (error) {
     musicBass.disabled = true;
     musicBassValue.textContent = "Unavailable";
+    musicTreble.disabled = true;
+    musicTrebleValue.textContent = "Unavailable";
+    musicGain.disabled = true;
+    musicGainValue.textContent = "Unavailable";
+    musicBassFrequency.disabled = true;
+    musicBassFrequencyValue.textContent = "Unavailable";
+    musicTrebleFrequency.disabled = true;
+    musicTrebleFrequencyValue.textContent = "Unavailable";
   }
 }
 
@@ -73,12 +103,78 @@ function updateBassBoost() {
   if (bassFilter) bassFilter.gain.setTargetAtTime(decibels, musicAudioContext.currentTime, 0.04);
 }
 
+function updateBassBoostMaximum() {
+  const rawMaximum = musicBassMax.value.trim();
+  const requestedMaximum = rawMaximum === "" ? 40 : Number(rawMaximum);
+  const maximum = Number.isFinite(requestedMaximum) ? Math.max(0, Math.min(60, Math.round(requestedMaximum))) : 40;
+  musicBassMax.value = String(maximum);
+  musicBassMaxValue.textContent = maximum + " dB";
+  musicBass.max = String(maximum);
+  if (Number(musicBass.value) > maximum) musicBass.value = String(maximum);
+  updateBassBoost();
+  try {
+    localStorage.setItem("blockBreakerBassBoostMax", String(maximum));
+  } catch (error) {
+    // Keep the selected limit active for this page session.
+  }
+}
+
+function updateMusicTreble() {
+  const decibels = Number(musicTreble.value);
+  musicTrebleValue.textContent = decibels + " dB";
+  if (trebleFilter) trebleFilter.gain.setTargetAtTime(decibels, musicAudioContext.currentTime, 0.04);
+}
+
+function updateMusicVolume() {
+  const percent = Number(musicVolume.value);
+  musicMedia.volume = percent / 100;
+  musicVolumeValue.textContent = percent + "%";
+}
+
+function updateMusicGain() {
+  const multiplier = Number(musicGain.value);
+  musicGainValue.textContent = multiplier.toFixed(2) + "x";
+  if (musicGainNode) musicGainNode.gain.setTargetAtTime(multiplier, musicAudioContext.currentTime, 0.04);
+}
+
+function updateMusicFrequencies() {
+  const bassFrequency = Number(musicBassFrequency.value);
+  const trebleFrequency = Number(musicTrebleFrequency.value);
+  musicBassFrequencyValue.textContent = bassFrequency + " Hz";
+  musicTrebleFrequencyValue.textContent = trebleFrequency + " Hz";
+  if (bassFilter) bassFilter.frequency.setTargetAtTime(bassFrequency, musicAudioContext.currentTime, 0.04);
+  if (trebleFilter) trebleFilter.frequency.setTargetAtTime(trebleFrequency, musicAudioContext.currentTime, 0.04);
+}
+
 musicBass.addEventListener("input", updateBassBoost);
+musicBassMax.addEventListener("input", updateBassBoostMaximum);
+musicTreble.addEventListener("input", updateMusicTreble);
+musicVolume.addEventListener("input", updateMusicVolume);
+musicGain.addEventListener("input", updateMusicGain);
+musicBassFrequency.addEventListener("input", updateMusicFrequencies);
+musicTrebleFrequency.addEventListener("input", updateMusicFrequencies);
+musicEditorToggle.addEventListener("click", function () {
+  const expanded = musicEditorToggle.getAttribute("aria-expanded") === "true";
+  musicEditorToggle.setAttribute("aria-expanded", String(!expanded));
+  musicEditorToggle.textContent = expanded ? "Open music editor" : "Close music editor";
+  musicEditor.hidden = expanded;
+});
+try {
+  const savedMaximum = localStorage.getItem("blockBreakerBassBoostMax");
+  if (savedMaximum !== null && Number.isFinite(Number(savedMaximum))) musicBassMax.value = savedMaximum;
+} catch (error) {
+  // Keep the default limit when storage is unavailable.
+}
 musicMedia.addEventListener("play", function () {
   if (musicAudioContext && musicAudioContext.state === "suspended") musicAudioContext.resume();
 });
 setupBassBoost();
+updateBassBoostMaximum();
 updateBassBoost();
+updateMusicTreble();
+updateMusicVolume();
+updateMusicGain();
+updateMusicFrequencies();
 
 function addMusicTracks(tracks) {
   for (const track of tracks) {
