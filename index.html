@@ -19,7 +19,7 @@
           <p class="menu-kicker">ARCADE / BLOCK BREAKER</p>
           <h1>BREAK THE<br>FIELD.</h1>
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
-          <p class="menu-tagline">Ninety levels. Three lives. Keep the ball alive.</p>
+          <p class="menu-tagline">150 levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
             <label class="start-mode-picker" for="start-mode-select">
               Start mode
@@ -121,7 +121,7 @@
       <button type="button" id="touch-launch" class="touch-control touch-launch" aria-label="Launch ball" disabled>Launch</button>
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 90 levels. The final Wither Storm fight has no nextbots. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 150 levels. The final Wither Storm fight has no nextbots. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
       <div class="chat-heading">
         <h2>Lobby Chat</h2>
@@ -255,7 +255,7 @@
       <button type="button" id="website-fps-toggle" aria-pressed="false">Website FPS: Off</button>
       <button type="button" id="fullscreen-toggle" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
       <button type="button" id="resume">Resume</button>
-      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
+      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+S starts a game. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens the admin menu. Ctrl+Shift+R twice resets the player and admin spawns.</small>
     </section>
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
       <h2 id="admin-titlebar">Admin Tools <button type="button" id="admin-close">Close</button></h2>
@@ -333,6 +333,11 @@
           <button type="button" data-admin="spawn-boss-17">Spawn Prismatic Regent</button>
           <button type="button" data-admin="spawn-boss-18">Spawn Molten Archivist</button>
           <button type="button" data-admin="spawn-boss-19">Spawn Storm Widow</button>
+          <button type="button" data-admin="spawn-boss-20">Spawn Nebula King</button>
+          <button type="button" data-admin="spawn-boss-21">Spawn Rust Colossus</button>
+          <button type="button" data-admin="spawn-boss-22">Spawn Tidal Empress</button>
+          <button type="button" data-admin="spawn-boss-23">Spawn Sun Eater</button>
+          <button type="button" data-admin="spawn-boss-24">Spawn Circuit Breaker</button>
           <button type="button" data-admin="spawn-final-boss">Spawn Wither Storm</button>
           <button type="button" data-admin="boss-phase">Advance Wither Storm phase</button>
         </section>
@@ -350,6 +355,7 @@
           <button type="button" data-admin="heal-boss">Heal active boss</button>
           <button type="button" data-admin="damage-boss">Damage active boss</button>
           <button type="button" data-admin="reset-score">Reset run score</button>
+          <button type="button" data-admin="reset-player-admin">Reset player + admin spawns</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>

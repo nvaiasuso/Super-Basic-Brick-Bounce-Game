@@ -39,13 +39,16 @@ const GAME_MODES = [
   { label: "Arena", description: "Quick play with the highest standard drop rate.", accent: "#f4faff", background: "#0d1118", ballSpeedMultiplier: 1.18, powerUpDropChance: 0.2 },
   { label: "Candy", description: "Balanced speed with generous power-ups.", accent: "#ff75d8", background: "#1a0d1e", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.19 },
   { label: "Boss Rush", description: "Every level is a boss encounter.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.16, bossRush: true },
-  { label: "Endless", description: "Keep playing past level 90 as layouts cycle.", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
+  { label: "Endless", description: "Keep playing past level 150 as layouts cycle.", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
   { label: "Swarm", description: "Twice as many nextbots appear as levels advance.", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, nextbotMultiplier: 2 },
   { label: "Inverted", description: "Left and right paddle controls are reversed.", accent: "#ffad55", background: "#15100a", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, reverseControls: true },
   { label: "Laserstorm", description: "Laser hazards appear twice as often.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, laserMultiplier: 2 },
   { label: "Glass Cannon", description: "One life, a very fast ball, and plentiful power-ups.", accent: "#f0abfc", background: "#16091b", ballSpeedMultiplier: 1.45, powerUpDropChance: 0.25, startingLives: 1 },
   { label: "Fortress", description: "Normal bricks take two hits; the ball moves slower.", accent: "#67e8f9", background: "#071318", ballSpeedMultiplier: 0.9, powerUpDropChance: 0.14, armoredBricks: true },
-  { label: "Overdrive", description: "Very fast ball, extra power-ups, and more nextbots.", accent: "#fb923c", background: "#1b0c05", ballSpeedMultiplier: 1.55, powerUpDropChance: 0.22, nextbotMultiplier: 1.5 }
+  { label: "Overdrive", description: "Very fast ball, extra power-ups, and more nextbots.", accent: "#fb923c", background: "#1b0c05", ballSpeedMultiplier: 1.55, powerUpDropChance: 0.22, nextbotMultiplier: 1.5 },
+  { label: "Mirror Swarm", description: "Reversed controls and 2.5x nextbots.", accent: "#67e8f9", background: "#07131d", ballSpeedMultiplier: 1.12, powerUpDropChance: 0.18, nextbotMultiplier: 2.5, reverseControls: true },
+  { label: "Meteor Shower", description: "Fast play with frequent power-ups and extra lasers.", accent: "#ffd166", background: "#1b1208", ballSpeedMultiplier: 1.3, powerUpDropChance: 0.28, laserMultiplier: 2 },
+  { label: "Iron Marathon", description: "Armored bricks, extra enemies, and endless levels.", accent: "#a3e635", background: "#0c160d", ballSpeedMultiplier: 0.92, powerUpDropChance: 0.2, nextbotMultiplier: 1.5, armoredBricks: true, endless: true }
 ];
 const PADDLE_TILT_SPEED = 2;
 const DASH_DISTANCE = 120;
@@ -55,7 +58,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 120;
+const LEVEL_COUNT = 150;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -393,6 +396,39 @@ function playBrickSound() {
     source.start();
   } catch (error) {
     // Audio is optional; gameplay must remain available if it is blocked.
+  }
+}
+
+function playGameSound(type) {
+  const sounds = {
+    paddle: { start: 520, end: 760, duration: 0.075, volume: 0.035, waveform: "triangle" },
+    powerup: { start: 440, end: 880, duration: 0.18, volume: 0.045, waveform: "sine" },
+    lifeLost: { start: 360, end: 90, duration: 0.32, volume: 0.06, waveform: "sawtooth" },
+    level: { start: 520, end: 1040, duration: 0.24, volume: 0.045, waveform: "square" }
+  };
+  const sound = sounds[type];
+  if (!sound) return;
+
+  try {
+    const AudioContextType = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextType) return;
+    audioContext = audioContext || new AudioContextType();
+    if (audioContext.state === "suspended") audioContext.resume();
+    const startTime = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = sound.waveform;
+    oscillator.frequency.setValueAtTime(sound.start, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(sound.end, startTime + sound.duration);
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(sound.volume, startTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + sound.duration);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + sound.duration);
+  } catch (error) {
+    // Audio is optional; gameplay must remain available if playback is blocked.
   }
 }
 
@@ -840,6 +876,7 @@ let bricks = [];
 const keys = {};
 let autoPlay = false;
 let lastShiftResetTime = 0;
+let lastFullResetTime = 0;
 let paused = false;
 let rebindingControl = null;
 let autoAimAngle = 0;
@@ -904,7 +941,7 @@ function assignRightClickHotkey(button) {
 for (const hotkeyButton of document.querySelectorAll("[data-hotkey-action]")) {
   const action = hotkeyButton.dataset.hotkeyAction;
   const defaultKey = action === "toggle-fullscreen" ? "f" : action === "lobby-add-ai" ? "a" : action === "lobby-start" ? "enter" : action === "start-game" ? "s" : null;
-  if (defaultKey) setCustomHotkey(action, defaultKey, action === "toggle-fullscreen");
+  if (defaultKey) setCustomHotkey(action, defaultKey, action === "toggle-fullscreen" || action === "start-game");
   assignRightClickHotkey(hotkeyButton);
 }
 
@@ -2480,7 +2517,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-gunner-squad", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-gunner-squad", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "spawn-boss-20", "spawn-boss-21", "spawn-boss-22", "spawn-boss-23", "spawn-boss-24", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2595,6 +2632,8 @@ function runAdminAction(action, remoteAuthorized = false) {
     mola = 0;
     newBest = false;
     powerUpNotice = { text: "RUN SCORE RESET", timer: 90, color: "#d6ff55" };
+  } else if (action === "reset-player-admin") {
+    resetPlayerAndAdminState();
   } else if (action === "open-url-from-file") {
     openAdminUrlFromFile();
   } else if (action === "ball") {
@@ -2910,7 +2949,25 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
-  if (gameStarted && event.shiftKey && key === "r") {
+  if (gameStarted && event.ctrlKey && event.shiftKey && key === "r") {
+    event.preventDefault();
+    if (event.repeat) return;
+    const now = performance.now();
+    if (now - lastFullResetTime <= 1100) {
+      lastFullResetTime = 0;
+      if (multiplayerActive && !multiplayerHost) {
+        sendRemoteAdminCommand({ type: "tool", action: "reset-player-admin" });
+      } else {
+        resetPlayerAndAdminState();
+      }
+    } else {
+      lastFullResetTime = now;
+      levelNotice = { text: "PRESS CTRL+SHIFT+R AGAIN TO RESET PLAYER + ADMIN SPAWNS", timer: 90 };
+    }
+    return;
+  }
+
+  if (gameStarted && event.shiftKey && !event.ctrlKey && key === "r") {
     event.preventDefault();
     if (event.repeat) return;
     const now = performance.now();
@@ -3072,6 +3129,10 @@ document.addEventListener("keyup", function (event) {
   if (keyAliases[key]) keys[keyAliases[key]] = false;
 });
 
+window.addEventListener("blur", function () {
+  for (const key of Object.keys(keys)) keys[key] = false;
+});
+
 function setTouchControlState(controlName, pressed) {
   const boundKey = CONTROL_KEYS[controlName];
   if (!boundKey) return;
@@ -3200,6 +3261,7 @@ function update() {
     moveBall(activeBall);
     bounceOffWalls(activeBall);   // collisions.js
     if (bounceOffPaddle(activeBall, paddle)) {
+      playGameSound("paddle");
       paddleSquashFrames = 6;
       if (magnetTimer > 0 && !autoPlay && activeBall === ball && (!magnetPlayerId || magnetPlayerId === multiplayerPlayerId)) {
         ball.stuck = true;
@@ -3695,6 +3757,7 @@ function updatePowerUps() {
     }
     if (caught) {
       applyPowerUp(powerUp, catcherId);
+      playGameSound("powerup");
       powerUps.splice(index, 1);
     } else if (powerUp.y > HEIGHT) {
       powerUps.splice(index, 1);
@@ -4339,6 +4402,7 @@ function loseLife() {
     return;
   }
   lives--;
+  playGameSound("lifeLost");
   autoPlanCooldown = 0;
   brickHitStreak = 0;
   extraBalls = [];
@@ -4361,6 +4425,7 @@ function advanceLevel() {
     gameWon = true;
     return;
   }
+  playGameSound("level");
   startLevel(level + 1);
 }
 
@@ -4542,6 +4607,17 @@ function restartGame() {
   startLevel(level);
 }
 
+function resetPlayerAndAdminState() {
+  setSimulationSpeed(1);
+  autoPlay = false;
+  autoPlayButton.setAttribute("aria-pressed", "false");
+  autoPlayButton.textContent = "Auto-play: Off";
+  invincible = false;
+  refreshInvincibilityButton();
+  restartGame();
+  levelNotice = { text: "PLAYER + ADMIN SPAWNS RESET", timer: 110 };
+}
+
 function resetCurrentLevel() {
   if (!gameStarted) return;
   const currentLevel = level;
@@ -4628,6 +4704,7 @@ function ensureBackgroundTicker() {
 document.addEventListener("visibilitychange", ensureBackgroundTicker);
 
 function frame(now) {
+  requestAnimationFrame(frame);
   websiteFpsFrameCount++;
   if (websiteFpsSampleStart === 0) websiteFpsSampleStart = now;
   const websiteElapsed = now - websiteFpsSampleStart;
@@ -4672,7 +4749,6 @@ function frame(now) {
 
   draw();
   drawTitleDemo();
-  requestAnimationFrame(frame);
 }
 
 const titleDemoCanvas = document.getElementById("title-demo");

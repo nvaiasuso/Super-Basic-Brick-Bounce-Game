@@ -830,7 +830,7 @@ lobbyCopyButton.addEventListener("click", async function () {
 window.updateLobbyPaddle = function (x, angle, width, left, right) {
   if (!lobbyActive || !lobbyStarted || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
   const now = performance.now();
-  if (now - lastPaddleSentAt < 40) return;
+  if (now - lastPaddleSentAt < 1000 / 30) return;
   lastPaddleSentAt = now;
   lobbySocket.send(JSON.stringify({ type: "paddle", x: x, angle: angle, width: width, left: Boolean(left), right: Boolean(right) }));
 };

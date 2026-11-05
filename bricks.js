@@ -27,7 +27,12 @@ const BOSS_VARIANTS = [
   { name: "ABYSSAL CROWN", palette: ["#818cf8", "#312e81", "#0f172a"], damagedPalette: ["#fb7185", "#9f1239", "#4c0519"], glow: "#a78bfa", eyes: "#67e8f9", damagedEyes: "#fde047", minionInterval: 105, minionLimit: 5 },
   { name: "PRISMATIC REGENT", palette: ["#f0abfc", "#0891b2", "#172554"], damagedPalette: ["#fef08a", "#c026d3", "#500724"], glow: "#67e8f9", eyes: "#fff7ed", damagedEyes: "#facc15", minionInterval: 145, minionLimit: 4 },
   { name: "MOLTEN ARCHIVIST", palette: ["#fb923c", "#b91c1c", "#431407"], damagedPalette: ["#fde047", "#7f1d1d", "#1c1917"], glow: "#f97316", eyes: "#fef3c7", damagedEyes: "#67e8f9", minionInterval: 118, minionLimit: 5 },
-  { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 }
+  { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 },
+  { name: "NEBULA KING", palette: ["#7c3aed", "#1e1b4b", "#0f172a"], damagedPalette: ["#f0abfc", "#be123c", "#500724"], glow: "#818cf8", eyes: "#67e8f9", damagedEyes: "#fef08a", minionInterval: 88, minionLimit: 5 },
+  { name: "RUST COLOSSUS", palette: ["#b45309", "#78350f", "#292524"], damagedPalette: ["#facc15", "#c2410c", "#431407"], glow: "#fb923c", eyes: "#fde68a", damagedEyes: "#fff7ed", minionInterval: 105, minionLimit: 4 },
+  { name: "TIDAL EMPRESS", palette: ["#0e7490", "#164e63", "#082f49"], damagedPalette: ["#5eead4", "#be123c", "#4a044e"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fda4af", minionInterval: 92, minionLimit: 5 },
+  { name: "SUN EATER", palette: ["#ca8a04", "#9a3412", "#431407"], damagedPalette: ["#fef08a", "#dc2626", "#450a0a"], glow: "#facc15", eyes: "#fff7ed", damagedEyes: "#67e8f9", minionInterval: 82, minionLimit: 6 },
+  { name: "CIRCUIT BREAKER", palette: ["#16a34a", "#14532d", "#052e16"], damagedPalette: ["#67e8f9", "#7c3aed", "#1e1b4b"], glow: "#4ade80", eyes: "#fef08a", damagedEyes: "#f0abfc", minionInterval: 78, minionLimit: 6 }
 ];
 const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
 const BOSS_LEVELS = Array.from(
@@ -431,7 +436,7 @@ function makeBricks(level) {
   if (BOSS_LEVELS.includes(level)) {
     return [makeBossBrick(BOSS_LEVELS.indexOf(level), level)];
   }
-  const layout = LEVEL_LAYOUTS[level];
+  const layout = LEVEL_LAYOUTS[level % LEVEL_COUNT];
   const totalWidth = BRICK_COLUMNS * BRICK_WIDTH + (BRICK_COLUMNS - 1) * BRICK_GAP;
   const left = (WIDTH - totalWidth) / 2;
 
