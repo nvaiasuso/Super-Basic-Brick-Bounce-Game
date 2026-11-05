@@ -1172,6 +1172,9 @@ button:focus-visible {
   color: #b6ffc9;
   font: 11px/1.5 monospace;
   text-align: left;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
 }
 
 .admin-debug-readout[hidden] {

@@ -380,10 +380,13 @@ function updateNextBots() {
 
 function startNextBotAttack(bot) {
   const aimTarget = getNextBotAimTarget(bot);
+  bot.aimX = aimTarget.x;
+  bot.aimY = aimTarget.y;
   bot.angle = Math.atan2(aimTarget.y - bot.y, aimTarget.x - bot.x);
   bot.mode = "telegraph";
   bot.phaseTimer = bot.telegraphFrames || NEXTBOT_TELEGRAPH_FRAMES;
   bot.attackQueued = false;
+  if (typeof playGameSound === "function") playGameSound("warning");
 }
 
 function triggerNextBotAttack() {

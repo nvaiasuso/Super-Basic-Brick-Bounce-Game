@@ -149,6 +149,7 @@ let websiteFps = 0;
 let gameFpsFrameCount = 0;
 let gameFpsSampleStart = 0;
 let gameFps = 0;
+let lastAdminDebugRefresh = -Infinity;
 let simulationSpeed = 1;
 const adminVisibility = {
   blocks: true,
@@ -161,6 +162,7 @@ const adminVisibility = {
   trajectory: false,
   paddlePlan: false,
   timers: false,
+  shotLines: false,
 };
 let hitStopFrames = 0;
 let screenShakeFrames = 0;
@@ -175,6 +177,7 @@ let perfectNotice = null;
 let comboNotice = null;
 let audioContext = null;
 let brickSoundBuffer = null;
+const lastGameSoundAt = Object.create(null);
 
 function readHighScore() {
   try {
@@ -401,13 +404,20 @@ function playBrickSound() {
 
 function playGameSound(type) {
   const sounds = {
-    paddle: { start: 520, end: 760, duration: 0.075, volume: 0.035, waveform: "triangle" },
-    powerup: { start: 440, end: 880, duration: 0.18, volume: 0.045, waveform: "sine" },
-    lifeLost: { start: 360, end: 90, duration: 0.32, volume: 0.06, waveform: "sawtooth" },
-    level: { start: 520, end: 1040, duration: 0.24, volume: 0.045, waveform: "square" }
+    paddle: { start: 520, end: 760, duration: 0.075, volume: 0.035, waveform: "triangle", cooldown: 0 },
+    powerup: { start: 440, end: 880, duration: 0.18, volume: 0.045, waveform: "sine", cooldown: 0 },
+    lifeLost: { start: 360, end: 90, duration: 0.32, volume: 0.06, waveform: "sawtooth", cooldown: 0 },
+    level: { start: 520, end: 1040, duration: 0.24, volume: 0.045, waveform: "square", cooldown: 0 },
+    shot: { start: 920, end: 360, duration: 0.055, volume: 0.018, waveform: "triangle", cooldown: 85 },
+    warning: { start: 780, end: 480, duration: 0.16, volume: 0.03, waveform: "square", cooldown: 180 },
+    laser: { start: 260, end: 120, duration: 0.2, volume: 0.035, waveform: "sawtooth", cooldown: 200 },
+    explosion: { start: 150, end: 48, duration: 0.28, volume: 0.055, waveform: "sawtooth", cooldown: 120 }
   };
   const sound = sounds[type];
   if (!sound) return;
+  const now = performance.now();
+  if (now - (lastGameSoundAt[type] ?? -Infinity) < sound.cooldown) return;
+  lastGameSoundAt[type] = now;
 
   try {
     const AudioContextType = window.AudioContext || window.webkitAudioContext;
@@ -651,9 +661,13 @@ function updateAdminGunners() {
         }
       }
     }
+    gunner.targetX = null;
+    gunner.targetY = null;
     if (target) {
       const targetX = targetType === "brick" ? target.x + target.width / 2 : target.x;
       const targetY = targetType === "brick" ? target.y + target.height / 2 : target.y;
+      gunner.targetX = targetX;
+      gunner.targetY = targetY;
       const angle = Math.atan2(targetY - gunner.y, targetX - gunner.x);
       gunner.facing = Math.cos(angle) >= 0 ? 1 : -1;
       adminGunnerBullets.push({
@@ -664,10 +678,15 @@ function updateAdminGunners() {
         targetType: targetType,
         life: 120
       });
+      playGameSound("shot");
     }
+    gunner.targetX = null;
+    gunner.targetY = null;
     gunner.fireCooldown = 48;
   }
 
+      gunner.targetX = targetX;
+      gunner.targetY = targetY;
   for (let bulletIndex = adminGunnerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
     const bullet = adminGunnerBullets[bulletIndex];
     bullet.x += bullet.vx;
@@ -1612,6 +1631,16 @@ window.getGameDebugState = function () {
       lasers: lasers.length,
       enemyShots: enemyShots.length
     },
+    shooters: {
+      gunners: adminGunners.slice(0, 4).map(function (gunner, index) {
+        return { id: index + 1, x: gunner.x, y: gunner.y, targetX: gunner.targetX, targetY: gunner.targetY, cooldown: gunner.fireCooldown };
+      }),
+      nextbots: nextBots.filter(function (bot) { return bot.mode === "telegraph" || bot.mode === "dash"; }).slice(0, 4).map(function (bot) {
+        return { name: bot.name, x: bot.x, y: bot.y, targetX: bot.aimX, targetY: bot.aimY, mode: bot.mode };
+      }),
+      gunnerShots: adminGunnerBullets.slice(-4).map(function (shot) { return { x: shot.x, y: shot.y, vx: shot.vx, vy: shot.vy }; }),
+      enemyShots: enemyShots.slice(-4).map(function (shot) { return { x: shot.x, y: shot.y, vx: shot.vx, vy: shot.vy }; })
+    },
     boss: activeBoss ? {
       name: activeBoss.bossName,
       hp: activeBoss.hp,
@@ -1624,10 +1653,28 @@ window.getGameDebugState = function () {
 function refreshAdminDebugReadout() {
   const output = document.getElementById("admin-debug-readout");
   if (!output || !adminDebugEnabled) return;
+  const now = performance.now();
+  if (now - lastAdminDebugRefresh < 150) return;
+  lastAdminDebugRefresh = now;
   const state = window.getGameDebugState();
   const entityCounts = state.entities;
   const bossStatus = state.boss ? state.boss.name + " " + state.boss.hp + "/" + state.boss.maxHp + (state.boss.phase ? " [" + state.boss.phase + "]" : "") : "none";
-  const text = "LV " + (state.level + 1) + " | FRAME " + state.simulationFrame + " | BALLS " + entityCounts.balls + " | GUNNERS " + entityCounts.gunners + " (" + entityCounts.gunnerBullets + " SHOTS) | BLOCKS " + entityCounts.bricks + " | NEXTBOTS " + entityCounts.nextbots + " | POWERUPS " + entityCounts.powerUps + " | LASERS " + entityCounts.lasers + " | ENEMY SHOTS " + entityCounts.enemyShots + " | BOSS " + bossStatus;
+  const gunnerLines = state.shooters.gunners.map(function (gunner) {
+    const target = Number.isFinite(gunner.targetX) ? Math.round(gunner.targetX) + "," + Math.round(gunner.targetY) : "no target";
+    return "G" + gunner.id + " " + Math.round(gunner.x) + "," + Math.round(gunner.y) + " -> " + target + " CD " + gunner.cooldown;
+  });
+  const nextBotLines = state.shooters.nextbots.map(function (bot) {
+    return bot.name + " " + Math.round(bot.x) + "," + Math.round(bot.y) + " -> " + Math.round(bot.targetX) + "," + Math.round(bot.targetY) + " " + bot.mode;
+  });
+  const shotLines = state.shooters.gunnerShots.concat(state.shooters.enemyShots).map(function (shot) {
+    return Math.round(shot.x) + "," + Math.round(shot.y) + " v" + shot.vx.toFixed(1) + "," + shot.vy.toFixed(1);
+  });
+  const text = [
+    "LV " + (state.level + 1) + " | FRAME " + state.simulationFrame + " | BALLS " + entityCounts.balls + " | GUNNERS " + entityCounts.gunners + " (" + entityCounts.gunnerBullets + " SHOTS) | BLOCKS " + entityCounts.bricks + " | NEXTBOTS " + entityCounts.nextbots + " | POWERUPS " + entityCounts.powerUps + " | LASERS " + entityCounts.lasers + " | ENEMY SHOTS " + entityCounts.enemyShots + " | BOSS " + bossStatus,
+    "GUNNER AIM: " + (gunnerLines.join(" | ") || "none"),
+    "NEXTBOT AIM: " + (nextBotLines.join(" | ") || "none"),
+    "PROJECTILE POS / VEL: " + (shotLines.join(" | ") || "none")
+  ].join("\n");
   if (output.textContent !== text) output.textContent = text;
 }
 window.launchLobbyBall = function (playerId) {
@@ -2205,6 +2252,45 @@ function drawAdminHitboxes() {
   for (const rocket of rockets) ctx.strokeRect(rocket.x - 10, rocket.y - 3, 20, 6);
   if (adminMissile) ctx.strokeRect(adminMissile.x - 10, adminMissile.y - 4, 20, 8);
   ctx.restore();
+}
+
+function drawAdminShotDebug() {
+  function drawAimLine(startX, startY, targetX, targetY, color, label) {
+    if (![startX, startY, targetX, targetY].every(Number.isFinite)) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(targetX, targetY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = "9px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText(label + " " + Math.round(targetX) + "," + Math.round(targetY), Math.max(48, Math.min(WIDTH - 48, targetX)), Math.max(12, targetY - 8));
+    ctx.restore();
+  }
+
+  for (const gunner of adminGunners.slice(0, 12)) {
+    drawAimLine(gunner.x, gunner.y - 12, gunner.targetX, gunner.targetY, "#d6ff55", "GUNNER");
+  }
+  for (const bot of nextBots.slice(0, 8)) {
+    if (bot.mode !== "telegraph" && bot.mode !== "dash") continue;
+    drawAimLine(bot.x, bot.y, bot.aimX, bot.aimY, bot.accent || "#ff6b6b", bot.name);
+  }
+  for (const shot of adminGunnerBullets.slice(-12).concat(enemyShots.slice(-12))) {
+    drawAimLine(shot.x, shot.y, shot.x + shot.vx * 12, shot.y + shot.vy * 12, "#fff176", "SHOT");
+  }
+  for (const rocket of rockets) {
+    if (rocket.target) drawAimLine(rocket.x, rocket.y, rocket.target.x, rocket.target.y, "#ffca3a", "ROCKET");
+  }
+  if (adminMissile) drawAimLine(adminMissile.x, adminMissile.y, adminMissile.targetX, adminMissile.targetY, "#ff8c69", "MISSILE");
 }
 
   function drawKnownTrajectories() {
@@ -3528,6 +3614,7 @@ function updateNextBotShots() {
     const distance = Math.max(1, Math.hypot(dx, dy));
     const speed = randomInteger(4, 6);
     enemyShots.push({ x: bot.x, y: bot.y, vx: dx / distance * speed, vy: dy / distance * speed, radius: 5 });
+    playGameSound("shot");
   }
 }
 
@@ -3888,6 +3975,7 @@ function updateLasers() {
       if (--laser.timer <= 0) {
         laser.mode = "firing";
         laser.timer = 18;
+        playGameSound("laser");
       }
     } else if (--laser.timer <= 0) {
       laser.mode = "idle";
@@ -3994,6 +4082,7 @@ function updateRockets() {
     const verticalDistance = rocket.target.y - rocket.y;
     const distanceToTarget = Math.hypot(horizontalDistance, verticalDistance);
     if (distanceToTarget <= rocket.speed + 14) {
+      playGameSound("explosion");
       nextBots = nextBots.filter(function (bot) { return bot !== rocket.target; });
       if (nextBotBattle && nextBotBattle.bot === rocket.target) {
         nextBotBattle = null;
@@ -4354,6 +4443,7 @@ function draw() {
   if (adminVisibility.trajectory) drawKnownTrajectories();
   if (adminVisibility.paddlePlan) drawPaddlePlan();
   if (adminVisibility.timers) drawThreatTimers();
+  if (adminVisibility.shotLines) drawAdminShotDebug();
   if (adminVisibility.extras && powerUpNotice) {
     ctx.fillStyle = powerUpNotice.color;
     ctx.textAlign = "center";
