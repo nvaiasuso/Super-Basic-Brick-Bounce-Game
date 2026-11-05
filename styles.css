@@ -47,8 +47,7 @@ main {
 }
 
 .game-active canvas#game {
-  width: min(96vw, 1200px);
-  max-height: 76dvh;
+  width: min(96vw, 1000px, calc(76dvh * 4 / 3));
   margin-inline: auto;
 }
 
