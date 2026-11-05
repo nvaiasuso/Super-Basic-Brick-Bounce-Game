@@ -427,9 +427,7 @@ function playGameSound(type) {
     gain.connect(audioContext.destination);
     oscillator.start(startTime);
     oscillator.stop(startTime + sound.duration);
-  } catch (error) {
-    // Audio is optional; gameplay must remain available if playback is blocked.
-  }
+  } catch {}
 }
 
 function playVineBoom() {
@@ -556,6 +554,7 @@ function consumeAdminToolsWithWitherStorm(boss) {
     powerUpSpawnSelection: document.getElementById("admin-powerup-select").value
   };
   boss.adminAttackTimer = 75;
+  setAdminPanelAssimilated(true);
   boss.width = Math.min(WIDTH - 32, 640);
   boss.height = 270;
   boss.originX = (WIDTH - boss.width) / 2;
@@ -602,11 +601,9 @@ function consumeAdminToolsWithWitherStorm(boss) {
   echo.style.setProperty("--consume-y", (canvasBounds.top + canvasBounds.height * (boss.y + boss.height / 2) / HEIGHT - bounds.top - bounds.height / 2) + "px");
   echo.addEventListener("animationend", function () { echo.remove(); }, { once: true });
   document.body.append(echo);
-  if (panelWasOpen) {
-    adminMenu.hidden = true;
-    const adminBattleButton = document.getElementById("admin-battle-toggle");
-    if (adminBattleButton) adminBattleButton.setAttribute("aria-pressed", "false");
-  }
+  adminMenu.hidden = true;
+  const adminBattleButton = document.getElementById("admin-battle-toggle");
+  if (adminBattleButton) adminBattleButton.setAttribute("aria-pressed", "false");
 }
 
 function spawnAdminGunner() {
@@ -1000,6 +997,23 @@ const touchLaunchButton = document.getElementById("touch-launch");
 const startGameButton = document.getElementById("start-game");
 const menuControlsButton = document.getElementById("menu-controls");
 const menuAdminButton = document.getElementById("menu-admin");
+let adminPanelAssimilated = false;
+
+function setAdminPanelAssimilated(assimilated) {
+  adminPanelAssimilated = assimilated;
+  const adminBattleButton = document.getElementById("admin-battle-toggle");
+  for (const button of [menuAdminButton, adminBattleButton]) {
+    if (button) button.disabled = assimilated;
+  }
+}
+
+function refreshAdminPanelAssimilation() {
+  if (!adminPanelAssimilated) return;
+  const bossStillActive = bricks.some(function (brick) {
+    return brick.isFinalBoss && brick.adminAssimilated && brick.hp > 0;
+  });
+  if (!bossStillActive) setAdminPanelAssimilated(false);
+}
 
 function populateModeOptions() {
   for (const select of [startModeSelect, adminModeSelect, adminPanelModeSelect]) {
@@ -1623,7 +1637,7 @@ window.launchLobbyBall = function (playerId) {
 };
 
 function toggleAdminMenu() {
-  if (!adminMenu) return;
+  if (!adminMenu || adminPanelAssimilated) return;
   if (multiplayerActive && !multiplayerAdminIds.includes(multiplayerPlayerId)) return;
   adminMenu.hidden = !adminMenu.hidden;
   const button = document.getElementById("admin-battle-toggle");
@@ -3650,11 +3664,21 @@ function updateSpecialBricks() {
         brick.adminAttackCount = (brick.adminAttackCount || 0) + 1;
         const enemyBurst = brick.adminPowers ? Math.max(1, Math.min(4, Math.ceil(brick.adminPowers.enemyMultiplier))) : 1;
         for (let shot = 0; shot < enemyBurst; shot++) dropBossKillbrick(brick);
+        if (brick.adminPowers && brick.adminPowers.actions.includes("spawn-nextbot") && brick.adminAttackCount % 3 === 0) {
+          const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
+          const minionLimit = Math.max(1, Math.min(7, brick.minionLimit || 3));
+          if (minionCount < minionLimit) {
+            const selectedBot = brick.adminPowers.enemySpawnSelection;
+            const minion = spawnNextBot(selectedBot === "random" ? undefined : selectedBot);
+            if (minion) minion.bossMinion = true;
+          }
+        }
         if (brick.adminAttackCount % 3 === 0) {
           spawnAdminLaserAt(paddle.x + paddle.width / 2);
         }
         const enabledToggleCount = brick.adminPowers ? brick.adminPowers.enabledToggleCount : 0;
-        brick.adminAttackTimer = Math.max(34, 96 - enabledToggleCount * 4);
+        const stolenSpeed = brick.adminPowers ? brick.adminPowers.simulationSpeed : 1;
+        brick.adminAttackTimer = Math.max(34, 96 - enabledToggleCount * 4 - Math.round((stolenSpeed - 1) * 2));
       }
       if (bossMinionsEnabled && !brick.isWitherStorm && brick.hp <= brick.maxHp * 0.8 && --brick.minionTimer <= 0) {
         const minionCount = nextBots.filter(function (bot) { return bot.bossMinion; }).length;
@@ -4705,6 +4729,7 @@ document.addEventListener("visibilitychange", ensureBackgroundTicker);
 
 function frame(now) {
   requestAnimationFrame(frame);
+  refreshAdminPanelAssimilation();
   websiteFpsFrameCount++;
   if (websiteFpsSampleStart === 0) websiteFpsSampleStart = now;
   const websiteElapsed = now - websiteFpsSampleStart;
