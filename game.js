@@ -680,13 +680,9 @@ function updateAdminGunners() {
       });
       playGameSound("shot");
     }
-    gunner.targetX = null;
-    gunner.targetY = null;
     gunner.fireCooldown = 48;
   }
 
-      gunner.targetX = targetX;
-      gunner.targetY = targetY;
   for (let bulletIndex = adminGunnerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
     const bullet = adminGunnerBullets[bulletIndex];
     bullet.x += bullet.vx;
