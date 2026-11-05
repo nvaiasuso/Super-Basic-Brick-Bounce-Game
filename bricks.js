@@ -30,7 +30,10 @@ const BOSS_VARIANTS = [
   { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 }
 ];
 const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
-const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];
+const BOSS_LEVELS = Array.from(
+  { length: Math.floor((LEVEL_COUNT - 10) / 6) + 1 },
+  function (_, index) { return 9 + index * 6; }
+).concat(LEVEL_COUNT - 1);
 
 function finalBossPhaseForHealth(boss) {
   const healthRatio = boss.hp / boss.maxHp;

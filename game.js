@@ -23,9 +23,10 @@ const HEIGHT = canvas.height;
 // A positive vy means the ball is moving DOWN the screen.
 // ------------------------------------------------------------
 const BALL_SPEED = 5;
+const MIN_VERTICAL_BALL_SPEED = 1.5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
-const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8, gunnerBullets: 256 };
+const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8, gunners: 24, gunnerBullets: 256 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
   { label: "Normal", description: "Standard bricks, speed, and power-up odds.", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
@@ -55,7 +56,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 90;
+const LEVEL_COUNT = 120;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -574,17 +575,25 @@ function consumeAdminToolsWithWitherStorm(boss) {
 }
 
 function spawnAdminGunner() {
+  if (adminGunners.length >= ADMIN_SPAWN_LIMITS.gunners) return false;
   const index = adminGunners.length;
+  const x = 36 + (index * 47) % (WIDTH - 72);
   adminGunners.push({
-    x: 36 + (index * 47) % (WIDTH - 72),
+    x: x,
+    originX: x,
     y: HEIGHT - 88 - Math.floor(index / 16) * 28,
+    patrolRange: Math.min(60, x, WIDTH - x),
+    patrolPhase: index * 1.7,
     fireCooldown: 18 + index % 36,
     facing: 1
   });
+  return true;
 }
 
 function updateAdminGunners() {
   for (const gunner of adminGunners) {
+    gunner.patrolPhase += 0.035;
+    gunner.x = gunner.originX + Math.sin(gunner.patrolPhase) * gunner.patrolRange;
     if (gunner.fireCooldown > 0) {
       gunner.fireCooldown--;
       continue;
@@ -689,6 +698,7 @@ function updateHitEffects() {
 }
 
 function spawnExtraBall(sourceBall) {
+  if (extraBalls.length >= ADMIN_SPAWN_LIMITS.balls) return false;
   const angle = (extraBalls.length % 2 === 0 ? 1 : -1) * Math.PI / 6;
   const sourceSpeed = Math.hypot(sourceBall.vx, sourceBall.vy);
   const defaultSpeed = getModeBallSpeed();
@@ -710,6 +720,7 @@ function spawnExtraBall(sourceBall) {
   extraBall.vx *= speed / extraSpeed;
   extraBall.vy *= speed / extraSpeed;
   extraBalls.push(extraBall);
+  return true;
 }
 
 function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId), playerId = null) {
@@ -1688,7 +1699,7 @@ function refreshInvincibilityButton() {
 }
 
 function addAdminBall() {
-  spawnExtraBall(ball);
+  return spawnExtraBall(ball);
 }
 
 function spawnAdminAiPaddle() {
@@ -2588,7 +2599,9 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "open-url-from-file") {
     openAdminUrlFromFile();
   } else if (action === "ball") {
-    addAdminBall();
+    if (!addAdminBall() && adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Ball limit reached (" + ADMIN_SPAWN_LIMITS.balls + " extra balls).";
+    }
   } else if (action === "spawn-brick") {
     spawnAdminBrick();
   } else if (action === "spawn-powerup") {
@@ -2682,8 +2695,11 @@ function runAdminAction(action, remoteAuthorized = false) {
       adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
     }
   } else if (action === "spawn-gunner") {
-    spawnAdminGunner();
-    if (adminRepeatStatus) adminRepeatStatus.textContent = "Friendly gunners: " + adminGunners.length + ". Right-click to spawn a batch.";
+    if (!spawnAdminGunner() && adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Gunner limit reached (" + ADMIN_SPAWN_LIMITS.gunners + ").";
+    } else if (adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Friendly gunners: " + adminGunners.length + ".";
+    }
   } else if (action === "nextbot-wave") {
     let spawned = 0;
     for (let index = 0; index < 8; index++) {
@@ -3448,6 +3464,12 @@ function drawEnemyShots() {
 function moveBall(activeBall) {
   activeBall.previousX = activeBall.x;
   activeBall.previousY = activeBall.y;
+  const speed = Math.hypot(activeBall.vx, activeBall.vy);
+  const minimumVerticalSpeed = Math.min(MIN_VERTICAL_BALL_SPEED, speed * 0.3);
+  if (speed > 0 && Math.abs(activeBall.vy) < minimumVerticalSpeed) {
+    activeBall.vy = Math.sign(activeBall.vy || -1) * minimumVerticalSpeed;
+    activeBall.vx = Math.sign(activeBall.vx || 1) * Math.sqrt(Math.max(0, speed * speed - minimumVerticalSpeed * minimumVerticalSpeed));
+  }
   if (activeBall === ball) {
     ballTrail.push({ x: activeBall.x + activeBall.width / 2, y: activeBall.y + activeBall.height / 2 });
     if (ballTrail.length > 8) ballTrail.shift();
