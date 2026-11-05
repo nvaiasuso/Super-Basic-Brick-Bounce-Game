@@ -21,7 +21,13 @@ const BOSS_VARIANTS = [
   { name: "DEEP CURRENT", palette: ["#5eead4", "#0369a1", "#082f49"], damagedPalette: ["#fb7185", "#c026d3", "#4a044e"], glow: "#2dd4bf", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 115, minionLimit: 4 },
   { name: "BINARY REGENT", palette: ["#67e8f9", "#155e75", "#082f49"], damagedPalette: ["#facc15", "#b91c1c", "#450a0a"], glow: "#22d3ee", eyes: "#a7f3d0", damagedEyes: "#fff176", minionInterval: 108, minionLimit: 5 },
   { name: "CROWN OF ASH", palette: ["#fda4af", "#9f1239", "#4c0519"], damagedPalette: ["#fde68a", "#ea580c", "#431407"], glow: "#fb7185", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 98, minionLimit: 5 },
-  { name: "ORBITAL MAW", palette: ["#c4b5fd", "#4338ca", "#1e1b4b"], damagedPalette: ["#5eead4", "#be123c", "#500724"], glow: "#818cf8", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 90, minionLimit: 6 }
+  { name: "ORBITAL MAW", palette: ["#c4b5fd", "#4338ca", "#1e1b4b"], damagedPalette: ["#5eead4", "#be123c", "#500724"], glow: "#818cf8", eyes: "#fef08a", damagedEyes: "#fff176", minionInterval: 90, minionLimit: 6 },
+  { name: "GLASS CATHEDRAL", palette: ["#a5f3fc", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#67e8f9", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 170, minionLimit: 3 },
+  { name: "CLOCKWORK HYDRA", palette: ["#fbbf24", "#b45309", "#451a03"], damagedPalette: ["#a3e635", "#166534", "#052e16"], glow: "#facc15", eyes: "#bae6fd", damagedEyes: "#f0abfc", minionInterval: 125, minionLimit: 4 },
+  { name: "ABYSSAL CROWN", palette: ["#818cf8", "#312e81", "#0f172a"], damagedPalette: ["#fb7185", "#9f1239", "#4c0519"], glow: "#a78bfa", eyes: "#67e8f9", damagedEyes: "#fde047", minionInterval: 105, minionLimit: 5 },
+  { name: "PRISMATIC REGENT", palette: ["#f0abfc", "#0891b2", "#172554"], damagedPalette: ["#fef08a", "#c026d3", "#500724"], glow: "#67e8f9", eyes: "#fff7ed", damagedEyes: "#facc15", minionInterval: 145, minionLimit: 4 },
+  { name: "MOLTEN ARCHIVIST", palette: ["#fb923c", "#b91c1c", "#431407"], damagedPalette: ["#fde047", "#7f1d1d", "#1c1917"], glow: "#f97316", eyes: "#fef3c7", damagedEyes: "#67e8f9", minionInterval: 118, minionLimit: 5 },
+  { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 }
 ];
 const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
 const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];
@@ -353,6 +359,38 @@ for (let level = LEVEL_LAYOUTS.length; level < LEVEL_COUNT; level++) {
 const BRICK_ROW_COLORS = ["#ff6464", "#ffad55", "#ffe66d", "#75df88", "#54c8ff", "#b28dff"];
 
 // # bricks are breakable; X bricks are lethal; H bricks are moving hazards; . is empty.
+function makeBossBrick(variantIndex, encounterLevel = level) {
+  const variant = BOSS_VARIANTS[Math.max(0, Math.min(BOSS_VARIANTS.length - 1, variantIndex))];
+  const healthBoost = typeof bossHealthBoost === "number" ? bossHealthBoost : 1;
+  const bossHealth = Math.max(1, Math.round((24 + Math.floor(Math.max(0, encounterLevel - 9) * 2)) * healthBoost));
+  const bossWidth = 320;
+  const bossHeight = 140;
+  return {
+    x: (WIDTH - bossWidth) / 2,
+    y: 82,
+    originX: (WIDTH - bossWidth) / 2,
+    originY: 82,
+    moveAmplitude: 112,
+    movePhase: encounterLevel * 0.7,
+    width: bossWidth,
+    height: bossHeight,
+    type: "boss",
+    bossName: variant.name,
+    palette: variant.palette,
+    damagedPalette: variant.damagedPalette,
+    glow: variant.glow,
+    eyes: variant.eyes,
+    damagedEyes: variant.damagedEyes,
+    minionInterval: variant.minionInterval,
+    minionLimit: variant.minionLimit,
+    minionTimer: variant.minionInterval,
+    hp: bossHealth,
+    maxHp: bossHealth,
+    color: "#ff4f6d",
+    isKill: false
+  };
+}
+
 function makeBricks(level) {
   const list = [];
   if (level === LEVEL_COUNT - 1) {
@@ -388,34 +426,7 @@ function makeBricks(level) {
     }];
   }
   if (BOSS_LEVELS.includes(level)) {
-    const variant = BOSS_VARIANTS[BOSS_LEVELS.indexOf(level)];
-    const bossHealth = 24 + Math.floor(Math.max(0, level - 9) * 2);
-    const bossWidth = 320;
-    const bossHeight = 140;
-    return [{
-      x: (WIDTH - bossWidth) / 2,
-      y: 82,
-      originX: (WIDTH - bossWidth) / 2,
-      originY: 82,
-      moveAmplitude: 112,
-      movePhase: level * 0.7,
-      width: bossWidth,
-      height: bossHeight,
-      type: "boss",
-      bossName: variant.name,
-      palette: variant.palette,
-      damagedPalette: variant.damagedPalette,
-      glow: variant.glow,
-      eyes: variant.eyes,
-      damagedEyes: variant.damagedEyes,
-      minionInterval: variant.minionInterval,
-      minionLimit: variant.minionLimit,
-      minionTimer: variant.minionInterval,
-      hp: bossHealth,
-      maxHp: bossHealth,
-      color: "#ff4f6d",
-      isKill: false
-    }];
+    return [makeBossBrick(BOSS_LEVELS.indexOf(level), level)];
   }
   const layout = LEVEL_LAYOUTS[level];
   const totalWidth = BRICK_COLUMNS * BRICK_WIDTH + (BRICK_COLUMNS - 1) * BRICK_GAP;

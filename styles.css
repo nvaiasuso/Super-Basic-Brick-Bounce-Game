@@ -371,6 +371,59 @@ p {
   overflow-wrap: anywhere;
 }
 
+.career-board {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.career-board .menu-kicker {
+  margin-bottom: 8px;
+}
+
+.career-achievements {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.career-achievements li {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(60px, 1.2fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+}
+
+.career-achievements li > span {
+  display: grid;
+  gap: 2px;
+  color: #fff;
+}
+
+.career-achievements small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 9px;
+}
+
+.career-achievements meter {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--theme-accent, #d6ff55);
+}
+
+.career-achievements output {
+  min-width: 46px;
+  color: var(--theme-accent, #fff);
+  text-align: right;
+}
+
+.career-achievements li.is-earned > span {
+  color: var(--theme-accent, #d6ff55);
+}
+
 #settings-mode-description {
   margin: -4px 0 10px;
   text-align: center;

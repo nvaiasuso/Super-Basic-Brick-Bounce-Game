@@ -140,6 +140,7 @@ function bounceOffPaddle(activeBall, targetPaddle = paddle) {
 function breakBrickAt(index, activeBall, triggerNeighbors = true) {
   const brick = bricks[index];
   if (!brick || brick.isKill || brick.hidden) return;
+  recordCareerProgress("brickHits");
   idleBrickFrames = 0;
   triggerBrickBreak(brick);
   if (brick.type !== "boss") dropPowerUp(brick);
@@ -181,6 +182,7 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
       }
     }
     if (brick.hp > 0) return;
+    recordCareerProgress("bosses");
     dropPowerUp(brick);
   }
 

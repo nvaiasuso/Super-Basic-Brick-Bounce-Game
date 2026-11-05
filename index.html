@@ -41,6 +41,15 @@
             <p id="daily-challenge-best">Best score: 0</p>
             <button type="button" id="start-daily-challenge" class="primary-action">Start Challenge</button>
           </section>
+         <section class="career-board" aria-label="Career achievements">
+            <p class="menu-kicker">CAREER BOARD</p>
+            <ol id="career-achievements" class="career-achievements">
+              <li data-career-stat="brickHits"><span>Brickbreaker<small>Hit 100 bricks</small></span><meter min="0" max="100" value="0"></meter><output>0 / 100</output></li>
+              <li data-career-stat="powerUps"><span>Supply run<small>Collect 10 power-ups</small></span><meter min="0" max="10" value="0"></meter><output>0 / 10</output></li>
+              <li data-career-stat="bosses"><span>Boss hunter<small>Defeat 3 bosses</small></span><meter min="0" max="3" value="0"></meter><output>0 / 3</output></li>
+              <li data-career-stat="levels"><span>Climber<small>Clear 10 levels</small></span><meter min="0" max="10" value="0"></meter><output>0 / 10</output></li>
+            </ol>
+          </section>
         </section>
         <section class="lobby-panel" aria-label="Online lobby">
           <p class="menu-kicker">MULTIPLAYER</p>
@@ -279,6 +288,10 @@
               <option value="shield">Shield</option>
               <option value="fast">Fast ball</option>
               <option value="pierce">Piercing charge</option>
+              <option value="freeze">Freeze pulse</option>
+              <option value="rocket">Seeker rocket</option>
+              <option value="dash">Paddle dash</option>
+              <option value="cache">500 point cache</option>
             </select>
           </label>
           <button type="button" data-admin="spawn-powerup">Spawn power-up</button>
@@ -290,6 +303,7 @@
               <option value="random">Random</option>
             </select>
           </label>
+          <small id="admin-nextbot-details" role="status" aria-live="polite">Choose a nextbot to see its speed and warning time.</small>
           <button type="button" data-admin="spawn-nextbot">Spawn nextbot</button>
           <button type="button" data-admin="nextbot-wave">Spawn nextbot wave</button>
           <button type="button" data-admin="nextbot-attack">Force nextbot attack</button>
@@ -312,8 +326,29 @@
           <button type="button" data-admin="spawn-boss-11">Spawn Binary Regent</button>
           <button type="button" data-admin="spawn-boss-12">Spawn Crown of Ash</button>
           <button type="button" data-admin="spawn-boss-13">Spawn Orbital Maw</button>
+          <button type="button" data-admin="spawn-boss-14">Spawn Glass Cathedral</button>
+          <button type="button" data-admin="spawn-boss-15">Spawn Clockwork Hydra</button>
+          <button type="button" data-admin="spawn-boss-16">Spawn Abyssal Crown</button>
+          <button type="button" data-admin="spawn-boss-17">Spawn Prismatic Regent</button>
+          <button type="button" data-admin="spawn-boss-18">Spawn Molten Archivist</button>
+          <button type="button" data-admin="spawn-boss-19">Spawn Storm Widow</button>
           <button type="button" data-admin="spawn-final-boss">Spawn Wither Storm</button>
           <button type="button" data-admin="boss-phase">Advance Wither Storm phase</button>
+        </section>
+        <section class="admin-group" aria-label="Direct game actions">
+          <h3>Actions</h3>
+          <button type="button" data-admin="launch-ball">Launch stuck ball</button>
+          <button type="button" data-admin="clear-board">Clear breakable blocks</button>
+          <button type="button" data-admin="clear-nextbots">Clear nextbots and shots</button>
+          <button type="button" data-admin="restore-lives">Restore lives</button>
+          <button type="button" data-admin="retry-level">Retry current level</button>
+          <button type="button" data-admin="previous-level">Previous level</button>
+          <button type="button" data-admin="add-score">Add 1,000 score</button>
+          <button type="button" data-admin="clear-hazards">Clear hazards</button>
+          <button type="button" data-admin="rescue-ball">Rescue stuck ball</button>
+          <button type="button" data-admin="heal-boss">Heal active boss</button>
+          <button type="button" data-admin="damage-boss">Damage active boss</button>
+          <button type="button" data-admin="reset-score">Reset run score</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>
@@ -341,6 +376,10 @@
         </section>
         <section class="admin-group" aria-label="Gameplay variables">
           <h3>Gameplay Variables</h3>
+          <label>Game mode
+            <select id="admin-panel-mode-select" aria-label="Change game mode from Admin Tools"></select>
+          </label>
+          <small id="admin-panel-mode-description" class="mode-description"></small>
           <div class="speed-controls" role="group" aria-label="Simulation speed">
             <span>Simulation speed</span>
             <button type="button" data-speed-toggle="1" aria-pressed="true">1x</button>

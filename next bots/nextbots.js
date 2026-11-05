@@ -60,7 +60,13 @@ const NEXTBOT_ROSTER = [
   { name: "RIFT", description: "Fast attacker with a short warning", color: "#7c3aed", accent: "#67e8f9", speed: 1.78, telegraphFrames: 18 },
   { name: "BULKHEAD", description: "Slow mover with a long warning", color: "#475569", accent: "#fbbf24", speed: 0.72, telegraphFrames: 110 },
   { name: "HUNTER", description: "Quick attacker that tracks players", color: "#be123c", accent: "#fda4af", speed: 1.92, telegraphFrames: 28 },
-  { name: "AFTERSHOCK", description: "Heavy attacker with a delayed strike", color: "#a16207", accent: "#fde047", speed: 1.12, telegraphFrames: 84 }
+  { name: "AFTERSHOCK", description: "Heavy attacker with a delayed strike", color: "#a16207", accent: "#fde047", speed: 1.12, telegraphFrames: 84 },
+  { name: "LANTERN", description: "Slow scout with a very long warning", color: "#ea580c", accent: "#fef08a", speed: 0.9, telegraphFrames: 132 },
+  { name: "QUICKSILVER", description: "High-speed attacker with a short warning", color: "#cbd5e1", accent: "#22d3ee", speed: 2.05, telegraphFrames: 20 },
+  { name: "FURNACE", description: "Steady pursuer with a medium warning", color: "#dc2626", accent: "#fdba74", speed: 1.42, telegraphFrames: 58 },
+  { name: "SABOTEUR", description: "Erratic attacker with a quick warning", color: "#a3e635", accent: "#fb7185", speed: 1.68, telegraphFrames: 26 },
+  { name: "RAPTOR", description: "Fast chaser with a short warning", color: "#16a34a", accent: "#fef08a", speed: 1.88, telegraphFrames: 32 },
+  { name: "CLOCKER", description: "Slow attacker with a delayed strike", color: "#0e7490", accent: "#fbbf24", speed: 0.98, telegraphFrames: 104 }
 
 
 ];
@@ -191,7 +197,7 @@ function setNextBotsForLevel(currentLevel) {
     return;
   }
   const modeMultiplier = typeof getCurrentMode === "function" ? getCurrentMode().nextbotMultiplier || 1 : 1;
-  const targetCount = Math.min(maxActiveNextBots, currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier));
+  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier);
   while (nextBots.length < targetCount) spawnNextBot();
   while (nextBots.length > targetCount) removeNextBot();
 }
