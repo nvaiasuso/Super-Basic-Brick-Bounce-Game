@@ -26,7 +26,6 @@ const BALL_SPEED = 5;
 const MIN_VERTICAL_BALL_SPEED = 1.5;
 const EXTRA_BALL_COLOR = "#55ff78";
 const BASE_PADDLE_WIDTH = 90;
-const ADMIN_SPAWN_LIMITS = { balls: 24, bricks: 256, powerUps: 24, lasers: 24, aiPaddles: 8, gunners: 24, gunnerBullets: 256 };
 const POWERUP_DROP_CHANCE = 0.12;
 const GAME_MODES = [
   { label: "Normal", description: "Standard bricks, speed, and power-up odds.", accent: "#ffffff", background: "#000000", ballSpeedMultiplier: 1, powerUpDropChance: 0.12 },
@@ -81,11 +80,11 @@ const SKINS = [
   { label: "Sunset Gold", paddle: "#ffd166", ball: "#ffb703", accent: "#fff2b3", background: "#180d00" }
 ];
 const CONTROL_KEYS = {
-  left: "arrowleft",
-  right: "arrowright",
+  left: "a",
+  right: "d",
   jump: "j",
-  tiltLeft: "arrowdown",
-  tiltRight: "arrowup"
+  tiltLeft: "s",
+  tiltRight: "w"
 };
 const CONTROL_LABELS = {
   left: "Move left",
@@ -575,7 +574,6 @@ function consumeAdminToolsWithWitherStorm(boss) {
 }
 
 function spawnAdminGunner() {
-  if (adminGunners.length >= ADMIN_SPAWN_LIMITS.gunners) return false;
   const index = adminGunners.length;
   const x = 36 + (index * 47) % (WIDTH - 72);
   adminGunners.push({
@@ -620,7 +618,7 @@ function updateAdminGunners() {
         }
       }
     }
-    if (target && adminGunnerBullets.length < ADMIN_SPAWN_LIMITS.gunnerBullets) {
+    if (target) {
       const targetX = targetType === "brick" ? target.x + target.width / 2 : target.x;
       const targetY = targetType === "brick" ? target.y + target.height / 2 : target.y;
       const angle = Math.atan2(targetY - gunner.y, targetX - gunner.x);
@@ -698,7 +696,6 @@ function updateHitEffects() {
 }
 
 function spawnExtraBall(sourceBall) {
-  if (extraBalls.length >= ADMIN_SPAWN_LIMITS.balls) return false;
   const angle = (extraBalls.length % 2 === 0 ? 1 : -1) * Math.PI / 6;
   const sourceSpeed = Math.hypot(sourceBall.vx, sourceBall.vy);
   const defaultSpeed = getModeBallSpeed();
@@ -1557,6 +1554,8 @@ window.getGameDebugState = function () {
     entities: {
       bricks: bricks.length,
       balls: 1 + extraBalls.length,
+      gunners: adminGunners.length,
+      gunnerBullets: adminGunnerBullets.length,
       nextbots: nextBots.length,
       powerUps: powerUps.length,
       lasers: lasers.length,
@@ -1577,7 +1576,7 @@ function refreshAdminDebugReadout() {
   const state = window.getGameDebugState();
   const entityCounts = state.entities;
   const bossStatus = state.boss ? state.boss.name + " " + state.boss.hp + "/" + state.boss.maxHp + (state.boss.phase ? " [" + state.boss.phase + "]" : "") : "none";
-  const text = "LV " + (state.level + 1) + " | FRAME " + state.simulationFrame + " | BALLS " + entityCounts.balls + " | BLOCKS " + entityCounts.bricks + " | NEXTBOTS " + entityCounts.nextbots + " | POWERUPS " + entityCounts.powerUps + " | LASERS " + entityCounts.lasers + " | SHOTS " + entityCounts.enemyShots + " | BOSS " + bossStatus;
+  const text = "LV " + (state.level + 1) + " | FRAME " + state.simulationFrame + " | BALLS " + entityCounts.balls + " | GUNNERS " + entityCounts.gunners + " (" + entityCounts.gunnerBullets + " SHOTS) | BLOCKS " + entityCounts.bricks + " | NEXTBOTS " + entityCounts.nextbots + " | POWERUPS " + entityCounts.powerUps + " | LASERS " + entityCounts.lasers + " | ENEMY SHOTS " + entityCounts.enemyShots + " | BOSS " + bossStatus;
   if (output.textContent !== text) output.textContent = text;
 }
 window.launchLobbyBall = function (playerId) {
@@ -2481,7 +2480,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-gunner-squad", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "remove-nextbot", "life"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2599,9 +2598,7 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "open-url-from-file") {
     openAdminUrlFromFile();
   } else if (action === "ball") {
-    if (!addAdminBall() && adminRepeatStatus) {
-      adminRepeatStatus.textContent = "Ball limit reached (" + ADMIN_SPAWN_LIMITS.balls + " extra balls).";
-    }
+    addAdminBall();
   } else if (action === "spawn-brick") {
     spawnAdminBrick();
   } else if (action === "spawn-powerup") {
@@ -2691,15 +2688,15 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "website-fps") {
     setWebsiteFpsEnabled(!websiteFpsEnabled);
   } else if (action === "spawn-nextbot") {
-    if (!spawnNextBot() && adminRepeatStatus) {
-      adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
-    }
+    spawnNextBot();
   } else if (action === "spawn-gunner") {
-    if (!spawnAdminGunner() && adminRepeatStatus) {
-      adminRepeatStatus.textContent = "Gunner limit reached (" + ADMIN_SPAWN_LIMITS.gunners + ").";
-    } else if (adminRepeatStatus) {
+    spawnAdminGunner();
+    if (adminRepeatStatus) {
       adminRepeatStatus.textContent = "Friendly gunners: " + adminGunners.length + ".";
     }
+  } else if (action === "spawn-gunner-squad") {
+    for (let index = 0; index < 4; index++) spawnAdminGunner();
+    if (adminRepeatStatus) adminRepeatStatus.textContent = "Friendly gunners: " + adminGunners.length + ".";
   } else if (action === "nextbot-wave") {
     let spawned = 0;
     for (let index = 0; index < 8; index++) {
@@ -2720,6 +2717,9 @@ function runAdminAction(action, remoteAuthorized = false) {
     lasers = [];
   } else if (action === "clear-ai") {
     aiPaddles = [];
+  } else if (action === "clear-gunners") {
+    adminGunners = [];
+    adminGunnerBullets = [];
   } else if (action === "clear-spawned") {
     clearAdminSpawnedObjects();
   } else if (action === "life") {
@@ -2774,6 +2774,25 @@ function setRemoteAdminSelect(id, value) {
   }
 }
 
+function runAdminActionRepeats(action, count, remoteAuthorized = false) {
+  const total = Number.isSafeInteger(count) ? Math.max(1, count) : 1;
+  let completed = 0;
+  function runBatch() {
+    const batchEnd = Math.min(total, completed + 25);
+    while (completed < batchEnd) {
+      runAdminAction(action, remoteAuthorized);
+      completed++;
+    }
+    if (completed < total) {
+      if (adminRepeatStatus) adminRepeatStatus.textContent = "Repeated " + completed + " of " + total + " actions…";
+      window.setTimeout(runBatch, 0);
+    } else if (adminRepeatStatus) {
+      adminRepeatStatus.textContent = "Admin action finished: " + completed + " repeats.";
+    }
+  }
+  runBatch();
+}
+
 window.runRemoteAdminCommand = function (adminId, command) {
   if (!multiplayerHost || !multiplayerAdminIds.includes(adminId) || !command || typeof command !== "object") return;
   if (command.type === "tool") {
@@ -2791,13 +2810,13 @@ window.runRemoteAdminCommand = function (adminId, command) {
     }
     runAdminAction(command.action, true);
   } else if (command.type === "repeat" && remoteAdminActions.has(command.action) && repeatAdminActions.has(command.action)) {
-    const count = Number.isInteger(command.count) ? Math.max(1, Math.min(100, command.count)) : 1;
+    const count = Number.isSafeInteger(command.count) ? Math.max(1, command.count) : 1;
     const options = command.options || {};
     setRemoteAdminSelect("admin-brick-select", options.brickType);
     setRemoteAdminSelect("admin-powerup-select", options.powerUp);
     setRemoteAdminSelect("admin-nextbot-select", options.nextBot);
     setRemoteAdminSelect("admin-level-select", options.level);
-    for (let index = 0; index < count; index++) runAdminAction(command.action, true);
+    runAdminActionRepeats(command.action, count, true);
   } else if (command.type === "setting" && Number.isFinite(command.value)) {
     const settings = {};
     if (["ballSpeed", "paddleSpeed", "paddleWidth", "startingLives", "nextBotSpeed", "bossHealthBoost"].includes(command.key)) {
@@ -2830,15 +2849,10 @@ for (const adminButton of document.querySelectorAll("#admin-menu button")) {
     const action = adminButton.dataset.admin;
     if (!repeatAdminActions.has(action)) return;
     const requestedCount = Number(adminRepeatCount && adminRepeatCount.value);
-    const count = Number.isInteger(requestedCount) ? Math.max(1, Math.min(100, requestedCount)) : 25;
+    const count = Number.isSafeInteger(requestedCount) ? Math.max(1, requestedCount) : 25;
     if (sendRemoteAdminCommand({ type: "repeat", action: action, count: count, options: getRemoteAdminToolOptions() })) return;
-    const startingBotCount = nextBots.length;
     if (adminRepeatCount) adminRepeatCount.value = String(count);
-    for (let index = 0; index < count; index++) runAdminAction(action);
-    if (adminRepeatStatus) {
-      const botCount = action === "spawn-nextbot" ? "; spawned " + (nextBots.length - startingBotCount) + " (" + nextBots.length + " active)" : "";
-      adminRepeatStatus.textContent = adminButton.textContent.trim() + " ran " + count + " times" + botCount + ".";
-    }
+    runAdminActionRepeats(action, count);
   });
   adminButton.addEventListener("contextmenu", function (event) {
     event.preventDefault();
@@ -2983,9 +2997,16 @@ document.addEventListener("keydown", function (event) {
   }
 
   if (gameStarted && !paused) {
-    if (key === CONTROL_KEYS.left) paddleFacingDirection = -1;
-    if (key === CONTROL_KEYS.right) paddleFacingDirection = 1;
     keys[key] = true;
+    const keyAliases = {
+      arrowleft: CONTROL_KEYS.left,
+      arrowright: CONTROL_KEYS.right,
+      arrowdown: CONTROL_KEYS.tiltLeft,
+      arrowup: CONTROL_KEYS.tiltRight
+    };
+    if (keyAliases[key]) keys[keyAliases[key]] = true;
+    if (key === CONTROL_KEYS.left || key === "arrowleft") paddleFacingDirection = -1;
+    if (key === CONTROL_KEYS.right || key === "arrowright") paddleFacingDirection = 1;
     if (key === "t" && !event.repeat && !gameOver && !gameWon) {
       rokets();
       event.preventDefault();
@@ -3040,7 +3061,15 @@ if (mainMenuFullscreenButton) {
 }
 
 document.addEventListener("keyup", function (event) {
-  keys[event.key.toLowerCase()] = false;
+  const key = normalizeHotkeyName(event.key);
+  keys[key] = false;
+  const keyAliases = {
+    arrowleft: CONTROL_KEYS.left,
+    arrowright: CONTROL_KEYS.right,
+    arrowdown: CONTROL_KEYS.tiltLeft,
+    arrowup: CONTROL_KEYS.tiltRight
+  };
+  if (keyAliases[key]) keys[keyAliases[key]] = false;
 });
 
 function setTouchControlState(controlName, pressed) {

@@ -66,7 +66,11 @@ const NEXTBOT_ROSTER = [
   { name: "FURNACE", description: "Steady pursuer with a medium warning", color: "#dc2626", accent: "#fdba74", speed: 1.42, telegraphFrames: 58 },
   { name: "SABOTEUR", description: "Erratic attacker with a quick warning", color: "#a3e635", accent: "#fb7185", speed: 1.68, telegraphFrames: 26 },
   { name: "RAPTOR", description: "Fast chaser with a short warning", color: "#16a34a", accent: "#fef08a", speed: 1.88, telegraphFrames: 32 },
-  { name: "CLOCKER", description: "Slow attacker with a delayed strike", color: "#0e7490", accent: "#fbbf24", speed: 0.98, telegraphFrames: 104 }
+  { name: "CLOCKER", description: "Slow attacker with a delayed strike", color: "#0e7490", accent: "#fbbf24", speed: 0.98, telegraphFrames: 104 },
+  { name: "BASILISK", description: "Patient hunter with a long warning", color: "#166534", accent: "#bef264", speed: 1.08, telegraphFrames: 120 },
+  { name: "AFTERBURN", description: "Fast chaser with a short warning", color: "#c2410c", accent: "#fde047", speed: 2.08, telegraphFrames: 18 },
+  { name: "DEEP SPACE", description: "Unpredictable attacker with a medium warning", color: "#172554", accent: "#67e8f9", speed: 1.48, telegraphFrames: 48 },
+  { name: "SHATTER", description: "Aggressive attacker with a quick warning", color: "#7f1d1d", accent: "#fca5a5", speed: 1.84, telegraphFrames: 26 }
 
 
 ];

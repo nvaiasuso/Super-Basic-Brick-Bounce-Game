@@ -215,10 +215,10 @@
     <section id="control-menu" class="controls" aria-label="Game controls" hidden>
       <h2 id="control-title">Paused — Settings</h2>
       <div class="key-bindings">
-        <label>Move left <button type="button" data-control="left">←</button></label>
-        <label>Move right <button type="button" data-control="right">→</button></label>
-        <label>Tilt left <button type="button" data-control="tiltLeft">↓</button></label>
-        <label>Tilt right <button type="button" data-control="tiltRight">↑</button></label>
+        <label>Move left <button type="button" data-control="left">A</button></label>
+        <label>Move right <button type="button" data-control="right">D</button></label>
+        <label>Tilt left <button type="button" data-control="tiltLeft">S</button></label>
+        <label>Tilt right <button type="button" data-control="tiltRight">W</button></label>
         <label>Jump <button type="button" data-control="jump">J</button></label>
         <button type="button" class="touch-control" data-touch="jump" aria-label="Jump">JUMP</button>
       </div>
@@ -308,6 +308,7 @@
           <button type="button" data-admin="nextbot-wave">Spawn nextbot wave</button>
           <button type="button" data-admin="nextbot-attack">Force nextbot attack</button>
           <button type="button" data-admin="spawn-gunner">Spawn friendly gunner</button>
+          <button type="button" data-admin="spawn-gunner-squad">Spawn gunner squad</button>
           <button type="button" data-admin="spawn-all">Spawn everything</button>
         </section>
         <section class="admin-group" aria-label="Boss spawns">
@@ -403,6 +404,7 @@
           <button type="button" data-admin="clear-powerups">Clear power-ups</button>
           <button type="button" data-admin="clear-lasers">Clear lasers</button>
           <button type="button" data-admin="clear-ai">Clear AI paddles</button>
+          <button type="button" data-admin="clear-gunners">Clear gunners and bullets</button>
           <button type="button" data-admin="clear-spawned">Clear spawned objects</button>
         </section>
         <section class="admin-group" aria-label="Progress and music">
@@ -430,8 +432,8 @@
           <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
         </div>
         <label for="admin-repeat-count">Right-click repeats</label>
-        <input id="admin-repeat-count" type="number" min="1" max="100" step="1" value="25" aria-label="Number of times to repeat an admin action">
-        <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
+        <input id="admin-repeat-count" type="number" min="1" step="1" value="25" aria-label="Number of times to repeat an admin action">
+        <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it without a fixed count limit.</small>
         <output id="admin-debug-readout" class="admin-debug-readout" aria-live="polite" hidden></output>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">
