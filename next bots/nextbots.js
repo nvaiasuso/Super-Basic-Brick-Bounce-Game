@@ -66,8 +66,12 @@ const NEXTBOT_ROSTER = [
   { name: "FURNACE", description: "Steady pursuer with a medium warning", color: "#dc2626", accent: "#fdba74", speed: 1.42, telegraphFrames: 58 },
   { name: "SABOTEUR", description: "Erratic attacker with a quick warning", color: "#a3e635", accent: "#fb7185", speed: 1.68, telegraphFrames: 26 },
   { name: "RAPTOR", description: "Fast chaser with a short warning", color: "#16a34a", accent: "#fef08a", speed: 1.88, telegraphFrames: 32 },
-  { name: "CLOCKER", description: "Slow attacker with a delayed strike", color: "#0e7490", accent: "#fbbf24", speed: 0.98, telegraphFrames: 104 }
-
+  { name: "CLOCKER", description: "Slow attacker with a delayed strike", color: "#0e7490", accent: "#fbbf24", speed: 0.98, telegraphFrames: 104 },
+  { name: "NOCTURNE", description: "Silent stalker with a dense warning flicker", color: "#1f2937", accent: "#a78bfa", speed: 1.28, telegraphFrames: 74 },
+  { name: "MANTICORE", description: "Heavy hunter with explosive burst timing", color: "#f97316", accent: "#fef08a", speed: 1.52, telegraphFrames: 46 },
+  { name: "GAMBIT", description: "Erratic advanced unit that breaks lines at speed", color: "#22c55e", accent: "#f472b6", speed: 1.74, telegraphFrames: 28 },
+  { name: "MOURNING", description: "Slow dreadwalker with a long telegraph", color: "#713f12", accent: "#f4d35e", speed: 0.86, telegraphFrames: 122 },
+  { name: "MOLTEN", description: "Fiery rear-guard that rushes on a delayed cue", color: "#ef4444", accent: "#fdba74", speed: 1.66, telegraphFrames: 38 }
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;

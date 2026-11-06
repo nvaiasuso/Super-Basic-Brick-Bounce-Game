@@ -27,7 +27,12 @@ const BOSS_VARIANTS = [
   { name: "ABYSSAL CROWN", palette: ["#818cf8", "#312e81", "#0f172a"], damagedPalette: ["#fb7185", "#9f1239", "#4c0519"], glow: "#a78bfa", eyes: "#67e8f9", damagedEyes: "#fde047", minionInterval: 105, minionLimit: 5 },
   { name: "PRISMATIC REGENT", palette: ["#f0abfc", "#0891b2", "#172554"], damagedPalette: ["#fef08a", "#c026d3", "#500724"], glow: "#67e8f9", eyes: "#fff7ed", damagedEyes: "#facc15", minionInterval: 145, minionLimit: 4 },
   { name: "MOLTEN ARCHIVIST", palette: ["#fb923c", "#b91c1c", "#431407"], damagedPalette: ["#fde047", "#7f1d1d", "#1c1917"], glow: "#f97316", eyes: "#fef3c7", damagedEyes: "#67e8f9", minionInterval: 118, minionLimit: 5 },
-  { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 }
+  { name: "STORM WIDOW", palette: ["#a3e635", "#0e7490", "#082f49"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#22d3ee", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 96, minionLimit: 6 },
+  { name: "OBSIDIAN WARDEN", palette: ["#111827", "#4b5563", "#fbbf24"], damagedPalette: ["#fca5a5", "#7f1d1d", "#111827"], glow: "#fbbf24", eyes: "#dbeafe", damagedEyes: "#fef08a", minionInterval: 88, minionLimit: 6 },
+  { name: "SOLAR CHOIR", palette: ["#fef3c7", "#f59e0b", "#7c2d12"], damagedPalette: ["#fdba74", "#ef4444", "#4c0519"], glow: "#facc15", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 86, minionLimit: 7 },
+  { name: "VELVET MAW", palette: ["#f9a8d4", "#7e22ce", "#312e81"], damagedPalette: ["#fca5a5", "#9f1239", "#3b0764"], glow: "#e879f9", eyes: "#fef3c7", damagedEyes: "#fef08a", minionInterval: 80, minionLimit: 7 },
+  { name: "ASHEN ROOK", palette: ["#d6d3d1", "#78716c", "#1f2937"], damagedPalette: ["#fdba74", "#c2410c", "#431407"], glow: "#f5f5f4", eyes: "#fef08a", damagedEyes: "#facc15", minionInterval: 76, minionLimit: 8 },
+  { name: "GRIM MONOLITH", palette: ["#d1d5db", "#374151", "#0f172a"], damagedPalette: ["#fca5a5", "#991b1b", "#1f2937"], glow: "#94a3b8", eyes: "#a7f3d0", damagedEyes: "#fef08a", minionInterval: 72, minionLimit: 8 }
 ];
 const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
 const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];

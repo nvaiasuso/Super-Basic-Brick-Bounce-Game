@@ -2470,7 +2470,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "remove-nextbot", "life"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "spawn-boss-20", "spawn-boss-21", "spawn-boss-22", "spawn-boss-23", "spawn-boss-24", "remove-nextbot", "life", "repair-bricks", "clear-boss-minions", "full-heal", "spawn-boss-wave"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2536,16 +2536,37 @@ function runAdminAction(action, remoteAuthorized = false) {
     if (ball.stuck) launchStuckBall(getPaddleForPlayer(ball.stuckPlayerId), ball.stuckPlayerId);
   } else if (action === "clear-board") {
     bricks = bricks.filter(function (brick) { return brick.isKill; });
+  } else if (action === "repair-bricks") {
+    for (const brick of bricks) {
+      if (!brick.hidden && brick.maxHp && brick.hp !== undefined) {
+        brick.hp = Math.max(brick.hp, brick.maxHp);
+      }
+    }
+    powerUpNotice = { text: "ARENA REPAIRED", timer: 90, color: "#7be7ff" };
   } else if (action === "clear-nextbots") {
     selectNextBots();
     enemyShots = [];
     rockets = [];
+  } else if (action === "clear-boss-minions") {
+    clearBossMinions();
+    powerUpNotice = { text: "BOSS MINIONS REMOVED", timer: 90, color: "#ffd166" };
   } else if (action === "restore-lives") {
     lives = Math.max(STARTING_LIVES, startingLives);
     if (gameOver) {
       gameOver = false;
       resetBall();
     }
+  } else if (action === "full-heal") {
+    lives = Math.max(startingLives, 9);
+    if (paddle) {
+      paddle.width = basePaddleWidth;
+      paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x));
+    }
+    if (gameOver) {
+      gameOver = false;
+      resetBall();
+    }
+    powerUpNotice = { text: "FULL RECOVERY", timer: 90, color: "#7ef29a" };
   } else if (action === "retry-level") {
     if (gameStarted) resetCurrentLevel();
     else startLevel(level);
@@ -2581,6 +2602,12 @@ function runAdminAction(action, remoteAuthorized = false) {
     } else if (adminRepeatStatus) {
       adminRepeatStatus.textContent = "There is no active boss.";
     }
+  } else if (action === "spawn-boss-wave") {
+    const wave = [0, 3, 7, 12, 18, 23];
+    for (let index = 0; index < wave.length; index++) {
+      spawnAdminBoss(wave[index] % BOSS_VARIANTS.length);
+    }
+    powerUpNotice = { text: "BOSS WAVE SPAWNED", timer: 90, color: "#ffd166" };
   } else if (action === "reset-score") {
     mola = 0;
     newBest = false;
