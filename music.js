@@ -2,6 +2,7 @@ const musicMedia = document.getElementById("music-media");
 const musicUpload = document.getElementById("music-upload");
 const musicPlaylist = document.getElementById("music-playlist");
 const musicCurrent = document.getElementById("music-current");
+const musicSearch = document.getElementById("music-search");
 const musicMode = document.getElementById("music-mode");
 const musicBass = document.getElementById("music-bass");
 const musicBassValue = document.getElementById("music-bass-value");
@@ -239,7 +240,24 @@ function updateMusicMode() {
 
 function renderMusicPlaylist() {
   musicPlaylist.replaceChildren();
-  musicTracks.forEach(function (track, index) {
+  const query = musicSearch.value.trim().toLocaleLowerCase();
+  const visibleTracks = musicTracks.map(function (track, index) {
+    return { track: track, index: index };
+  }).filter(function (entry) {
+    return (entry.track.title + " " + (entry.track.description || "")).toLocaleLowerCase().includes(query);
+  });
+
+  if (visibleTracks.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "music-empty";
+    emptyItem.textContent = query ? "No tracks match your search." : "No tracks available.";
+    musicPlaylist.append(emptyItem);
+    return;
+  }
+
+  visibleTracks.forEach(function (entry) {
+    const track = entry.track;
+    const index = entry.index;
     const item = document.createElement("li");
     const trackInfo = document.createElement("div");
     trackInfo.className = "music-track-info";
@@ -276,6 +294,8 @@ function renderMusicPlaylist() {
     musicPlaylist.append(item);
   });
 }
+
+musicSearch.addEventListener("input", renderMusicPlaylist);
 
 async function playTrack(index, shouldPlay) {
   if (musicTracks.length === 0) {
