@@ -851,6 +851,29 @@ p {
   overflow-wrap: anywhere;
 }
 
+.music-search-label {
+  display: block;
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+}
+
+.music-search {
+  width: 100%;
+  min-width: 0;
+  margin-top: 5px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #050706;
+  color: #fff;
+  font: inherit;
+}
+
+.music-search:focus-visible {
+  outline: 2px solid var(--theme-accent, #fff);
+  outline-offset: 2px;
+}
+
 .music-playlist {
   display: grid;
   gap: 5px;
@@ -865,6 +888,11 @@ p {
   display: flex;
   gap: 8px;
   min-width: 0;
+}
+
+.music-empty {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
 }
 
 .music-track-info {
