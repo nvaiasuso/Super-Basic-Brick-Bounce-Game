@@ -2470,7 +2470,7 @@ function testAdminTools() {
   assignAiBallTargets();
 }
 
-const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "spawn-boss-20", "spawn-boss-21", "spawn-boss-22", "spawn-boss-23", "spawn-boss-24", "remove-nextbot", "life", "repair-bricks", "clear-boss-minions", "full-heal", "spawn-boss-wave"]);
+const repeatAdminActions = new Set(["ball", "spawn-brick", "spawn-powerup", "spawn-laser", "break", "ai", "kill-ai", "spawn-nextbot", "spawn-gunner", "spawn-boss-0", "spawn-boss-1", "spawn-boss-2", "spawn-boss-3", "spawn-boss-4", "spawn-boss-5", "spawn-boss-6", "spawn-boss-7", "spawn-boss-8", "spawn-boss-9", "spawn-boss-10", "spawn-boss-11", "spawn-boss-12", "spawn-boss-13", "spawn-boss-14", "spawn-boss-15", "spawn-boss-16", "spawn-boss-17", "spawn-boss-18", "spawn-boss-19", "spawn-boss-20", "spawn-boss-21", "spawn-boss-22", "spawn-boss-23", "spawn-boss-24", "spawn-boss-25", "spawn-boss-26", "spawn-boss-27", "spawn-boss-28", "spawn-boss-29", "remove-nextbot", "life", "repair-bricks", "clear-boss-minions", "full-heal", "max-shield", "spawn-boss-wave", "spawn-elite-wave", "drop-powerups", "clear-projectiles"]);
 const adminRepeatCount = document.getElementById("admin-repeat-count");
 const adminRepeatStatus = document.getElementById("admin-repeat-status");
 
@@ -2547,6 +2547,18 @@ function runAdminAction(action, remoteAuthorized = false) {
     selectNextBots();
     enemyShots = [];
     rockets = [];
+  } else if (action === "clear-projectiles") {
+    lasers = [];
+    enemyShots = [];
+    adminGunnerBullets = [];
+    rockets = [];
+    powerUpNotice = { text: "PROJECTILES CLEARED", timer: 90, color: "#7be7ff" };
+  } else if (action === "clear-projectiles") {
+    lasers = [];
+    enemyShots = [];
+    adminGunnerBullets = [];
+    rockets = [];
+    powerUpNotice = { text: "PROJECTILES CLEARED", timer: 90, color: "#7be7ff" };
   } else if (action === "clear-boss-minions") {
     clearBossMinions();
     powerUpNotice = { text: "BOSS MINIONS REMOVED", timer: 90, color: "#ffd166" };
@@ -2561,12 +2573,18 @@ function runAdminAction(action, remoteAuthorized = false) {
     if (paddle) {
       paddle.width = basePaddleWidth;
       paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x));
-    }
+    }max-shield") {
+    shieldTimer = 3600;
+    powerUpNotice = { text: "SHIELD MAXED", timer: 90, color: "#7be7ff" };
+  } else if (action === "
     if (gameOver) {
       gameOver = false;
       resetBall();
     }
     powerUpNotice = { text: "FULL RECOVERY", timer: 90, color: "#7ef29a" };
+  } else if (action === "max-shield") {
+    shieldTimer = 3600;
+    powerUpNotice = { text: "SHIELD MAXED", timer: 90, color: "#7be7ff" };
   } else if (action === "retry-level") {
     if (gameStarted) resetCurrentLevel();
     else startLevel(level);
@@ -2608,6 +2626,17 @@ function runAdminAction(action, remoteAuthorized = false) {
       spawnAdminBoss(wave[index] % BOSS_VARIANTS.length);
     }
     powerUpNotice = { text: "BOSS WAVE SPAWNED", timer: 90, color: "#ffd166" };
+  } else if (action === "spawn-elite-wave") {
+    const wave = [4, 8, 14, 19, 27, 29];
+    for (let index = 0; index < wave.length; index++) {
+      spawnAdminBoss(wave[index] % BOSS_VARIANTS.length);
+    }
+    powerUpNotice = { text: "ELITE WAVE SPAWNED", timer: 90, color: "#ff8c69" };
+  } else if (action === "drop-powerups") {
+    for (let index = 0; index < 7; index++) {
+      spawnAdminPowerUp();
+    }
+    powerUpNotice = { text: "POWER-UP BURST", timer: 90, color: "#d6ff55" };
   } else if (action === "reset-score") {
     mola = 0;
     newBest = false;

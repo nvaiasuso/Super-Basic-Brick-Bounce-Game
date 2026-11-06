@@ -71,7 +71,10 @@ const NEXTBOT_ROSTER = [
   { name: "MANTICORE", description: "Heavy hunter with explosive burst timing", color: "#f97316", accent: "#fef08a", speed: 1.52, telegraphFrames: 46 },
   { name: "GAMBIT", description: "Erratic advanced unit that breaks lines at speed", color: "#22c55e", accent: "#f472b6", speed: 1.74, telegraphFrames: 28 },
   { name: "MOURNING", description: "Slow dreadwalker with a long telegraph", color: "#713f12", accent: "#f4d35e", speed: 0.86, telegraphFrames: 122 },
-  { name: "MOLTEN", description: "Fiery rear-guard that rushes on a delayed cue", color: "#ef4444", accent: "#fdba74", speed: 1.66, telegraphFrames: 38 }
+  { name: "MOLTEN", description: "Fiery rear-guard that rushes on a delayed cue", color: "#ef4444", accent: "#fdba74", speed: 1.66, telegraphFrames: 38 },
+  { name: "EMBERLACE", description: "Fast spike-pusher that punishes late dodges", color: "#f97316", accent: "#fef08a", speed: 1.96, telegraphFrames: 22 },
+  { name: "FABLE", description: "A graceful, evasive attacker with a readable rhythm", color: "#e879f9", accent: "#a5f3fc", speed: 1.46, telegraphFrames: 50 },
+  { name: "HUSH", description: "Quiet judge that waits for the perfect strike", color: "#94a3b8", accent: "#67e8f9", speed: 1.18, telegraphFrames: 86 }
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
