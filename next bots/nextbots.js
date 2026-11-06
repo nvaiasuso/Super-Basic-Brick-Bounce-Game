@@ -91,7 +91,10 @@ const NEXTBOT_ROSTER = [
   { name: "HOLLOW", description: "Quiet unit that leaps out with a hard swing", color: "#475569", accent: "#cbd5e1", speed: 1.18, telegraphFrames: 72 },
   { name: "ARCLIGHT", description: "Bright striker with a sudden finisher", color: "#facc15", accent: "#e0f2fe", speed: 1.9, telegraphFrames: 22 },
   { name: "SABLE", description: "Dark warrior with a long slow tell", color: "#1f2937", accent: "#d4d4d8", speed: 1.08, telegraphFrames: 96 },
-  { name: "VOLTAGE", description: "Fast electric skirmisher with a clipped warning", color: "#22d3ee", accent: "#fef08a", speed: 2.04, telegraphFrames: 18 }
+  { name: "VOLTAGE", description: "Fast electric skirmisher with a clipped warning", color: "#22d3ee", accent: "#fef08a", speed: 2.04, telegraphFrames: 18 },
+  { name: "RIMEWALKER", description: "Icy pursuer that gives a long warning before a heavy dash", color: "#38bdf8", accent: "#e0f2fe", speed: 1.12, telegraphFrames: 108 },
+  { name: "SUNFLARE", description: "Bright striker that rushes after a short, clear tell", color: "#f59e0b", accent: "#fef08a", speed: 1.86, telegraphFrames: 30 },
+  { name: "ROOTBOUND", description: "Steady chaser that aims carefully before attacking", color: "#16a34a", accent: "#bbf7d0", speed: 1.34, telegraphFrames: 66 }
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;

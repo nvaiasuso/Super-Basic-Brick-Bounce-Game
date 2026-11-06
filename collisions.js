@@ -37,6 +37,69 @@ function reflectFromPaddle(vx, vy, angle) {
   };
 }
 
+function projectPaddleShot(incoming, targetPaddle = paddle, sourceBricks = bricks, maxSteps = 120) {
+  const reflected = reflectFromPaddle(incoming.vx, incoming.vy, targetPaddle.angle || 0);
+  const reflectedSpeed = Math.hypot(reflected.vx, reflected.vy);
+  if (reflectedSpeed < 0.01) return [];
+
+  const shotBall = {
+    x: incoming.x - ball.width / 2,
+    y: targetPaddle.y - ball.height,
+    width: ball.width,
+    height: ball.height,
+    vx: reflected.vx * BALL_SPEED / reflectedSpeed,
+    vy: reflected.vy * BALL_SPEED / reflectedSpeed
+  };
+  const projectedBricks = sourceBricks.filter(function (brick) {
+    return !brick.hidden;
+  }).map(function (brick) {
+    return Object.assign({}, brick);
+  });
+  const path = [{ x: incoming.x, y: targetPaddle.y }];
+
+  for (let step = 0; step < maxSteps; step++) {
+    shotBall.x += shotBall.vx;
+    shotBall.y += shotBall.vy;
+
+    if (shotBall.x < 0 || shotBall.x + shotBall.width > WIDTH) {
+      shotBall.vx = -shotBall.vx;
+      shotBall.x = Math.max(0, Math.min(WIDTH - shotBall.width, shotBall.x));
+    }
+    if (shotBall.y < 0) {
+      shotBall.y = 0;
+      shotBall.vy = Math.abs(shotBall.vy);
+    }
+
+    for (let index = 0; index < projectedBricks.length; index++) {
+      const brick = projectedBricks[index];
+      if (!boxesTouch(shotBall, brick)) continue;
+      if (brick.isKill) {
+        path.push({ x: shotBall.x + shotBall.width / 2, y: shotBall.y + shotBall.height / 2 });
+        path.hazard = true;
+        return path;
+      }
+
+      const overlapX = Math.min(shotBall.x + shotBall.width, brick.x + brick.width) - Math.max(shotBall.x, brick.x);
+      const overlapY = Math.min(shotBall.y + shotBall.height, brick.y + brick.height) - Math.max(shotBall.y, brick.y);
+      if (overlapX < overlapY) {
+        shotBall.vx = -shotBall.vx;
+        shotBall.x = shotBall.x < brick.x ? brick.x - shotBall.width : brick.x + brick.width;
+      } else {
+        shotBall.vy = -shotBall.vy;
+        shotBall.y = shotBall.y < brick.y ? brick.y - shotBall.height : brick.y + brick.height;
+      }
+      if ((brick.hp || 1) > 1) brick.hp--;
+      else projectedBricks.splice(index, 1);
+      break;
+    }
+
+    path.push({ x: shotBall.x + shotBall.width / 2, y: shotBall.y + shotBall.height / 2 });
+    if (shotBall.y > HEIGHT) break;
+  }
+
+  return path;
+}
+
 
 // The ball bounces off the left, right, and top walls.
 // (The bottom is not a wall: falling off the bottom costs a life.)
@@ -488,6 +551,15 @@ function planAutoPlay(targetPaddle = paddle) {
   let bestScore = -Infinity;
 
   for (let angle = -MAX_PADDLE_TILT; angle <= MAX_PADDLE_TILT; angle += 5) {
+    const score = scoreAutoShot(catchX, angle, projection.vx, projection.vy, targetPaddle);
+    if (score > bestScore) {
+      bestScore = score;
+      bestAngle = angle;
+    }
+  }
+
+  const coarseBestAngle = bestAngle;
+  for (let angle = Math.max(-MAX_PADDLE_TILT, coarseBestAngle - 4); angle <= Math.min(MAX_PADDLE_TILT, coarseBestAngle + 4); angle++) {
     const score = scoreAutoShot(catchX, angle, projection.vx, projection.vy, targetPaddle);
     if (score > bestScore) {
       bestScore = score;

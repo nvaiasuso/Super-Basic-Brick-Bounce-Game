@@ -39,13 +39,15 @@ const GAME_MODES = [
   { label: "Arena", description: "Quick play with the highest standard drop rate.", accent: "#f4faff", background: "#0d1118", ballSpeedMultiplier: 1.18, powerUpDropChance: 0.2 },
   { label: "Candy", description: "Balanced speed with generous power-ups.", accent: "#ff75d8", background: "#1a0d1e", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.19 },
   { label: "Boss Rush", description: "Every level is a boss encounter.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.1, powerUpDropChance: 0.16, bossRush: true },
-  { label: "Endless", description: "Keep playing past level 90 as layouts cycle.", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
+  { label: "Endless", description: "Keep playing past level 100 as layouts cycle.", accent: "#d6ff55", background: "#080d0c", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, endless: true },
   { label: "Swarm", description: "Twice as many nextbots appear as levels advance.", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, nextbotMultiplier: 2 },
   { label: "Inverted", description: "Left and right paddle controls are reversed.", accent: "#ffad55", background: "#15100a", ballSpeedMultiplier: 1, powerUpDropChance: 0.14, reverseControls: true },
   { label: "Laserstorm", description: "Laser hazards appear twice as often.", accent: "#ff4f6d", background: "#18070d", ballSpeedMultiplier: 1.08, powerUpDropChance: 0.16, laserMultiplier: 2 },
   { label: "Glass Cannon", description: "One life, a very fast ball, and plentiful power-ups.", accent: "#f0abfc", background: "#16091b", ballSpeedMultiplier: 1.45, powerUpDropChance: 0.25, startingLives: 1 },
   { label: "Fortress", description: "Normal bricks take two hits; the ball moves slower.", accent: "#67e8f9", background: "#071318", ballSpeedMultiplier: 0.9, powerUpDropChance: 0.14, armoredBricks: true },
-  { label: "Overdrive", description: "Very fast ball, extra power-ups, and more nextbots.", accent: "#fb923c", background: "#1b0c05", ballSpeedMultiplier: 1.55, powerUpDropChance: 0.22, nextbotMultiplier: 1.5 }
+  { label: "Overdrive", description: "Very fast ball, extra power-ups, and more nextbots.", accent: "#fb923c", background: "#1b0c05", ballSpeedMultiplier: 1.55, powerUpDropChance: 0.22, nextbotMultiplier: 1.5 },
+  { label: "Co-op Swarm", description: "Five lives and larger enemy waves for multiplayer teams.", accent: "#55d9ff", background: "#06131a", ballSpeedMultiplier: 1.05, powerUpDropChance: 0.2, nextbotMultiplier: 2, startingLives: 5 },
+  { label: "Co-op Boss Run", description: "Bosses on every stage and five shared team lives.", accent: "#ff8c69", background: "#1b0c05", ballSpeedMultiplier: 1, powerUpDropChance: 0.2, bossRush: true, startingLives: 5 }
 ];
 const PADDLE_TILT_SPEED = 2;
 const DASH_DISTANCE = 120;
@@ -55,7 +57,7 @@ const PADDLE_JUMP_COOLDOWN = 72;
 const MAX_PADDLE_TILT = 35;
 const STARTING_LIVES = 3;
 let startingLives = STARTING_LIVES;
-const LEVEL_COUNT = 90;
+const LEVEL_COUNT = 100;
 let randomEverythingEnabled = false;
 let currentTurnSpeed = PADDLE_TILT_SPEED;
 let currentDashDistance = DASH_DISTANCE;
@@ -132,6 +134,7 @@ let adminMissile = null;
 let adminMissileArmed = false;
 let adminExplosion = null;
 let adminMousePosition = { x: WIDTH / 2, y: HEIGHT / 2 };
+let adminSpawnAtCursor = false;
 let adminInspectEnabled = false;
 let adminDebugEnabled = false;
 let inspectedObject = null;
@@ -1303,6 +1306,7 @@ function addLobbyAIPlayers(players) {
 function beginLobbyGame(isHost, playerId, isAdminBattle = false, adminIds = []) {
   multiplayerAdminIds = Array.isArray(adminIds) ? adminIds : [];
   setMultiplayerSession(true, isHost, playerId, isAdminBattle);
+  if (isHost) applyMode(Number(startModeSelect ? startModeSelect.value : currentMode));
   beginGame(false);
 }
 
@@ -1763,8 +1767,8 @@ function spawnAdminBrick() {
     kill: "#ffffff"
   };
   const brick = {
-    x: 20 + Math.random() * (WIDTH - 78),
-    y: 92 + Math.random() * 90,
+    x: adminSpawnAtCursor ? Math.max(0, Math.min(WIDTH - 58, adminMousePosition.x - 29)) : 20 + Math.random() * (WIDTH - 78),
+    y: adminSpawnAtCursor ? Math.max(62, Math.min(300, adminMousePosition.y - 10)) : 92 + Math.random() * 90,
     width: 58,
     height: 20,
     isKill: type === "kill" || type === "sweeper",
@@ -1812,8 +1816,8 @@ function spawnAdminPowerUp() {
     ? kinds[Math.floor(Math.random() * kinds.length)]
     : kinds.find(function (item) { return item.type === selectedKind; }) || kinds[0];
   powerUps.push({
-    x: Math.random() * (WIDTH - 22),
-    y: 100,
+    x: adminSpawnAtCursor ? Math.max(0, Math.min(WIDTH - 22, adminMousePosition.x - 11)) : Math.random() * (WIDTH - 22),
+    y: adminSpawnAtCursor ? Math.max(40, Math.min(HEIGHT - 80, adminMousePosition.y - 11)) : 100,
     width: 22,
     height: 22,
     speed: 2.4,
@@ -1825,6 +1829,12 @@ function spawnAdminPowerUp() {
 
 function spawnAdminBoss(selectedBoss = 0) {
   const boss = makeBossBrick(selectedBoss, Math.max(9, level));
+  if (adminSpawnAtCursor) {
+    boss.x = Math.max(0, Math.min(WIDTH - boss.width, adminMousePosition.x - boss.width / 2));
+    boss.y = Math.max(50, Math.min(HEIGHT / 2 - boss.height, adminMousePosition.y - boss.height / 2));
+    boss.originX = boss.x;
+    boss.originY = boss.y;
+  }
   boss.adminSpawned = true;
   bricks.push(boss);
 }
@@ -2170,6 +2180,24 @@ function drawAdminHitboxes() {
       ctx.font = "10px Courier New";
       ctx.textAlign = "center";
       ctx.fillText(Math.ceil(prediction.framesToLanding / 60) + "s", prediction.landingX, paddle.y - 10);
+      if (prediction.shotPath && prediction.shotPath.length > 1) {
+        ctx.strokeStyle = prediction.shotPath.hazard ? "#ff5b67" : "#ffd166";
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.moveTo(prediction.shotPath[0].x, prediction.shotPath[0].y);
+        for (let index = 1; index < prediction.shotPath.length; index++) {
+          ctx.lineTo(prediction.shotPath[index].x, prediction.shotPath[index].y);
+        }
+        ctx.stroke();
+        const shotEnd = prediction.shotPath[prediction.shotPath.length - 1];
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(shotEnd.x, shotEnd.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
   }
@@ -2718,6 +2746,11 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "aim-laser") {
     aimLaserEnabled = !aimLaserEnabled;
     refreshAimLaserButton();
+  } else if (action === "spawn-cursor") {
+    adminSpawnAtCursor = !adminSpawnAtCursor;
+    const button = document.querySelector('[data-admin="spawn-cursor"]');
+    button.setAttribute("aria-pressed", String(adminSpawnAtCursor));
+    button.textContent = "Spawn at cursor: " + (adminSpawnAtCursor ? "On" : "Off");
   } else if (action === "laser-damage") {
     laserDamageEnabled = !laserDamageEnabled;
     refreshAdminToggle(action, laserDamageEnabled, "Laser damage");
@@ -2756,7 +2789,15 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "website-fps") {
     setWebsiteFpsEnabled(!websiteFpsEnabled);
   } else if (action === "spawn-nextbot") {
-    if (!spawnNextBot() && adminRepeatStatus) {
+    const nextBotSelect = document.getElementById("admin-nextbot-select");
+    const spawnedBot = spawnNextBot(nextBotSelect && nextBotSelect.value !== "random" ? nextBotSelect.value : undefined);
+    if (adminSpawnAtCursor && spawnedBot) {
+      spawnedBot.x = adminMousePosition.x;
+      spawnedBot.y = adminMousePosition.y;
+      spawnedBot.targetX = adminMousePosition.x;
+      spawnedBot.targetY = adminMousePosition.y;
+    }
+    if (!spawnedBot && adminRepeatStatus) {
       adminRepeatStatus.textContent = "Nextbot limit reached (" + nextBots.length + "). Increase the limit or remove a nextbot.";
     }
   } else if (action === "spawn-gunner") {
@@ -3300,7 +3341,10 @@ function updatePaddleKnownStuff() {
       landingX: prediction.x,
       framesToLanding: prediction.steps,
       hazard: prediction.hazard,
-      path: prediction.path || []
+      path: prediction.path || [],
+      shotPath: adminVisibility.trajectory && !prediction.hazard && !activeBall.stuck
+        ? projectPaddleShot(prediction, paddle)
+        : []
     };
   });
   const powerUpsKnown = powerUps.map(function (powerUp) {

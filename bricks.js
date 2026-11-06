@@ -37,10 +37,16 @@ const BOSS_VARIANTS = [
   { name: "TITAN BLOOM", palette: ["#86efac", "#166534", "#052e16"], damagedPalette: ["#facc15", "#ea580c", "#431407"], glow: "#4ade80", eyes: "#fef3c7", damagedEyes: "#fdba74", minionInterval: 64, minionLimit: 8 },
   { name: "IRON CHOIR", palette: ["#e2e8f0", "#475569", "#111827"], damagedPalette: ["#fca5a5", "#991b1b", "#4c0519"], glow: "#cbd5e1", eyes: "#7dd3fc", damagedEyes: "#fef08a", minionInterval: 60, minionLimit: 9 },
   { name: "BLACK BEACON", palette: ["#a1a1aa", "#111827", "#020617"], damagedPalette: ["#f9a8d4", "#be123c", "#500724"], glow: "#d4d4d8", eyes: "#7dd3fc", damagedEyes: "#fef08a", minionInterval: 56, minionLimit: 9 },
-  { name: "CINDER SPIRE", palette: ["#fca5a5", "#b91c1c", "#4c0519"], damagedPalette: ["#fde68a", "#f59e0b", "#431407"], glow: "#f87171", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 52, minionLimit: 10 }
+  { name: "CINDER SPIRE", palette: ["#fca5a5", "#b91c1c", "#4c0519"], damagedPalette: ["#fde68a", "#f59e0b", "#431407"], glow: "#f87171", eyes: "#fff7ed", damagedEyes: "#fef08a", minionInterval: 52, minionLimit: 10 },
+  { name: "GLACIER ENGINE", palette: ["#bae6fd", "#0369a1", "#082f49"], damagedPalette: ["#fef08a", "#ea580c", "#431407"], glow: "#38bdf8", eyes: "#f8fafc", damagedEyes: "#fff7ed", minionInterval: 104, minionLimit: 5 },
+  { name: "THUNDER CROWN", palette: ["#fef08a", "#ca8a04", "#422006"], damagedPalette: ["#fda4af", "#be123c", "#4c0519"], glow: "#facc15", eyes: "#67e8f9", damagedEyes: "#f0abfc", minionInterval: 92, minionLimit: 6 },
+  { name: "MOSS TITAN", palette: ["#86efac", "#15803d", "#052e16"], damagedPalette: ["#fde68a", "#c2410c", "#431407"], glow: "#4ade80", eyes: "#fef08a", damagedEyes: "#fff7ed", minionInterval: 112, minionLimit: 5 }
 ];
 const FINAL_BOSS_PHASES = ["DORMANT / HUNTING", "TENTACLED TITAN / EVOLUTION", "ADMIN CORE / TOTAL CORRUPTION"];
-const BOSS_LEVELS = [9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, LEVEL_COUNT - 1];
+const BOSS_LEVELS = Array.from(
+  { length: Math.ceil((LEVEL_COUNT - 10) / 6) },
+  function (_, index) { return 9 + index * 6; }
+).concat(LEVEL_COUNT - 1);
 
 function finalBossPhaseForHealth(boss) {
   const healthRatio = boss.hp / boss.maxHp;
