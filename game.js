@@ -2553,12 +2553,6 @@ function runAdminAction(action, remoteAuthorized = false) {
     adminGunnerBullets = [];
     rockets = [];
     powerUpNotice = { text: "PROJECTILES CLEARED", timer: 90, color: "#7be7ff" };
-  } else if (action === "clear-projectiles") {
-    lasers = [];
-    enemyShots = [];
-    adminGunnerBullets = [];
-    rockets = [];
-    powerUpNotice = { text: "PROJECTILES CLEARED", timer: 90, color: "#7be7ff" };
   } else if (action === "clear-boss-minions") {
     clearBossMinions();
     powerUpNotice = { text: "BOSS MINIONS REMOVED", timer: 90, color: "#ffd166" };
@@ -2573,10 +2567,7 @@ function runAdminAction(action, remoteAuthorized = false) {
     if (paddle) {
       paddle.width = basePaddleWidth;
       paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x));
-    }max-shield") {
-    shieldTimer = 3600;
-    powerUpNotice = { text: "SHIELD MAXED", timer: 90, color: "#7be7ff" };
-  } else if (action === "
+    }
     if (gameOver) {
       gameOver = false;
       resetBall();
