@@ -74,7 +74,24 @@ const NEXTBOT_ROSTER = [
   { name: "MOLTEN", description: "Fiery rear-guard that rushes on a delayed cue", color: "#ef4444", accent: "#fdba74", speed: 1.66, telegraphFrames: 38 },
   { name: "EMBERLACE", description: "Fast spike-pusher that punishes late dodges", color: "#f97316", accent: "#fef08a", speed: 1.96, telegraphFrames: 22 },
   { name: "FABLE", description: "A graceful, evasive attacker with a readable rhythm", color: "#e879f9", accent: "#a5f3fc", speed: 1.46, telegraphFrames: 50 },
-  { name: "HUSH", description: "Quiet judge that waits for the perfect strike", color: "#94a3b8", accent: "#67e8f9", speed: 1.18, telegraphFrames: 86 }
+  { name: "HUSH", description: "Quiet judge that waits for the perfect strike", color: "#94a3b8", accent: "#67e8f9", speed: 1.18, telegraphFrames: 86 },
+  { name: "RUNE", description: "Arcane runner with a layered warning rhythm", color: "#7c3aed", accent: "#c4b5fd", speed: 1.43, telegraphFrames: 52 },
+  { name: "VEX", description: "Aggressive skirmisher with light-footed pressure", color: "#f43f5e", accent: "#fda4af", speed: 1.82, telegraphFrames: 24 },
+  { name: "PALADROME", description: "Balanced threat with mirrored attack timing", color: "#0ea5e9", accent: "#e0f2fe", speed: 1.36, telegraphFrames: 48 },
+  { name: "CINDERBLOOM", description: "Chasing flanker that pops up in bursts", color: "#ea580c", accent: "#fde68a", speed: 1.74, telegraphFrames: 30 },
+  { name: "WRECK", description: "Heavy bodyguard that punishes slow movement", color: "#475569", accent: "#fbbf24", speed: 0.98, telegraphFrames: 98 },
+  { name: "VINDICATOR", description: "Fast line-breaker that attacks from the edge", color: "#16a34a", accent: "#bef264", speed: 1.64, telegraphFrames: 34 },
+  { name: "AERIE", description: "High altitude stalker with an abrupt strike", color: "#38bdf8", accent: "#e0f2fe", speed: 1.54, telegraphFrames: 42 },
+  { name: "MORTAR", description: "Delayed pusher that surprises from long range", color: "#b45309", accent: "#facc15", speed: 1.22, telegraphFrames: 82 },
+  { name: "GHOSTFRAME", description: "Ghostlike pressure unit with bad intention", color: "#f8fafc", accent: "#a78bfa", speed: 1.48, telegraphFrames: 40 },
+  { name: "THRALL", description: "Small swarm drone that forces persistent movement", color: "#22c55e", accent: "#bbf7d0", speed: 1.66, telegraphFrames: 28 },
+  { name: "MIRAGE CORE", description: "Unstable core unit that warps the arena", color: "#7c3aed", accent: "#67e8f9", speed: 1.58, telegraphFrames: 36 },
+  { name: "ABSCONDA", description: "Clever reaper with a slippery rhythm", color: "#312e81", accent: "#f9a8d4", speed: 1.52, telegraphFrames: 44 },
+  { name: "HEARTH", description: "Frontline furnace with a steady chase", color: "#ef4444", accent: "#fed7aa", speed: 1.3, telegraphFrames: 64 },
+  { name: "HOLLOW", description: "Quiet unit that leaps out with a hard swing", color: "#475569", accent: "#cbd5e1", speed: 1.18, telegraphFrames: 72 },
+  { name: "ARCLIGHT", description: "Bright striker with a sudden finisher", color: "#facc15", accent: "#e0f2fe", speed: 1.9, telegraphFrames: 22 },
+  { name: "SABLE", description: "Dark warrior with a long slow tell", color: "#1f2937", accent: "#d4d4d8", speed: 1.08, telegraphFrames: 96 },
+  { name: "VOLTAGE", description: "Fast electric skirmisher with a clipped warning", color: "#22d3ee", accent: "#fef08a", speed: 2.04, telegraphFrames: 18 }
 
 ];
 const NEXTBOT_TELEGRAPH_FRAMES = 48;
@@ -198,13 +215,25 @@ function setNextBotMultiplayerState(state) {
   if (nextBotAttacksPaused !== Boolean(state.attacksPaused)) setNextBotAttacksPaused(Boolean(state.attacksPaused));
 }
 
+function getNextBotRangeForLevel(currentLevel) {
+  if (currentLevel < 2) return { min: 0, max: 0 };
+  const tier = Math.max(1, Math.min(8, Math.floor(currentLevel / 4)));
+  const min = Math.max(1, Math.min(6, Math.floor(currentLevel / 6) + 1));
+  const max = Math.min(NEXTBOT_ROSTER.length, Math.max(min, min + tier + (currentLevel > 10 ? 2 : 1)));
+  return { min, max };
+}
+
 function setNextBotsForLevel(currentLevel) {
   if (currentLevel === LEVEL_COUNT - 1) {
     selectNextBots();
     return;
   }
   const modeMultiplier = typeof getCurrentMode === "function" ? getCurrentMode().nextbotMultiplier || 1 : 1;
-  const targetCount = currentLevel < 2 ? 0 : Math.floor((currentLevel + 1) / 2 * modeMultiplier);
+  const levelRange = getNextBotRangeForLevel(currentLevel);
+  const targetCount = currentLevel < 2 ? 0 : Math.min(
+    levelRange.max,
+    Math.max(levelRange.min, Math.floor((Math.random() * (levelRange.max - levelRange.min + 1)) + levelRange.min) * modeMultiplier)
+  );
   while (nextBots.length < targetCount) spawnNextBot();
   while (nextBots.length > targetCount) removeNextBot();
 }

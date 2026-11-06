@@ -2562,6 +2562,14 @@ function runAdminAction(action, remoteAuthorized = false) {
       gameOver = false;
       resetBall();
     }
+  } else if (action === "max-lives") {
+    startingLives = 99;
+    lives = 99;
+    if (gameOver) {
+      gameOver = false;
+      resetBall();
+    }
+    powerUpNotice = { text: "MAX LIVES", timer: 90, color: "#7ef29a" };
   } else if (action === "full-heal") {
     lives = Math.max(startingLives, 9);
     if (paddle) {
@@ -2576,6 +2584,15 @@ function runAdminAction(action, remoteAuthorized = false) {
   } else if (action === "max-shield") {
     shieldTimer = 3600;
     powerUpNotice = { text: "SHIELD MAXED", timer: 90, color: "#7be7ff" };
+  } else if (action === "full-cleanup") {
+    bricks = bricks.filter(function (brick) { return brick.isKill; });
+    lasers = [];
+    enemyShots = [];
+    adminGunnerBullets = [];
+    rockets = [];
+    nextBots = [];
+    nextBotBattle = null;
+    powerUpNotice = { text: "FULL CLEANUP", timer: 90, color: "#ffd166" };
   } else if (action === "retry-level") {
     if (gameStarted) resetCurrentLevel();
     else startLevel(level);
@@ -2617,6 +2634,20 @@ function runAdminAction(action, remoteAuthorized = false) {
       spawnAdminBoss(wave[index] % BOSS_VARIANTS.length);
     }
     powerUpNotice = { text: "BOSS WAVE SPAWNED", timer: 90, color: "#ffd166" };
+  } else if (action === "spawn-random-nextbot") {
+    spawnNextBot();
+    powerUpNotice = { text: "RANDOM NEXTBOT", timer: 90, color: "#7be7ff" };
+  } else if (action === "spawn-enemy-range") {
+    const min = Math.max(2, Math.min(8, Math.floor(level / 4) + 2));
+    const max = Math.min(14, min + 4);
+    const count = Math.floor(Math.random() * (max - min + 1)) + min;
+    for (let index = 0; index < count; index++) {
+      spawnNextBot();
+    }
+    powerUpNotice = { text: "ENEMY RANGE SPAWNED", timer: 90, color: "#7be7ff" };
+  } else if (action === "spawn-random-boss") {
+    spawnAdminBoss(Math.floor(Math.random() * BOSS_VARIANTS.length));
+    powerUpNotice = { text: "RANDOM BOSS", timer: 90, color: "#ffd166" };
   } else if (action === "spawn-elite-wave") {
     const wave = [4, 8, 14, 19, 27, 29];
     for (let index = 0; index < wave.length; index++) {
