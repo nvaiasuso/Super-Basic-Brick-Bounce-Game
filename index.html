@@ -19,7 +19,7 @@
           <p class="menu-kicker">ARCADE / BLOCK BREAKER</p>
           <h1>BREAK THE<br>FIELD.</h1>
           <canvas id="title-demo" width="600" height="180" aria-hidden="true"></canvas>
-          <p class="menu-tagline">150 levels. Three lives. Keep the ball alive.</p>
+          <p class="menu-tagline">Ninety levels. Three lives. Keep the ball alive.</p>
           <div class="main-menu-actions">
             <label class="start-mode-picker" for="start-mode-select">
               Start mode
@@ -121,7 +121,7 @@
       <button type="button" id="touch-launch" class="touch-control touch-launch" aria-label="Launch ball" disabled>Launch</button>
     </div>
     <p id="multiplayer-status" class="multiplayer-status" role="status" aria-live="polite" hidden></p>
-    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 150 levels. The final Wither Storm fight has no nextbots. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
+    <p id="game-info" hidden>Move with your bound left/right keys and tilt with the bound tilt keys to aim the ball. Press Space to launch and J to jump over shots during Random Everything. Break every outlined brick, avoid striped killbricks, moving sweepers, and red laser warnings, and clear all 90 levels. The final Wither Storm fight has no nextbots. Catch falling power-ups with the paddle; temporary effects last five seconds. Hit five bricks in a row to earn an extra ball. You have 3 lives; press R after a win or game over to restart. Press Escape to pause and open the keybind menu.</p>
     <section id="multiplayer-chat" class="multiplayer-chat" aria-label="Multiplayer chat" hidden>
       <div class="chat-heading">
         <h2>Lobby Chat</h2>
@@ -215,10 +215,10 @@
     <section id="control-menu" class="controls" aria-label="Game controls" hidden>
       <h2 id="control-title">Paused — Settings</h2>
       <div class="key-bindings">
-        <label>Move left <button type="button" data-control="left">A</button></label>
-        <label>Move right <button type="button" data-control="right">D</button></label>
-        <label>Tilt left <button type="button" data-control="tiltLeft">S</button></label>
-        <label>Tilt right <button type="button" data-control="tiltRight">W</button></label>
+        <label>Move left <button type="button" data-control="left">←</button></label>
+        <label>Move right <button type="button" data-control="right">→</button></label>
+        <label>Tilt left <button type="button" data-control="tiltLeft">↓</button></label>
+        <label>Tilt right <button type="button" data-control="tiltRight">↑</button></label>
         <label>Jump <button type="button" data-control="jump">J</button></label>
         <button type="button" class="touch-control" data-touch="jump" aria-label="Jump">JUMP</button>
       </div>
@@ -255,7 +255,7 @@
       <button type="button" id="website-fps-toggle" aria-pressed="false">Website FPS: Off</button>
       <button type="button" id="fullscreen-toggle" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
       <button type="button" id="resume">Resume</button>
-      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+S starts a game. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens the admin menu. Ctrl+Shift+R twice resets the player and admin spawns.</small>
+      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
     </section>
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
       <h2 id="admin-titlebar">Admin Tools <button type="button" id="admin-close">Close</button></h2>
@@ -308,7 +308,6 @@
           <button type="button" data-admin="nextbot-wave">Spawn nextbot wave</button>
           <button type="button" data-admin="nextbot-attack">Force nextbot attack</button>
           <button type="button" data-admin="spawn-gunner">Spawn friendly gunner</button>
-          <button type="button" data-admin="spawn-gunner-squad">Spawn gunner squad</button>
           <button type="button" data-admin="spawn-all">Spawn everything</button>
         </section>
         <section class="admin-group" aria-label="Boss spawns">
@@ -333,11 +332,6 @@
           <button type="button" data-admin="spawn-boss-17">Spawn Prismatic Regent</button>
           <button type="button" data-admin="spawn-boss-18">Spawn Molten Archivist</button>
           <button type="button" data-admin="spawn-boss-19">Spawn Storm Widow</button>
-          <button type="button" data-admin="spawn-boss-20">Spawn Nebula King</button>
-          <button type="button" data-admin="spawn-boss-21">Spawn Rust Colossus</button>
-          <button type="button" data-admin="spawn-boss-22">Spawn Tidal Empress</button>
-          <button type="button" data-admin="spawn-boss-23">Spawn Sun Eater</button>
-          <button type="button" data-admin="spawn-boss-24">Spawn Circuit Breaker</button>
           <button type="button" data-admin="spawn-final-boss">Spawn Wither Storm</button>
           <button type="button" data-admin="boss-phase">Advance Wither Storm phase</button>
         </section>
@@ -355,7 +349,6 @@
           <button type="button" data-admin="heal-boss">Heal active boss</button>
           <button type="button" data-admin="damage-boss">Damage active boss</button>
           <button type="button" data-admin="reset-score">Reset run score</button>
-          <button type="button" data-admin="reset-player-admin">Reset player + admin spawns</button>
         </section>
         <section class="admin-group" aria-label="Game controls">
           <h3>Controls</h3>
@@ -410,7 +403,6 @@
           <button type="button" data-admin="clear-powerups">Clear power-ups</button>
           <button type="button" data-admin="clear-lasers">Clear lasers</button>
           <button type="button" data-admin="clear-ai">Clear AI paddles</button>
-          <button type="button" data-admin="clear-gunners">Clear gunners and bullets</button>
           <button type="button" data-admin="clear-spawned">Clear spawned objects</button>
         </section>
         <section class="admin-group" aria-label="Progress and music">
@@ -435,12 +427,11 @@
           <button type="button" data-view-toggle="trajectory" aria-pressed="false">Ball paths: Off</button>
           <button type="button" data-view-toggle="paddlePlan" aria-pressed="false">Paddle plan: Off</button>
           <button type="button" data-view-toggle="timers" aria-pressed="false">Threat timers: Off</button>
-          <button type="button" data-view-toggle="shotLines" aria-pressed="false">Shot lines: Off</button>
           <button type="button" data-view-toggle="all" aria-pressed="true">Hide all</button>
         </div>
         <label for="admin-repeat-count">Right-click repeats</label>
-        <input id="admin-repeat-count" type="number" min="1" step="1" value="25" aria-label="Number of times to repeat an admin action">
-        <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it without a fixed count limit.</small>
+        <input id="admin-repeat-count" type="number" min="1" max="100" step="1" value="25" aria-label="Number of times to repeat an admin action">
+        <small id="admin-repeat-status" role="status" aria-live="polite">Right-click an add/spawn admin button to repeat it quickly.</small>
         <output id="admin-debug-readout" class="admin-debug-readout" aria-live="polite" hidden></output>
         <label for="admin-level-select">Skip to level</label>
         <select id="admin-level-select" aria-label="Select level to skip to">
