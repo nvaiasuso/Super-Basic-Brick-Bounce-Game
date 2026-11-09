@@ -498,6 +498,23 @@ p {
   gap: 8px;
 }
 
+.lobby-invite-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.lobby-invite-actions[hidden] {
+  display: none;
+}
+
+.lobby-invite-actions a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .ai-invite-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

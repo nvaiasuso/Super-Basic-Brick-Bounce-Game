@@ -12,7 +12,7 @@ const requestedPort = Number(process.env.PORT) || 8080;
 const rooms = new Map();
 const clients = new Map();
 const roomCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const playerColors = ["#d6ff55", "#55d9ff"];
+const playerColors = ["#d6ff55", "#55d9ff", "#ff78bd", "#ffad55", "#8b9bff", "#7ef29a"];
 const musicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
 
 async function findMusicFiles(directory, files) {
@@ -221,11 +221,10 @@ function joinLobby(socket, message) {
   const room = rooms.get(code);
   if (!room) return sendError(socket, "That lobby code was not found.");
   if (room.started) return sendError(socket, "That game has already started.");
-  if (room.players.size >= 2) return sendError(socket, "That lobby is full.");
 
   player.roomCode = code;
   player.name = cleanName(message.name);
-  player.color = playerColors[1];
+  player.color = playerColors[room.players.size % playerColors.length];
   player.x = 355;
   player.previousX = player.x;
   player.y = 570;

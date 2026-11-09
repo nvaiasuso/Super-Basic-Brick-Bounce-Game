@@ -210,11 +210,10 @@ function createRealtimeLobbySocket(initialAction) {
   function handleHostMessage(message, senderId) {
     if (message.type === "join") {
       if (roomStarted) return sendError("That game has already started.", senderId);
-      if (roomPlayers.length >= 2) return sendError("That lobby is full.", senderId);
       const joinedPlayer = {
         id: senderId,
         name: cleanLobbyName(message.name),
-        color: "#55d9ff",
+        color: ["#d6ff55", "#55d9ff", "#ff78bd", "#ffad55", "#8b9bff", "#7ef29a"][roomPlayers.length % 6],
         x: 355,
         previousX: 355,
         y: 570,
