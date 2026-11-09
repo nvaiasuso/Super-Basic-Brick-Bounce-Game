@@ -19,10 +19,10 @@
 ## Play together
 
 - Start the game with `npm start` and open the same running server in both players' browsers.
-- The host selects **Make a Lobby** and shares the six-character code.
-- The other player enters the code, selects **Join Lobby**, then marks themselves ready. The host starts the match when ready.
+- The host selects **Make a Lobby** and shares the invite link or six-character code. Opening the link joins the lobby automatically.
+- Any number of players can join before the game starts. Each guest marks themselves ready; the host can start once everyone is ready.
 - The host can add up to eight named AI players before starting; a standard lobby can start with AI players even when no second person joins.
-- In Admin Battle, the host runs the admin panel and the second human player is the only player paddle; a second human is required to start.
+- In Admin Battle, the host runs the admin panel and at least one other human player is required to start.
 - Online lobbies require an internet connection. **Local Multiplayer (Offline)** runs a two-player test on one device without a network connection.
 - AI partners prioritize catching the ball over evading nextbots, while still dodging laser lanes and only chasing green balls or power-ups when they can still save the white ball. The object inspector shows their predicted landing, timing, power-up choice, and laser-safe movement target. Nextbot attacks queue visibly for staggered team assaults; Pandemonium starts its five-second warning immediately. Lasers can destroy nextbots. Temporary power-ups last five seconds. Admin-spawned objects have no count cap; large counts can slow the browser and multiplayer updates. Teammates can help steer the shield during nextbot battles.
 - Use Lobby Chat to message everyone in the room before or during a match.

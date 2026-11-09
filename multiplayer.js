@@ -7,8 +7,11 @@ const lobbyReadyButton = document.getElementById("lobby-ready");
 const lobbyStartButton = document.getElementById("lobby-start");
 const lobbyLeaveButton = document.getElementById("lobby-leave");
 const lobbyCopyButton = document.getElementById("lobby-copy");
+const lobbyCopyInviteButton = document.getElementById("lobby-copy-invite");
 const lobbyCodeInput = document.getElementById("lobby-code-input");
 const lobbyCodeOutput = document.getElementById("lobby-code-output");
+const lobbyInviteActions = document.getElementById("lobby-invite-actions");
+const lobbyInviteLink = document.getElementById("lobby-invite-link");
 const lobbyPlayerList = document.getElementById("lobby-player-list");
 const playerNameInput = document.getElementById("player-name");
 const lobbyAIControls = document.getElementById("lobby-ai-controls");
@@ -292,7 +295,7 @@ function createRealtimeLobbySocket(initialAction) {
     if (message.type === "start") {
       const everyoneReady = roomPlayers.every(function (item) { return item.host || item.ready; });
       if (!player.host) return sendError("Only the host can start the game.", senderId);
-      if (roomAdminBattle && roomPlayers.length < 2) return sendError("Admin Battle requires a second human player.", senderId);
+      if (roomAdminBattle && roomPlayers.length < 2) return sendError("Admin Battle requires at least one other human player.", senderId);
       if (roomAdminBattle && (!roomAdminIds.some(function (adminId) { return roomPlayers.some(function (member) { return member.id === adminId; }); }) ||
         !roomPlayers.some(function (member) { return !roomAdminIds.includes(member.id); }))) {
         return sendError("Admin Battle needs at least one admin and one player without admin access.", senderId);
@@ -525,6 +528,11 @@ function sendLobbyAction(action) {
     return;
   }
 
+  if (window.location.hostname.endsWith(".github.io")) {
+    startRealtimeLobbyFallback(action);
+    return;
+  }
+
   let socket;
   try {
     socket = new WebSocket(getLobbySocketUrl());
@@ -584,7 +592,7 @@ function renderLobbyPlayers() {
     lobbyPlayerList.append(item);
   }
 
-  const otherPlayer = lobbyPlayers.find(function (player) { return !player.host; });
+  const otherPlayers = lobbyPlayers.filter(function (player) { return !player.host; });
   lobbyReadyButton.hidden = lobbyHost;
   lobbyStartButton.hidden = !lobbyHost;
   lobbyAIControls.hidden = !lobbyHost || lobbyStarted;
@@ -596,7 +604,7 @@ function renderLobbyPlayers() {
   const hasAdminBattleAdmin = lobbyAdminIds.some(function (adminId) {
     return lobbyPlayers.some(function (player) { return !player.ai && player.id === adminId; });
   });
-  lobbyStartButton.disabled = !otherPlayer || !otherPlayer.ready || lobbyStarted ||
+  lobbyStartButton.disabled = !otherPlayers.length || !otherPlayers.every(function (player) { return player.ready; }) || lobbyStarted ||
     (adminBattleModeInput.checked && (!hasAdminBattleAdmin || !hasAdminBattleSurvivor));
   adminBattleModeInput.disabled = lobbyActive || !lobbyHost;
 }
@@ -606,13 +614,18 @@ function showLobbyRoom(message) {
   lobbyRoom.hidden = false;
   multiplayerChat.hidden = false;
   lobbyCodeOutput.textContent = lobbyCode;
+  const inviteUrl = new URL(window.location.href);
+  inviteUrl.searchParams.set("lobby", lobbyCode);
+  lobbyInviteLink.href = inviteUrl.toString();
+  lobbyInviteLink.textContent = inviteUrl.toString();
+  lobbyInviteActions.hidden = false;
   lobbyPlayers = message.players || [];
   lobbyAdminIds = Array.isArray(message.adminIds) ? message.adminIds : lobbyPlayers.filter(function (player) { return player.admin; }).map(function (player) { return player.id; });
   const localPlayer = lobbyPlayers.find(function (player) { return player.id === lobbyPlayerId; });
   lobbyReady = Boolean(localPlayer && localPlayer.ready);
   renderLobbyPlayers();
   if (lobbyHost && lobbyPlayers.length === 1) {
-    setLobbyStatus("Lobby created. Share the code with a friend.");
+    setLobbyStatus("Lobby created. Share the invite link with your players.");
   } else if (!lobbyHost && !lobbyReady) {
     setLobbyStatus("You joined. Mark yourself ready when you are set.");
   } else {
@@ -633,6 +646,9 @@ function resetLobby(message) {
   adminBattleModeInput.disabled = false;
   lobbyRoom.hidden = true;
   lobbyCodeOutput.textContent = "";
+  lobbyInviteLink.removeAttribute("href");
+  lobbyInviteLink.textContent = "";
+  lobbyInviteActions.hidden = true;
   lobbyPlayerList.replaceChildren();
   multiplayerChat.hidden = true;
   chatMessages.replaceChildren();
@@ -825,6 +841,28 @@ lobbyCopyButton.addEventListener("click", async function () {
     setLobbyStatus("Share this lobby code: " + lobbyCode);
   }
 });
+
+lobbyCopyInviteButton.addEventListener("click", async function () {
+  if (!lobbyCode) return;
+  const inviteUrl = new URL(window.location.href);
+  inviteUrl.searchParams.set("lobby", lobbyCode);
+  try {
+    await navigator.clipboard.writeText(inviteUrl.toString());
+    setLobbyStatus("Invite link copied. Players who open it will join automatically.");
+  } catch (error) {
+    setLobbyStatus("Share this invite link: " + inviteUrl.toString());
+  }
+});
+
+window.addEventListener("load", function () {
+  const inviteUrl = new URL(window.location.href);
+  const inviteCode = inviteUrl.searchParams.get("lobby");
+  if (!inviteCode) return;
+  inviteUrl.searchParams.delete("lobby");
+  window.history.replaceState(window.history.state, "", inviteUrl.toString());
+  lobbyCodeInput.value = inviteCode;
+  lobbyJoinButton.click();
+}, { once: true });
 
 window.updateLobbyPaddle = function (x, angle, width, left, right) {
   if (!lobbyActive || !lobbyStarted || !lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) return;
