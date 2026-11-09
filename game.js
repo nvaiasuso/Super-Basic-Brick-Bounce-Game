@@ -8,6 +8,21 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const secretModeImages = ["frame0.jpg", "images (2).jpeg"].map(function (source) {
+  const image = new Image();
+  image.src = source;
+  return image;
+});
+let secretImageMode = false;
+let secretImageSequenceIndex = 0;
+
+function drawSecretImage(x, y, width, height, imageIndex = 0) {
+  const image = secretModeImages[Math.floor(Math.abs(imageIndex)) % secretModeImages.length];
+  if (!image.complete || !image.naturalWidth) return false;
+  ctx.drawImage(image, x, y, width, height);
+  return true;
+}
+
 if (document.documentElement.classList.contains("textless")) {
   ctx.fillText = function () {};
 }
@@ -2984,6 +2999,30 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 
+  const target = event.target;
+  const typing = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+  if (typing) secretImageSequenceIndex = 0;
+  if (!typing) {
+    if (event.shiftKey && key === "y") {
+      secretImageSequenceIndex = 1;
+      event.preventDefault();
+      return;
+    }
+    if (secretImageSequenceIndex > 0) {
+      if (!event.shiftKey && key === String(secretImageSequenceIndex)) {
+        secretImageSequenceIndex++;
+        event.preventDefault();
+        if (secretImageSequenceIndex === 5) {
+          secretImageMode = !secretImageMode;
+          secretImageSequenceIndex = 0;
+          levelNotice = { text: secretImageMode ? "IMAGE MODE ON" : "IMAGE MODE OFF", timer: 120 };
+        }
+        return;
+      }
+      secretImageSequenceIndex = 0;
+    }
+  }
+
   if (key === "escape") {
     event.preventDefault();
     if (rebindingControl) {
@@ -4011,6 +4050,10 @@ function drawPowerUps() {
     ctx.save();
     ctx.translate(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
     ctx.rotate(Math.PI / 4);
+    if (secretImageMode && drawSecretImage(-powerUp.width / 2, -powerUp.height / 2, powerUp.width, powerUp.height, powerUp.x)) {
+      ctx.restore();
+      continue;
+    }
     ctx.fillStyle = powerUp.color;
     ctx.shadowColor = powerUp.color;
     ctx.shadowBlur = 10;
@@ -4144,8 +4187,10 @@ function bounceOffMultiplayerPaddles(activeBall) {
 // ------------------------------------------------------------
 function draw() {
   const skin = getCurrentSkin();
-  ctx.fillStyle = skin.background;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  if (!secretImageMode || !drawSecretImage(0, 0, WIDTH, HEIGHT)) {
+    ctx.fillStyle = skin.background;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
   ctx.save();
   if (screenShakeFrames > 0) {
     ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
@@ -4229,7 +4274,9 @@ function draw() {
   const squash = 1 + squashEase * 0.15;
   ctx.scale(squash, 1 - squashEase * 0.2);
   ctx.fillStyle = paddle.color || skin.paddle;
-  ctx.fillRect(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height);
+  if (!secretImageMode || !drawSecretImage(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height, 1)) {
+    ctx.fillRect(-paddle.width / 2, -paddle.height / 2, paddle.width, paddle.height);
+  }
   ctx.restore();
   if (shieldTimer > 0) {
     ctx.save();
@@ -4252,7 +4299,9 @@ function draw() {
       ctx.translate(player.x + playerWidth / 2, playerY + paddle.height / 2);
       ctx.rotate((player.angle || 0) * Math.PI / 180);
       ctx.fillStyle = player.color || skin.accent;
-      ctx.fillRect(-playerWidth / 2, -paddle.height / 2, playerWidth, paddle.height);
+      if (!secretImageMode || !drawSecretImage(-playerWidth / 2, -paddle.height / 2, playerWidth, paddle.height, player.x)) {
+        ctx.fillRect(-playerWidth / 2, -paddle.height / 2, playerWidth, paddle.height);
+      }
       ctx.restore();
       ctx.fillStyle = "white";
       ctx.textAlign = "center";
@@ -4263,7 +4312,9 @@ function draw() {
   if (adminVisibility.enemies) {
     for (const bot of aiPaddles) {
       ctx.fillStyle = bot.color || skin.accent;
-      ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
+      if (!secretImageMode || !drawSecretImage(bot.x, bot.y, bot.width, bot.height, bot.x)) {
+        ctx.fillRect(bot.x, bot.y, bot.width, bot.height);
+      }
       if (bot.lobbyName) {
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
@@ -4289,7 +4340,9 @@ function draw() {
       ctx.fillStyle = ballColor;
       ctx.shadowColor = ballColor;
       ctx.shadowBlur = activeBall === ball ? 7 : 13;
-      ctx.fillRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
+      if (!secretImageMode || !drawSecretImage(activeBall.x, activeBall.y, activeBall.width, activeBall.height, activeBall.x)) {
+        ctx.fillRect(activeBall.x, activeBall.y, activeBall.width, activeBall.height);
+      }
     }
   }
   if (aimLaserEnabled && (ball.stuck || Math.hypot(ball.vx, ball.vy) > 0)) {

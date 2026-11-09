@@ -523,6 +523,9 @@ function drawBricks() {
   for (const brick of bricks) {
     if (brick.hidden) continue;
     if (brick.isKill ? !adminVisibility.enemies : !adminVisibility.blocks) continue;
+    if (secretImageMode) {
+      if (drawSecretImage(brick.x, brick.y, brick.width, brick.height, Math.floor(brick.x / brick.width) + Math.floor(brick.y / brick.height))) continue;
+    }
     if (brick.type === "boss") {
       drawBoss(brick);
       continue;

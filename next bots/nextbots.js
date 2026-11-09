@@ -626,18 +626,22 @@ function drawNextBots() {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(bot.angle);
-    ctx.fillStyle = bot.frozenTimer > 0 ? "#8be9ff" : bot.color;
-    ctx.shadowColor = bot.frozenTimer > 0 ? "#8be9ff" : "transparent";
-    ctx.shadowBlur = bot.frozenTimer > 0 ? 14 : 0;
-    ctx.fillRect(-11, -14, 22, 28);
-    ctx.fillStyle = "#080808";
-    ctx.fillRect(-7, -7, 4, 4);
-    ctx.fillRect(3, -7, 4, 4);
-    ctx.fillStyle = bot.accent;
-    ctx.fillRect(-7, 4, 14, 3);
-    ctx.fillStyle = "#242424";
-    ctx.fillRect(7, -2, 13, 4);
-    ctx.restore();
+    if (secretImageMode && drawSecretImage(-18, -22, 36, 44, Math.floor(centerX + centerY))) {
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bot.frozenTimer > 0 ? "#8be9ff" : bot.color;
+      ctx.shadowColor = bot.frozenTimer > 0 ? "#8be9ff" : "transparent";
+      ctx.shadowBlur = bot.frozenTimer > 0 ? 14 : 0;
+      ctx.fillRect(-11, -14, 22, 28);
+      ctx.fillStyle = "#080808";
+      ctx.fillRect(-7, -7, 4, 4);
+      ctx.fillRect(3, -7, 4, 4);
+      ctx.fillStyle = bot.accent;
+      ctx.fillRect(-7, 4, 14, 3);
+      ctx.fillStyle = "#242424";
+      ctx.fillRect(7, -2, 13, 4);
+      ctx.restore();
+    }
 
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
