@@ -8,7 +8,19 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const secretModeImages = ["frame0.jpg", "images (2).jpeg"].map(function (source) {
+const secretModeImages = [
+  "frame0.jpg",
+  "images (2).jpeg",
+  "IMG_20261109_113728.jpg",
+  "IMG_20261109_113726.jpg",
+  "IMG_20261109_113725.jpg",
+  "IMG_20261109_113721.jpg",
+  "IMG_20261109_113719.jpg",
+  "IMG_20261109_113716.jpg",
+  "IMG_20261109_113714.jpg",
+  "IMG_20261109_113712.jpg",
+  "IMG_20261109_113710.jpg"
+].map(function (source) {
   const image = new Image();
   image.src = source;
   return image;
