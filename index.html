@@ -65,7 +65,7 @@
             </label>
             <button type="button" id="lobby-join">Join Lobby</button>
           </div>
-          <p class="lobby-offline-note">Online lobbies need an internet connection. The host's Start mode sets the match. Local Multiplayer works offline on this device.</p>
+          <p class="lobby-offline-note">Online lobbies need an internet connection. The host chooses the lobby mode; arcade modes can also be selected before starting. Local Multiplayer works offline on this device.</p>
           <p id="lobby-status" role="status" aria-live="polite">Create a lobby or enter a friend's code.</p>
           <section id="lobby-room" class="lobby-room" aria-label="Lobby room" hidden>
             <div class="lobby-room-heading">
@@ -77,6 +77,16 @@
               <a id="lobby-invite-link"></a>
               <button type="button" id="lobby-copy-invite">Copy invite link</button>
             </div>
+            <label class="lobby-match-mode">Match mode
+              <select id="lobby-mode-select" aria-label="Choose multiplayer match mode">
+                <option value="coop">Co-op</option>
+                <option value="survival">Co-op Survival</option>
+                <option value="boss-rush">Co-op Boss Rush</option>
+                <option value="versus">Versus (1v1 score race)</option>
+                <option value="free-for-all">Free-for-all score race</option>
+              </select>
+            </label>
+            <p id="lobby-mode-description" class="mode-description" aria-live="polite"></p>
             <ul id="lobby-player-list" aria-label="Players in lobby"></ul>
             <div id="lobby-ai-controls" class="ai-invite-controls" hidden>
               <label>AI player name
@@ -261,7 +271,7 @@
       <button type="button" id="website-fps-toggle" aria-pressed="false">Website FPS: Off</button>
       <button type="button" id="fullscreen-toggle" data-hotkey-action="toggle-fullscreen">Fullscreen</button>
       <button type="button" id="resume">Resume</button>
-      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens the admin menu.</small>
+      <small>Click a key button, then press a key. Escape cancels key capture; press Escape again to resume. Shift+F toggles fullscreen. Shift+Q toggles auto-play. Shift+Y opens Admin Tools; press 1, 2, 3, 4 immediately after it to toggle secret photo mode.</small>
     </section>
     <section id="admin-menu" class="controls" aria-label="Admin tools" hidden>
       <h2 id="admin-titlebar">Admin Tools <button type="button" id="admin-close">Close</button></h2>
@@ -401,6 +411,7 @@
           <button type="button" id="boss-minions-toggle" data-admin="boss-minions" aria-pressed="true">Boss minions: On</button>
           <button type="button" id="idle-meme-toggle" data-admin="idle-meme" aria-pressed="true">Idle meme: On</button>
           <button type="button" data-admin="show-meme">Show meme now</button>
+          <button type="button" id="secret-image-toggle" aria-pressed="false">Secret photo mode: Off</button>
           <button type="button" data-admin="hide-balls" aria-pressed="true">Ball visibility: On</button>
           <button type="button" id="auto-advance-toggle" data-admin="auto-advance" aria-pressed="true">Auto-advance: On</button>
           <button type="button" id="fps-toggle" data-admin="fps" aria-pressed="false">Game FPS: Off</button>

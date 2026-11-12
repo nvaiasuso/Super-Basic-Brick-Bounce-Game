@@ -22,11 +22,13 @@ const secretModeImages = [
   "IMG_20261109_113710.jpg"
 ].map(function (source) {
   const image = new Image();
-  image.src = source;
+  image.src = new URL(source, document.baseURI).href;
   return image;
 });
 let secretImageMode = false;
 let secretImageSequenceIndex = 0;
+let secretImageTextIndex = 0;
+let nextSecretSpeechAt = 0;
 
 function drawSecretImage(x, y, width, height, imageIndex = 0) {
   const image = secretModeImages[Math.floor(Math.abs(imageIndex)) % secretModeImages.length];
@@ -35,8 +37,103 @@ function drawSecretImage(x, y, width, height, imageIndex = 0) {
   return true;
 }
 
-if (document.documentElement.classList.contains("textless")) {
+const textlessMode = document.documentElement.classList.contains("textless");
+if (textlessMode) {
   ctx.fillText = function () {};
+}
+
+const nativeCanvasFillText = ctx.fillText.bind(ctx);
+const nativeCanvasStrokeText = ctx.strokeText.bind(ctx);
+const secretTextCanvas = document.createElement("canvas");
+const secretTextContext = secretTextCanvas.getContext("2d");
+ctx.fillText = function (text, x, y, maxWidth) {
+  if (!secretImageMode || textlessMode || !secretTextContext) {
+    return Number.isFinite(maxWidth)
+      ? nativeCanvasFillText(text, x, y, maxWidth)
+      : nativeCanvasFillText(text, x, y);
+  }
+
+  const image = secretModeImages[secretImageTextIndex++ % secretModeImages.length];
+  if (!image.complete || !image.naturalWidth) {
+    return Number.isFinite(maxWidth)
+      ? nativeCanvasFillText(text, x, y, maxWidth)
+      : nativeCanvasFillText(text, x, y);
+  }
+
+  const value = String(text);
+  const metrics = ctx.measureText(value);
+  const fontSize = Number((ctx.font.match(/(\d+(?:\.\d+)?)px/) || [])[1]) || 14;
+  const ascent = Math.ceil(metrics.actualBoundingBoxAscent || fontSize * 0.8);
+  const descent = Math.ceil(metrics.actualBoundingBoxDescent || fontSize * 0.25);
+  const padding = Math.ceil(Math.max(2, fontSize * 0.16));
+  const textWidth = Number.isFinite(maxWidth) ? Math.min(metrics.width, maxWidth) : metrics.width;
+  const textHeight = ascent + descent + padding * 2;
+  secretTextCanvas.width = Math.max(1, Math.ceil(textWidth + padding * 2));
+  secretTextCanvas.height = Math.max(1, textHeight);
+  secretTextContext.clearRect(0, 0, secretTextCanvas.width, secretTextCanvas.height);
+  secretTextContext.font = ctx.font;
+  secretTextContext.textAlign = "left";
+  secretTextContext.textBaseline = "alphabetic";
+  secretTextContext.direction = ctx.direction;
+  secretTextContext.fillStyle = "white";
+  if (Number.isFinite(maxWidth)) {
+    secretTextContext.fillText(value, padding, padding + ascent, maxWidth);
+  } else {
+    secretTextContext.fillText(value, padding, padding + ascent);
+  }
+  secretTextContext.globalCompositeOperation = "source-in";
+  secretTextContext.drawImage(image, 0, 0, secretTextCanvas.width, secretTextCanvas.height);
+  secretTextContext.globalCompositeOperation = "source-over";
+
+  let left = x - padding;
+  if (ctx.textAlign === "center") {
+    left = x - secretTextCanvas.width / 2;
+  } else if (ctx.textAlign === "right" || ctx.textAlign === "end") {
+    left = x - secretTextCanvas.width + padding;
+  }
+  let baselineOffset = 0;
+  if (ctx.textBaseline === "top") baselineOffset = ascent;
+  else if (ctx.textBaseline === "hanging") baselineOffset = ascent * 0.8;
+  else if (ctx.textBaseline === "middle") baselineOffset = (ascent - descent) / 2;
+  else if (ctx.textBaseline === "bottom" || ctx.textBaseline === "ideographic") baselineOffset = -descent;
+  ctx.drawImage(secretTextCanvas, left, y - baselineOffset - padding);
+
+  ctx.save();
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = Math.max(2, fontSize * 0.14);
+  ctx.lineJoin = "round";
+  if (Number.isFinite(maxWidth)) {
+    nativeCanvasStrokeText(text, x, y, maxWidth);
+  } else {
+    nativeCanvasStrokeText(text, x, y);
+  }
+  ctx.restore();
+};
+
+function updateSecretModeSpeech(now) {
+  if (!secretImageMode || now < nextSecretSpeechAt) return;
+  nextSecretSpeechAt = now + 8000;
+  const speech = window.speechSynthesis;
+  if (!speech || typeof window.SpeechSynthesisUtterance !== "function" || speech.speaking) return;
+  const utterance = new window.SpeechSynthesisUtterance("Fay");
+  utterance.pitch = 1.8;
+  utterance.rate = 1.35;
+  utterance.volume = 0.8;
+  speech.speak(utterance);
+}
+
+function setSecretImageMode(enabled) {
+  secretImageMode = Boolean(enabled);
+  secretImageTextIndex = 0;
+  nextSecretSpeechAt = performance.now() + 800;
+  const button = document.getElementById("secret-image-toggle");
+  if (button) {
+    button.setAttribute("aria-pressed", String(secretImageMode));
+    button.textContent = "Secret photo mode: " + (secretImageMode ? "On" : "Off");
+  }
+  if (!secretImageMode && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 const WIDTH = canvas.width;
