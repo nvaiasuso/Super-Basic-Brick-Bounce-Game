@@ -4665,7 +4665,8 @@ function advanceLevel() {
     recordDailyChallengeScore();
     return;
   }
-  if (level + 1 >= LEVEL_COUNT && !getCurrentMode().endless) {
+  const competitiveRace = multiplayerActive && (multiplayerMode === "versus" || multiplayerMode === "free-for-all");
+  if (level + 1 >= LEVEL_COUNT && (!getCurrentMode().endless || competitiveRace)) {
     gameWon = true;
     return;
   }

@@ -22,7 +22,7 @@
 - Start the game with `npm start` and open the same running server in both players' browsers.
 - The host selects **Make a Lobby** and shares the invite link or six-character code. Opening the link joins the lobby automatically.
 - Any number of players can join before the game starts. Each guest marks themselves ready; the host can start once everyone is ready.
-- The host chooses a lobby mode: Co-op uses the selected arcade mode; Co-op Survival has five shared lives and larger enemy waves; Co-op Boss Rush has a boss on each stage and five shared lives; Versus is a two-player score race; Free-for-all supports three or more players. Competitive points go to the last player whose paddle hit the ball, and the highest score wins when the run ends.
+- The host chooses a lobby mode: Co-op uses the selected arcade mode; Co-op Survival has five shared lives and larger enemy waves; Co-op Boss Rush has a boss on each stage and five shared lives; Versus is a two-player score race; Free-for-all supports three or more players. Competitive points go to the last player whose paddle hit the ball, and the highest score wins when the run ends (competitive runs stop after level 100, even in Endless).
 - The host can add up to eight named AI players before starting; a standard lobby can start with AI players even when no second person joins.
 - In Admin Battle, the host runs the admin panel and at least one other human player is required to start.
 - Online lobbies require an internet connection. **Local Multiplayer (Offline)** runs a two-player test on one device without a network connection.
