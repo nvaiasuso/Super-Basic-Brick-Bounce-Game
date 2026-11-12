@@ -490,6 +490,7 @@ function resetBall() {
   ball.vy = 0;
   ball.stuck = true;
   ball.stuckPlayerId = survivor ? survivor.id : (multiplayerActive && multiplayerHost ? multiplayerPlayerId : null);
+  ball.lastPaddlePlayerId = null;
   ball.perfect = false;
   ballTrail = [];
 }
@@ -830,6 +831,7 @@ function spawnExtraBall(sourceBall) {
     width: sourceBall.width,
     height: sourceBall.height,
     color: EXTRA_BALL_COLOR,
+    lastPaddlePlayerId: sourceBall.lastPaddlePlayerId || null,
     vx: sourceVx * Math.cos(angle) - sourceVy * Math.sin(angle),
     vy: sourceVx * Math.sin(angle) + sourceVy * Math.cos(angle)
   };
@@ -3460,6 +3462,7 @@ function update() {
     moveBall(activeBall);
     bounceOffWalls(activeBall);   // collisions.js
     if (bounceOffPaddle(activeBall, paddle)) {
+      activeBall.lastPaddlePlayerId = multiplayerActive ? multiplayerPlayerId : null;
       paddleSquashFrames = 6;
       if (magnetTimer > 0 && !autoPlay && activeBall === ball && (!magnetPlayerId || magnetPlayerId === multiplayerPlayerId)) {
         ball.stuck = true;
@@ -3476,6 +3479,7 @@ function update() {
       }
     }
     const aiPaddleHit = bounceOffAiPaddles(activeBall);
+    if (typeof aiPaddleHit === "string") activeBall.lastPaddlePlayerId = aiPaddleHit;
     if (aiPaddleHit && magnetTimer > 0 && activeBall === ball && aiPaddleHit === magnetPlayerId) {
       ball.stuck = true;
       ball.stuckPlayerId = aiPaddleHit;
@@ -3486,6 +3490,7 @@ function update() {
       // AI paddles bounce the ball too
     }
     const remotePaddleHit = multiplayerActive ? bounceOffMultiplayerPaddles(activeBall) : null;
+    if (remotePaddleHit) activeBall.lastPaddlePlayerId = remotePaddleHit;
     if (remotePaddleHit && magnetTimer > 0 && !autoPlay && activeBall === ball && remotePaddleHit === magnetPlayerId) {
       ball.stuck = true;
       ball.stuckPlayerId = remotePaddleHit;

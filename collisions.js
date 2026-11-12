@@ -210,7 +210,9 @@ function breakBrickAt(index, activeBall, triggerNeighbors = true) {
   brickHitStreak++;
   const scoreMultiplier = (activeBall.perfect ? 2 : 1) * (randomEverythingEnabled ? randomRunScoreMultiplier : 1);
   activeBall.perfect = false;
-  mola += 10 * brickHitStreak * scoreMultiplier;
+  const brickScore = 10 * brickHitStreak * scoreMultiplier;
+  mola += brickScore;
+  recordMultiplayerScore(activeBall.lastPaddlePlayerId, brickScore);
   recordHighScore();
   playBrickSound();
   if (brickHitStreak > 1) {
