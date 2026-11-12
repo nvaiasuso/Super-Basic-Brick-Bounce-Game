@@ -854,6 +854,7 @@ function launchStuckBall(targetPaddle = getPaddleForPlayer(ball.stuckPlayerId), 
   ball.vx = launch.vx * speed / launchSpeed;
   ball.vy = launch.vy * speed / launchSpeed;
   ball.stuck = false;
+  ball.lastPaddlePlayerId = playerId || ball.stuckPlayerId || multiplayerPlayerId;
   ball.stuckPlayerId = null;
 }
 
@@ -910,6 +911,8 @@ let localTestCpu = [false, false];
 let localTestPreviousAutoPlay = false;
 let adminBattleMode = false;
 let adminBattleAdmin = false;
+let multiplayerMode = "coop";
+let multiplayerScores = {};
 let multiplayerAdminIds = [];
 let multiplayerPlayerId = null;
 let multiplayerPlayers = [];
@@ -1352,6 +1355,7 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
   adminMenu.classList.toggle("admin-battle-dock", adminBattleAdmin && isHost);
   document.body.classList.toggle("admin-battle-host", adminBattleAdmin && isHost);
   multiplayerPlayers = [];
+  multiplayerScores = {};
   lobbySnapshotBuffer = [];
   lobbySnapshotSequence = 0;
   lobbyInterpolationSnaps = 0;
@@ -1360,6 +1364,7 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
     paddle.y = HEIGHT - 30;
     paddle.width = basePaddleWidth;
     paddle.angle = 0;
+    multiplayerMode = "coop";
     multiplayerAdminIds = [];
   }
 }
@@ -1367,6 +1372,11 @@ function setMultiplayerSession(active, isHost = false, playerId = null, isAdminB
 function setMultiplayerPlayers(players) {
   multiplayerPlayers = Array.isArray(players) ? players : [];
   if (!multiplayerActive) return;
+  if (multiplayerHost && (multiplayerMode === "versus" || multiplayerMode === "free-for-all")) {
+    for (const player of multiplayerPlayers) {
+      if (typeof multiplayerScores[player.id] !== "number") multiplayerScores[player.id] = 0;
+    }
+  }
   if (multiplayerHost) {
     if (adminBattleMode) {
       for (const player of multiplayerPlayers) {
@@ -1427,10 +1437,24 @@ function addLobbyAIPlayers(players) {
   });
 }
 
-function beginLobbyGame(isHost, playerId, isAdminBattle = false, adminIds = []) {
+function recordMultiplayerScore(playerId, points) {
+  if (!multiplayerActive || !multiplayerHost ||
+      (multiplayerMode !== "versus" && multiplayerMode !== "free-for-all") ||
+      typeof playerId !== "string" || !Number.isFinite(points) || points <= 0) return;
+  multiplayerScores[playerId] = (multiplayerScores[playerId] || 0) + points;
+}
+
+function beginLobbyGame(isHost, playerId, isAdminBattle = false, adminIds = [], mode = "coop") {
   multiplayerAdminIds = Array.isArray(adminIds) ? adminIds : [];
+  multiplayerMode = ["coop", "survival", "boss-rush", "versus", "free-for-all"].includes(mode) ? mode : "coop";
+  multiplayerScores = {};
   setMultiplayerSession(true, isHost, playerId, isAdminBattle);
-  if (isHost) applyMode(Number(startModeSelect ? startModeSelect.value : currentMode));
+  if (isHost) {
+    let selectedMode = Number(startModeSelect ? startModeSelect.value : currentMode);
+    if (multiplayerMode === "survival") selectedMode = GAME_MODES.findIndex(function (gameMode) { return gameMode.label === "Co-op Swarm"; });
+    if (multiplayerMode === "boss-rush") selectedMode = GAME_MODES.findIndex(function (gameMode) { return gameMode.label === "Co-op Boss Run"; });
+    applyMode(selectedMode);
+  }
   beginGame(false);
 }
 
@@ -1459,6 +1483,8 @@ function getLobbyGameSnapshot() {
     gameOver: gameOver,
     gameWon: gameWon,
     mola: mola,
+    multiplayerMode: multiplayerMode,
+    multiplayerScores: Object.assign({}, multiplayerScores),
     brickHitStreak: brickHitStreak,
     ball: Object.assign({}, ball),
     extraBalls: extraBalls.map(function (activeBall) { return Object.assign({}, activeBall); }),
@@ -1605,6 +1631,9 @@ function applyInterpolatedLobbySnapshot(now = performance.now()) {
   gameOver = Boolean(latestState.gameOver);
   gameWon = Boolean(latestState.gameWon);
   mola = latestState.mola || 0;
+  if (latestState.multiplayerScores && typeof latestState.multiplayerScores === "object") {
+    multiplayerScores = Object.assign({}, latestState.multiplayerScores);
+  }
   brickHitStreak = latestState.brickHitStreak || 0;
   if (latestState.ball) {
     Object.assign(ball, latestState.ball);
@@ -1710,6 +1739,14 @@ function toggleAdminMenu() {
   const button = document.getElementById("admin-battle-toggle");
   if (button && multiplayerAdminIds.includes(multiplayerPlayerId)) button.setAttribute("aria-pressed", String(!adminMenu.hidden));
 }
+
+function toggleSecretImageMode() {
+  if (multiplayerActive && !multiplayerAdminIds.includes(multiplayerPlayerId)) return;
+  setSecretImageMode(!secretImageMode);
+  levelNotice = { text: secretImageMode ? "SECRET PHOTO MODE ON" : "SECRET PHOTO MODE OFF", timer: 120 };
+}
+
+document.getElementById("secret-image-toggle").addEventListener("click", toggleSecretImageMode);
 
 document.getElementById("admin-close").addEventListener("click", function () {
   adminMenu.hidden = true;
@@ -3113,6 +3150,7 @@ document.addEventListener("keydown", function (event) {
   if (typing) secretImageSequenceIndex = 0;
   if (!typing) {
     if (event.shiftKey && key === "y") {
+      if (!event.repeat) toggleAdminMenu();
       secretImageSequenceIndex = 1;
       event.preventDefault();
       return;
@@ -3122,9 +3160,9 @@ document.addEventListener("keydown", function (event) {
         secretImageSequenceIndex++;
         event.preventDefault();
         if (secretImageSequenceIndex === 5) {
-          secretImageMode = !secretImageMode;
+          setSecretImageMode(!secretImageMode);
           secretImageSequenceIndex = 0;
-          levelNotice = { text: secretImageMode ? "IMAGE MODE ON" : "IMAGE MODE OFF", timer: 120 };
+          levelNotice = { text: secretImageMode ? "SECRET PHOTO MODE ON" : "SECRET PHOTO MODE OFF", timer: 120 };
         }
         return;
       }
@@ -4861,6 +4899,7 @@ function ensureBackgroundTicker() {
 document.addEventListener("visibilitychange", ensureBackgroundTicker);
 
 function frame(now) {
+  updateSecretModeSpeech(now);
   websiteFpsFrameCount++;
   if (websiteFpsSampleStart === 0) websiteFpsSampleStart = now;
   const websiteElapsed = now - websiteFpsSampleStart;
