@@ -14,6 +14,7 @@ const clients = new Map();
 const roomCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const playerColors = ["#d6ff55", "#55d9ff", "#ff78bd", "#ffad55", "#8b9bff", "#7ef29a"];
 const musicExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm"]);
+const multiplayerModes = new Set(["coop", "survival", "boss-rush", "versus", "free-for-all"]);
 
 async function findMusicFiles(directory, files) {
   const entries = await fs.promises.readdir(directory, { withFileTypes: true });
@@ -138,6 +139,7 @@ function broadcastRoomState(room) {
     code: room.code,
     started: room.started,
     adminBattle: room.adminBattle,
+    mode: room.mode,
     adminIds: room.adminIds,
     players: playersIn(room)
   });
@@ -194,7 +196,7 @@ function createLobby(socket, message) {
   if (player.roomCode) return sendError(socket, "Leave your current lobby first.");
 
   const code = createRoomCode();
-  const room = { code: code, hostId: player.id, players: new Map(), bots: [], adminIds: [player.id], started: false, adminBattle: Boolean(message.adminBattle) };
+  const room = { code: code, hostId: player.id, players: new Map(), bots: [], adminIds: [player.id], started: false, adminBattle: Boolean(message.adminBattle), mode: "coop" };
   player.roomCode = code;
   player.name = cleanName(message.name);
   player.color = playerColors[0];
@@ -259,6 +261,14 @@ function handleMessage(socket, message) {
   if (message.type === "ready") {
     if (player.host) return sendError(socket, "The host starts the game when everyone is ready.");
     player.ready = Boolean(message.ready);
+    return broadcastRoomState(room);
+  }
+
+  if (message.type === "set-mode") {
+    if (!player.host) return sendError(socket, "Only the host can choose the match mode.");
+    if (room.started) return sendError(socket, "The match mode cannot be changed after the game starts.");
+    if (!multiplayerModes.has(message.mode)) return sendError(socket, "Choose a valid multiplayer mode.");
+    room.mode = message.mode;
     return broadcastRoomState(room);
   }
 
@@ -345,10 +355,13 @@ function handleMessage(socket, message) {
         return sendError(socket, "Admin Battle needs at least one admin and one player without admin access.");
     }
     if (room.players.size + room.bots.length < 2) return sendError(socket, "Invite another player or add an AI player before starting.");
+    const participantCount = room.players.size + room.bots.length;
+    if (room.mode === "versus" && participantCount !== 2) return sendError(socket, "Versus requires exactly two participants.");
+    if (room.mode === "free-for-all" && participantCount < 3) return sendError(socket, "Free-for-all requires at least three participants.");
     if (!everyoneReady) return sendError(socket, "Wait for every player to be ready.");
     room.started = true;
     for (const member of room.players.values()) {
-      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room), adminBattle: room.adminBattle, adminIds: room.adminIds });
+      send(member.socket, { type: "started", playerId: member.id, host: member.host, players: playersIn(room), adminBattle: room.adminBattle, adminIds: room.adminIds, mode: room.mode });
     }
     return;
   }

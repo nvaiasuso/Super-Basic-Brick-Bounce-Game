@@ -24,6 +24,15 @@ const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatStatus = document.getElementById("chat-status");
 const adminBattleModeInput = document.getElementById("admin-battle-mode");
+const lobbyModeSelect = document.getElementById("lobby-mode-select");
+const lobbyModeDescription = document.getElementById("lobby-mode-description");
+const LOBBY_MODE_DESCRIPTIONS = {
+  coop: "Team up. The host's arcade mode sets the challenge.",
+  survival: "Five shared team lives and larger enemy waves.",
+  "boss-rush": "A boss every stage and five shared team lives.",
+  versus: "Exactly two players race for points; highest score when the run ends wins.",
+  "free-for-all": "Three or more players race individually for points until the run ends."
+};
 
 let lobbySocket = null;
 let lobbyActionInFlight = false;
@@ -35,6 +44,7 @@ let lobbyStarted = false;
 let lobbyPlayers = [];
 let lobbyAdminIds = [];
 let lobbyReady = false;
+let lobbyMode = "coop";
 let lastPaddleSentAt = 0;
 let lastSnapshotReceivedAt = 0;
 let hostWindowHidden = false;
@@ -93,6 +103,7 @@ function createRealtimeLobbySocket(initialAction) {
   const roomBots = [];
   let roomStarted = false;
   let roomAdminBattle = Boolean(initialAction.adminBattle);
+  let roomMode = "coop";
   let roomAdminIds = [];
   let hostPlayerId = isHost ? playerId : null;
   let channel;
@@ -201,6 +212,7 @@ function createRealtimeLobbySocket(initialAction) {
       code: lobbyCode,
       started: roomStarted,
       adminBattle: roomAdminBattle,
+      mode: roomMode,
       adminIds: roomAdminIds,
       players: roomPlayers.concat(roomBots)
     });
@@ -257,6 +269,17 @@ function createRealtimeLobbySocket(initialAction) {
       return;
     }
 
+    if (message.type === "set-mode") {
+      if (!player.host) return sendError("Only the host can choose the match mode.", senderId);
+      if (roomStarted) return sendError("The match mode cannot be changed after the game starts.", senderId);
+      if (!Object.prototype.hasOwnProperty.call(LOBBY_MODE_DESCRIPTIONS, message.mode)) {
+        return sendError("Choose a valid multiplayer mode.", senderId);
+      }
+      roomMode = message.mode;
+      broadcastRoomState();
+      return;
+    }
+
     if (message.type === "set-admins") {
       if (!player.host) return sendError("Only the host can assign admin access.", senderId);
       if (roomStarted) return sendError("Admin access cannot be changed after the game starts.", senderId);
@@ -301,10 +324,13 @@ function createRealtimeLobbySocket(initialAction) {
         return sendError("Admin Battle needs at least one admin and one player without admin access.", senderId);
       }
       if (roomPlayers.length + roomBots.length < 2) return sendError("Invite another player or add an AI player before starting.", senderId);
+      const participantCount = roomPlayers.length + roomBots.length;
+      if (roomMode === "versus" && participantCount !== 2) return sendError("Versus requires exactly two participants.", senderId);
+      if (roomMode === "free-for-all" && participantCount < 3) return sendError("Free-for-all requires at least three participants.", senderId);
       if (!everyoneReady) return sendError("Wait for every player to be ready.", senderId);
       roomStarted = true;
       for (const member of roomPlayers) {
-        sendServerMessage({ type: "started", playerId: member.id, host: member.host, players: roomPlayers.concat(roomBots), adminBattle: roomAdminBattle, adminIds: roomAdminIds }, member.id);
+        sendServerMessage({ type: "started", playerId: member.id, host: member.host, players: roomPlayers.concat(roomBots), adminBattle: roomAdminBattle, adminIds: roomAdminIds, mode: roomMode }, member.id);
       }
       return;
     }
@@ -598,13 +624,20 @@ function renderLobbyPlayers() {
   lobbyAIControls.hidden = !lobbyHost || lobbyStarted;
   lobbyReadyButton.textContent = lobbyReady ? "Not Ready" : "Ready";
   lobbyReadyButton.setAttribute("aria-pressed", String(lobbyReady));
+  lobbyModeSelect.value = lobbyMode;
+  lobbyModeSelect.disabled = !lobbyHost || lobbyStarted;
+  lobbyModeDescription.textContent = LOBBY_MODE_DESCRIPTIONS[lobbyMode] || LOBBY_MODE_DESCRIPTIONS.coop;
+  const participantCount = lobbyPlayers.length;
+  const modeHasValidCount = lobbyMode === "versus"
+    ? participantCount === 2
+    : lobbyMode !== "free-for-all" || participantCount >= 3;
   const hasAdminBattleSurvivor = lobbyPlayers.some(function (player) {
     return !player.ai && !lobbyAdminIds.includes(player.id);
   });
   const hasAdminBattleAdmin = lobbyAdminIds.some(function (adminId) {
     return lobbyPlayers.some(function (player) { return !player.ai && player.id === adminId; });
   });
-  lobbyStartButton.disabled = !otherPlayers.length || !otherPlayers.every(function (player) { return player.ready; }) || lobbyStarted ||
+  lobbyStartButton.disabled = !otherPlayers.length || !otherPlayers.every(function (player) { return player.ready; }) || lobbyStarted || !modeHasValidCount ||
     (adminBattleModeInput.checked && (!hasAdminBattleAdmin || !hasAdminBattleSurvivor));
   adminBattleModeInput.disabled = lobbyActive || !lobbyHost;
 }
@@ -620,6 +653,7 @@ function showLobbyRoom(message) {
   lobbyInviteLink.textContent = inviteUrl.toString();
   lobbyInviteActions.hidden = false;
   lobbyPlayers = message.players || [];
+  lobbyMode = Object.prototype.hasOwnProperty.call(LOBBY_MODE_DESCRIPTIONS, message.mode) ? message.mode : "coop";
   lobbyAdminIds = Array.isArray(message.adminIds) ? message.adminIds : lobbyPlayers.filter(function (player) { return player.admin; }).map(function (player) { return player.id; });
   const localPlayer = lobbyPlayers.find(function (player) { return player.id === lobbyPlayerId; });
   lobbyReady = Boolean(localPlayer && localPlayer.ready);
@@ -642,6 +676,9 @@ function resetLobby(message) {
   lobbyCode = "";
   lobbyPlayers = [];
   lobbyAdminIds = [];
+  lobbyMode = "coop";
+  lobbyModeSelect.value = lobbyMode;
+  lobbyModeDescription.textContent = LOBBY_MODE_DESCRIPTIONS[lobbyMode];
   lobbySetup.hidden = false;
   adminBattleModeInput.disabled = false;
   lobbyRoom.hidden = true;
@@ -664,16 +701,23 @@ function startLobbyGame(message) {
   lobbyHost = message.host;
   lobbyPlayerId = message.playerId;
   lobbyPlayers = message.players || [];
+  lobbyMode = Object.prototype.hasOwnProperty.call(LOBBY_MODE_DESCRIPTIONS, message.mode) ? message.mode : "coop";
   lobbyAdminIds = Array.isArray(message.adminIds) ? message.adminIds : lobbyPlayers.filter(function (player) { return player.admin; }).map(function (player) { return player.id; });
   lobbyRoom.hidden = true;
-  window.beginLobbyGame(lobbyHost, lobbyPlayerId, Boolean(message.adminBattle), lobbyAdminIds);
+  window.beginLobbyGame(lobbyHost, lobbyPlayerId, Boolean(message.adminBattle), lobbyAdminIds, lobbyMode);
   window.setMultiplayerPlayers(lobbyPlayers);
   hostWindowHidden = false;
   lastSnapshotReceivedAt = performance.now();
   const localIsAdmin = lobbyAdminIds.includes(lobbyPlayerId);
   setMultiplayerStatus(message.adminBattle
     ? (localIsAdmin ? "Admin Battle: use your admin panel; the other players must survive." : "Admin Battle: survive the admins' challenges.")
-    : (localIsAdmin ? "You have admin access in this game." : (lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream...")));
+    : lobbyMode === "versus" || lobbyMode === "free-for-all"
+      ? "Competitive score race: points belong to the last player whose paddle hit the ball."
+      : lobbyMode === "survival"
+        ? "Co-op Survival: share five lives through larger enemy waves."
+        : lobbyMode === "boss-rush"
+          ? "Co-op Boss Rush: defeat a boss on every stage."
+          : (localIsAdmin ? "You have admin access in this game." : (lobbyHost ? "Hosting live game" : "Connected; waiting for the game stream...")));
   if (lobbyHost) sendHostVisibility();
   if (lobbyHost) {
     window.addLobbyAIPlayers(lobbyPlayers.filter(function (player) { return player.ai; }));
@@ -692,6 +736,7 @@ function handleLobbyMessage(message) {
   }
   if (message.type === "room-state") {
     lobbyCode = message.code;
+    lobbyMode = Object.prototype.hasOwnProperty.call(LOBBY_MODE_DESCRIPTIONS, message.mode) ? message.mode : "coop";
     lobbyAdminIds = Array.isArray(message.adminIds) ? message.adminIds : [];
     showLobbyRoom(message);
     if (lobbyStarted) {
@@ -810,6 +855,17 @@ lobbyLeaveButton.addEventListener("click", function () {
   }
   resetLobby("You left the lobby.");
   if (wasStarted) window.endLobbyGame();
+});
+
+lobbyModeSelect.addEventListener("change", function () {
+  const mode = lobbyModeSelect.value;
+  if (!lobbyHost || !Object.prototype.hasOwnProperty.call(LOBBY_MODE_DESCRIPTIONS, mode)) return;
+  lobbyMode = mode;
+  lobbyModeDescription.textContent = LOBBY_MODE_DESCRIPTIONS[mode];
+  renderLobbyPlayers();
+  if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
+    lobbySocket.send(JSON.stringify({ type: "set-mode", mode: mode }));
+  }
 });
 
 chatForm.addEventListener("submit", function (event) {

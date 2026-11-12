@@ -1633,6 +1633,9 @@ function applyInterpolatedLobbySnapshot(now = performance.now()) {
   gameOver = Boolean(latestState.gameOver);
   gameWon = Boolean(latestState.gameWon);
   mola = latestState.mola || 0;
+  if (["coop", "survival", "boss-rush", "versus", "free-for-all"].includes(latestState.multiplayerMode)) {
+    multiplayerMode = latestState.multiplayerMode;
+  }
   if (latestState.multiplayerScores && typeof latestState.multiplayerScores === "object") {
     multiplayerScores = Object.assign({}, latestState.multiplayerScores);
   }
@@ -3914,6 +3917,7 @@ function applyPowerUp(powerUp, catcherId = multiplayerPlayerId) {
     dash(getPaddleForPlayer(catcherId));
   } else if (powerUp.type === "cache") {
     mola += 500;
+    recordMultiplayerScore(catcherId, 500);
     recordHighScore();
     powerUpNotice = { text: "+500 SCORE", timer: 100, color: powerUp.color };
   }
@@ -4413,6 +4417,19 @@ function draw() {
   ctx.fillStyle = "#ff8c69";
   ctx.textAlign = "left";
   ctx.fillText("NEXTBOTS " + nextBots.length + " | ATTACKING " + activeNextBotAttacks, 16, 84);
+  if (multiplayerActive && (multiplayerMode === "versus" || multiplayerMode === "free-for-all")) {
+    const standings = multiplayerPlayers.map(function (player) {
+      return { name: player.name || "Player", score: multiplayerScores[player.id] || 0 };
+    }).sort(function (first, second) {
+      return second.score - first.score;
+    });
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.font = "10px Courier New";
+    ctx.fillText("RACE " + standings.slice(0, 5).map(function (player) {
+      return player.name.slice(0, 10) + ":" + player.score;
+    }).join(" | "), WIDTH / 2, 104);
+  }
   if (!autoAdvanceLevel && !bricks.some(function (brick) { return !brick.isKill && !brick.hidden; })) {
     ctx.fillStyle = "#ffd166";
     ctx.textAlign = "center";
@@ -4576,16 +4593,31 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.font = "24px Courier New";
-    const resultTitle = gameWon
-      ? activeChallenge ? "CHALLENGE CLEARED!" : "ALL LEVELS CLEARED!"
-      : activeChallenge ? "CHALLENGE OVER" : "GAME OVER";
+    const competitiveMode = multiplayerMode === "versus" || multiplayerMode === "free-for-all";
+    const standings = competitiveMode ? multiplayerPlayers.map(function (player) {
+      return { name: player.name || "Player", score: multiplayerScores[player.id] || 0 };
+    }).sort(function (first, second) {
+      return second.score - first.score;
+    }) : [];
+    const winner = standings[0];
+    const tied = winner && standings.filter(function (player) { return player.score === winner.score; }).length > 1;
+    const resultTitle = competitiveMode
+      ? gameWon ? "RACE COMPLETE" : "RACE OVER"
+      : gameWon
+        ? activeChallenge ? "CHALLENGE CLEARED!" : "ALL LEVELS CLEARED!"
+        : activeChallenge ? "CHALLENGE OVER" : "GAME OVER";
     ctx.fillText(resultTitle, WIDTH / 2, HEIGHT / 2 - 25);
     ctx.font = "13px Courier New";
     const displayedBest = activeChallenge ? getDailyChallengeBest(activeChallenge) : highScore;
     ctx.fillText("SCORE " + mola + "   BEST " + displayedBest, WIDTH / 2, HEIGHT / 2 + 2);
     ctx.fillStyle = newBest ? "#fff176" : "#ffffff";
-    ctx.fillText(newBest ? "NEW BEST" : "Press R to play again", WIDTH / 2, HEIGHT / 2 + 25);
-    if (newBest) {
+    if (competitiveMode && winner) {
+      ctx.fillText(tied ? "TIE AT " + winner.score : "WINNER " + winner.name + " - " + winner.score, WIDTH / 2, HEIGHT / 2 + 23);
+      ctx.fillText("Press R to play again", WIDTH / 2, HEIGHT / 2 + 43);
+    } else {
+      ctx.fillText(newBest ? "NEW BEST" : "Press R to play again", WIDTH / 2, HEIGHT / 2 + 25);
+    }
+    if (newBest && !competitiveMode) {
       ctx.fillStyle = "#ffffff";
       ctx.font = "11px Courier New";
       ctx.fillText("Press R to play again", WIDTH / 2, HEIGHT / 2 + 43);
@@ -4774,6 +4806,7 @@ function restartGame() {
   level = activeChallenge ? activeChallenge.startLevel : 0;
   lives = randomEverythingEnabled ? randomInteger(2, 6) : (getCurrentMode().startingLives || startingLives);
   mola = 0;
+  multiplayerScores = {};
   newBest = false;
   aiPaddles = [];
   adminGunners = [];

@@ -9,6 +9,7 @@
 - Collect freeze pulses, seeker rockets, paddle dashes, and +500 score caches. The Career Board tracks local milestones for brick hits, pickups, bosses, and level clears.
 - Press Escape to pause and open the control-rebinding menu. Press Escape again or select Resume to continue.
 - Shift+S starts a game. Ctrl+Shift+R twice restarts the player and clears admin-spawned objects; Shift+R twice resets only the current level.
+- Shift+Y opens Admin Tools. Press 1, 2, 3, 4 immediately afterward to toggle secret photo mode; the Admin Tools panel also has a toggle. Secret mode uses every repository JPEG for game objects and photo-filled, black-outlined game text, and speaks “Fay” about every eight seconds while enabled.
 - Break every normal brick to advance through 100 levels, including rotating boss encounters and a final Wither Storm fight. Boss health is tuned for shorter fights. The final level has no nextbots; the Wither Storm grows and consumes the open Admin Tools panel near defeat, then turns its settings and spawn controls into attacks. Other levels feature moving sweeper hazards and denser laser and killbrick hazards; Endless mode continues with cycling layouts.
 - Admin Tools can jump directly to any level, spawn unlimited friendly gunners that patrol while shooting nextbots and breakable blocks, spawn individual items or a full set, toggle display layers and hitboxes, pause automatic level advancement, and show FPS. Right-click supported actions to repeat them with no fixed count limit. Large spawn counts can slow the browser; use the cleanup controls to remove spawned objects.
 - The Admin Tools menu's **Open URL from text file** button reads the first URL in `admin-url.txt` and opens it in a new tab. Replace the example URL in that file; only `http://` and `https://` links are accepted.
@@ -21,6 +22,7 @@
 - Start the game with `npm start` and open the same running server in both players' browsers.
 - The host selects **Make a Lobby** and shares the invite link or six-character code. Opening the link joins the lobby automatically.
 - Any number of players can join before the game starts. Each guest marks themselves ready; the host can start once everyone is ready.
+- The host chooses a lobby mode: Co-op uses the selected arcade mode; Co-op Survival has five shared lives and larger enemy waves; Co-op Boss Rush has a boss on each stage and five shared lives; Versus is a two-player score race; Free-for-all supports three or more players. Competitive points go to the last player whose paddle hit the ball, and the highest score wins when the run ends.
 - The host can add up to eight named AI players before starting; a standard lobby can start with AI players even when no second person joins.
 - In Admin Battle, the host runs the admin panel and at least one other human player is required to start.
 - Online lobbies require an internet connection. **Local Multiplayer (Offline)** runs a two-player test on one device without a network connection.

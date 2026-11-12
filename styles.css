@@ -486,6 +486,21 @@ p {
   text-align: left;
 }
 
+.lobby-match-mode {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+#lobby-mode-select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font: inherit;
+}
+
 .lobby-room[hidden] {
   display: none;
 }
